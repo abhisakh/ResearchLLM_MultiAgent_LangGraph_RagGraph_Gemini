@@ -1,0 +1,37 @@
+# --- Core LLM/LangChain Framework ---
+openai>=1.0.0            # OpenAI API integration
+langgraph                # State machine orchestration
+langchain-core           # Core LangChain abstractions
+langchain-community      # Tool/DB implementations (ChromaDB, DDG, etc.)
+langchain_openai         # OpenAI LLM and Embedding wrappers
+langgraph-checkpoint-sqlite
+
+# --- Vector Database & Retrieval ---
+faiss-cpu                # For vector storage and similarity search (alternative to Chroma)
+numpy                    # Required by faiss-cpu
+pypdf                    # For PDF parsing (used by RetrievalAgent)
+
+# --- Tool Agents (API & Web Search) ---
+arxiv                    # Arxiv Agent
+mp_api                   # Materials Project Agent
+pymatgen                 # For handling and processing material formulas (used by Materials/Planning Agents)
+ddgs                     # DuckDuckGo Search (Used by WebAgent)
+duckduckgo-search        # DuckDuckGo Search (Backup/alternative for WebAgent)
+Bio                      # Biopython (Potentially used by PubMed/Procedural Agents)
+
+# --- Backend & API ---
+fastapi                  # Web framework for the backend service (if using a separate API)
+uvicorn                  # ASGI server to run FastAPI application
+
+# --- Utilities & Structure ---
+pydantic                 # Data validation and structured output (used by EvaluationAgent)
+python-dotenv            # Environment variable management (API keys, etc.)
+requests                 # General HTTP requests
+
+# --- Visualization & Deployment ---
+streamlit                # User interface framework (for ui_main.py)
+graphviz                 # For visualizing the LangGraph workflow
+
+# --- Database (Optional - Based on SQLAlchemy/Databases) ---
+sqlalchemy               # ORM for persistent data (if needed)
+databases                # Async DB support (if needed for FastAPI)
