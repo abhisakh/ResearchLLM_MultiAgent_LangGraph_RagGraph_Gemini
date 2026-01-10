@@ -793,7 +793,9 @@ sequenceDiagram
 
 # 🗃️ Backend Architecture
 
-The **backend.py** module acts as the interface between the asynchronous web world and the deterministic state machine of the Research Agent. It manages the lifecycle of each research session, ensuring that state is initialized, executed, cleansed, and persisted.
+The backend is implemented as a FastAPI-based execution orchestrator (**backend.py**) that serves as the authoritative control plane for the entire research system. It acts as a strict boundary layer between the asynchronous web interface and the deterministic, state-driven LangGraph research engine.
+
+Unlike traditional chatbot backends, this module does not contain business or reasoning logic. Instead, it guarantees correct execution, concurrency isolation, state integrity, persistence, and observability for autonomous multi-agent workflows.
 
 ## 🧬 High-Level Component Flow
 
@@ -832,6 +834,26 @@ graph TD
     style SQL fill:#69f,stroke:#333
     style VDB fill:#6f9,stroke:#333
 ```
+
+## 🧬 High-Level Backend Responsibilities
+
++-------------------------+-----------------------------------------------------------------+
+| Responsibility          | Description                                                     |
++-------------------------+-----------------------------------------------------------------+
+| API Gateway             | Exposes stable HTTP endpoints for research execution, session   |
+|                         | recovery, and graph visualization                               |
++-------------------------+-----------------------------------------------------------------+
+| Execution Orchestration | Safely invokes LangGraph inside a controlled thread pool        |
++-------------------------+-----------------------------------------------------------------+
+| State Lifecycle Control | Initializes, sanitizes, and finalizes the ResearchState         |
++-------------------------+-----------------------------------------------------------------+
+| Persistence & Auditing  | Logs every user and agent turn to SQLite with metadata          |
++-------------------------+-----------------------------------------------------------------+
+| Safety Enforcement      | Prevents UTF-8 corruption, infinite recursion, and executor     |
+|                         | starvation                                                      |
++-------------------------+-----------------------------------------------------------------+
+| Telemetry & Debugging   | Tracks full agent traversal paths (visited_nodes)               |
++-------------------------+-----------------------------------------------------------------+
 
 ## 🗄️ Database Schema: chat_history.db
 
