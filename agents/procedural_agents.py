@@ -2,7 +2,7 @@ import re
 import json
 from typing import Any
 from core.research_state import ResearchState
-from core.utilities import C_ACTION, C_RESET, C_GREEN, C_YELLOW, C_RED
+from core.utilities import C_ACTION, C_RESET, C_GREEN, C_YELLOW, C_RED, client
 
 class CleanQueryAgent:
     """
@@ -41,7 +41,7 @@ class CleanQueryAgent:
         semantic_query = self.generate_semantic_query(cleaned_query)
 
         # Update the state
-        state["user_query"] = cleaned_query
+        state["user_query"] = user_query
         state["semantic_query"] = semantic_query
 
         print(f"{C_YELLOW}[{self.id.upper()} STATE] Updated semantic_query: **'{semantic_query[:50]}...'** {C_RESET}")
@@ -49,13 +49,50 @@ class CleanQueryAgent:
 
         return state
 
+
     def generate_semantic_query(self, query: str) -> str:
         """
-        Placeholder for semantic enrichment. In a full implementation,
-        this would call a 'CleanQuery' LLM chain.
+        Calls the LLM to transform a raw, messy user prompt into a
+        precise, scientifically-framed research query.
         """
-        # For now, we return the cleaned query to satisfy the Supervisor's routing logic
-        return query
+        if client is None:
+            return query  # Fallback to raw query if API is down
+
+        prompt = f"""
+        You are a Research Query Optimizer.
+        TASK: Transform the following raw user input into a formal, concise, and semantically rich research query.
+
+        GOALS:
+        - Remove conversational filler ("Tell me about", "I'm looking for").
+        - Use precise scientific terminology (e.g., instead of "cleaning water", use "wastewater remediation").
+        - Ensure material formulas are correctly formatted.
+
+        RAW INPUT: {query}
+
+        OUTPUT: Provide ONLY the optimized string. No preamble.
+        """
+
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini", # Use a smaller, faster model for cleaning
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.0,
+                max_tokens=100
+            )
+            optimized_query = response.choices[0].message.content.strip()
+            # If the LLM returns nothing, fallback to the cleaned input
+            return optimized_query if optimized_query else query
+        except Exception as e:
+            print(f"{C_RED}[CLEAN_QUERY_AGENT ERROR] LLM failed: {e}{C_RESET}")
+            return query
+
+    # def generate_semantic_query(self, query: str) -> str:
+    #     """
+    #     Placeholder for semantic enrichment. In a full implementation,
+    #     this would call a 'CleanQuery' LLM chain.
+    #     """
+    #     # For now, we return the cleaned query to satisfy the Supervisor's routing logic
+    #     return query
 
 
 #================ CODE DEBUG BLOCK (No changes needed, as it now calls execute()) ===============================
