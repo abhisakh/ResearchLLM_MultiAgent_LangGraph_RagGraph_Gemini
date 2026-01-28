@@ -468,7 +468,7 @@ with col_middle:
             status_box = st.empty()
             status_box.markdown("📡 *Synthesizing Multi-Agent Response...*")
             try:
-                res = requests.post(f"{API_BASE_URL}/research-chat", json={"session_id": st.session_state['session_id'], "message": prompt}, timeout=180)
+                res = requests.post(f"{API_BASE_URL}/research-chat", json={"session_id": st.session_state['session_id'], "message": prompt}, timeout=300)
                 if res.status_code == 200:
                     data = res.json()
                     msg_id = data.get('id')
