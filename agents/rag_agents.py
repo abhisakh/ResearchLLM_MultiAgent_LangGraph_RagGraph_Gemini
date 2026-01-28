@@ -35,8 +35,25 @@ class RetrievalAgent:
         Unified fetcher that identifies PDF vs HTML content.
         """
         try:
-            time.sleep(1)  # Polite crawling
-            response = requests.get(url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
+            time.sleep(1.5)  # Slightly longer polite delay
+
+            # --- STEALTH HEADER BLOCK ---
+            stealth_headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Referer': 'https://www.google.com/',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1'
+            }
+
+            response = requests.get(url, timeout=15, headers=stealth_headers, allow_redirects=True)
+
+            # Catch 403 specifically to log the WAF encounter
+            if response.status_code == 403:
+                print(f"{C_YELLOW}[{self.id.upper()} WAF] 403 Forbidden on {url[:40]}. Switching to fallback. {C_RESET}")
+                return None
             response.raise_for_status()
 
             content_type = response.headers.get('Content-Type', '').lower()
@@ -52,7 +69,7 @@ class RetrievalAgent:
             return None
         except Exception as e:
             if 'arxiv' not in url.lower():
-                print(f"{C_RED}[{self.id.upper()} ERROR] Failed to fetch {url[:30]}... : {e}{C_RESET}")
+                print(f"{C_RED}[{self.id.upper()} ERROR] Failed to fetch {url[:50]}... : {e}{C_RESET}")
             return None
 
     def _extract_text_from_pdf(self, pdf_stream: BytesIO) -> str:
@@ -198,13 +215,24 @@ class RetrievalAgent:
                 })
 
         # 5. COMMIT & LOGGING
-        if not all_new_chunks and not state['full_text_chunks']:
-            all_new_chunks = [{"text": "No content retrieved.", "source": "flow_control", "url": "", "doc_id": "none"}]
+        # Only add a warning chunk if the ENTIRE system (past + present) is empty.
+        # This prevents overwriting valid data from Attempt 1 during Attempt 2.
+        if not all_new_chunks and not state.get('full_text_chunks'):
+            all_new_chunks = [{
+                "chunk_id": "sys_warning_empty",
+                "doc_id": "none",
+                "chunk_index": 0,
+                "text": "Critical: No research content could be retrieved after filtering and fallbacks.",
+                "source": "system",
+                "url": "N/A"
+            }]
 
+        # Use extend to preserve the 'breadcrumb' of data from previous refinement loops
         state['full_text_chunks'].extend(all_new_chunks)
 
         print(f"{C_YELLOW}[{self.id.upper()} STATE] Added {len(all_new_chunks)} new chunks. Total: {len(state['full_text_chunks'])}{C_RESET}")
         print(f"{C_GREEN}[{self.id.upper()} DONE] Retrieval complete.{C_RESET}")
+
         return state
 
 
@@ -284,7 +312,7 @@ class RAGAgent:
 
         # --- 4. VECTOR SEARCH ---
         # Fetching top 15 candidates instead of 8 (Reranker needs a larger pool to work with)
-        top_k_results = self.vector_db.search(query, k=15)
+        top_k_results = self.vector_db.search(query, k=30)
         print(f"{C_BLUE}[{self.id} INFO] Vector search returned {len(top_k_results)} candidate chunks.{C_RESET}")
 
         if not top_k_results:
@@ -305,7 +333,7 @@ class RAGAgent:
             top_k_results = sorted(reranked_list, key=lambda x: x[1], reverse=True)
 
             # Reranker Threshold: Scores > 0.1 are usually relevant
-            ACTIVE_THRESHOLD = 0.1
+            ACTIVE_THRESHOLD = - 5
             IS_RERANKED = True
             print(f"{C_PURPLE}[{self.id} RERANK] Top Score: {top_k_results[0][1]:.4f}{C_RESET}")
         else:
