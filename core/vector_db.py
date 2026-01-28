@@ -18,7 +18,11 @@ def _get_embedding(text: str) -> np.ndarray:
             input=text,
             model=EMBED_MODEL
         )
-        return np.array(response.data[0].embedding, dtype=np.float32)
+        emb = np.array(response.data[0].embedding, dtype=np.float32)
+
+        # MANDATORY FOR COSINE SIMILARITY: Normalize the vector
+        faiss.normalize_L2(emb.reshape(1, -1))
+        return emb
     except Exception as e:
         print(f"{C_RED}[EMBEDDING ERROR] Failed to get embedding: {e}{C_RESET}")
         return np.zeros(DIMENSION, dtype=np.float32)
@@ -40,16 +44,24 @@ class VectorDBWrapper:
                 self.index = faiss.read_index(VECTOR_INDEX_PATH)
                 with open(VECTOR_DATA_PATH, "rb") as f:
                     self.text_store = pickle.load(f)
-                print(f"{C_CYAN}[VectorDB] Loaded existing DB. Chunks: {len(self.text_store)}{C_RESET}")
+                print(f"{C_CYAN}[VectorDB] Loaded existing Cosine DB. Chunks: {len(self.text_store)}{C_RESET}")
             except Exception:
                 print(f"{C_RED}[VectorDB] Failed to load DB. Creating new one.{C_RESET}")
                 self._create_new_db()
         else:
             self._create_new_db()
 
+    def _create_new_db(self):
+        # UPGRADE: Using IndexFlatIP for Inner Product (Cosine Similarity)
+        self.index = faiss.IndexFlatIP(self.dimension)
+        self.text_store = []
+        self._save_db()
+        print(f"{C_CYAN}[VectorDB] Created new IndexFlatIP DB (Cosine Similarity).{C_RESET}")
+
     def reset_db(self):
         print(f"{C_RED}[VectorDB] Starting database reset...{C_RESET}")
-        self.index = faiss.IndexFlatL2(self.dimension)
+        # Ensure reset also uses the IP index
+        self.index = faiss.IndexFlatIP(self.dimension)
         self.text_store = []
 
         if os.path.exists(VECTOR_INDEX_PATH):
@@ -59,12 +71,6 @@ class VectorDBWrapper:
 
         self._save_db()
         print(f"{C_GREEN}[VectorDB] Database reset complete.{C_RESET}")
-
-    def _create_new_db(self):
-        self.index = faiss.IndexFlatL2(self.dimension)
-        self.text_store = []
-        self._save_db()
-        print(f"{C_CYAN}[VectorDB] Created new IndexFlatL2 DB.{C_RESET}")
 
     def _save_db(self):
         faiss.write_index(self.index, VECTOR_INDEX_PATH)
@@ -82,12 +88,13 @@ class VectorDBWrapper:
         for chunk in chunks:
             text = chunk.get("text", "").strip()
             if text and text not in existing_texts:
-                emb = _get_embedding(text)
+                emb = _get_embedding(text) # This is now normalized
                 if not np.all(emb == 0):
                     new_embeddings.append(emb)
                     new_chunks.append(chunk)
 
         if new_embeddings:
+            # Vectors are already normalized by _get_embedding
             self.index.add(np.array(new_embeddings).astype("float32"))
             self.text_store.extend(new_chunks)
             self._save_db()
@@ -97,19 +104,126 @@ class VectorDBWrapper:
         if client is None or self.index is None or self.index.ntotal == 0:
             return []
 
+        # This will return a normalized vector
         query_embedding = _get_embedding(query).reshape(1, -1)
+
         if np.all(query_embedding == 0):
             print(f"{C_RED}[VectorDB ERROR] Invalid query embedding.{C_RESET}")
             return []
 
         k_actual = min(k, self.index.ntotal)
+
+        # In IndexFlatIP, D represents Similarity Scores (higher is better)
         D, I = self.index.search(query_embedding.astype("float32"), k_actual)
 
         results = []
-        for dist, idx in zip(D[0], I[0]):
-            results.append((self.text_store[idx], dist))
+        for score, idx in zip(D[0], I[0]):
+            results.append((self.text_store[idx], score))
 
+        # We keep them in the order FAISS provides (highest similarity first)
         return results
+
+
+# def _get_embedding(text: str) -> np.ndarray:
+#     if client is None:
+#         return np.zeros(DIMENSION, dtype=np.float32)
+#     try:
+#         response = client.embeddings.create(
+#             input=text,
+#             model=EMBED_MODEL
+#         )
+#         return np.array(response.data[0].embedding, dtype=np.float32)
+#     except Exception as e:
+#         print(f"{C_RED}[EMBEDDING ERROR] Failed to get embedding: {e}{C_RESET}")
+#         return np.zeros(DIMENSION, dtype=np.float32)
+
+# class VectorDBWrapper:
+#     def __init__(self, dimension: int = DIMENSION):
+#         self.dimension = dimension
+#         self.index: Optional[faiss.Index] = None
+#         self.text_store: List[Dict[str, Any]] = []
+
+#         if client is not None:
+#             self._initialize_db()
+#         else:
+#             print(f"{C_RED}[VectorDB] Skipping initialization due to missing API key.{C_RESET}")
+
+#     def _initialize_db(self):
+#         if os.path.exists(VECTOR_INDEX_PATH) and os.path.exists(VECTOR_DATA_PATH):
+#             try:
+#                 self.index = faiss.read_index(VECTOR_INDEX_PATH)
+#                 with open(VECTOR_DATA_PATH, "rb") as f:
+#                     self.text_store = pickle.load(f)
+#                 print(f"{C_CYAN}[VectorDB] Loaded existing DB. Chunks: {len(self.text_store)}{C_RESET}")
+#             except Exception:
+#                 print(f"{C_RED}[VectorDB] Failed to load DB. Creating new one.{C_RESET}")
+#                 self._create_new_db()
+#         else:
+#             self._create_new_db()
+
+#     def reset_db(self):
+#         print(f"{C_RED}[VectorDB] Starting database reset...{C_RESET}")
+#         self.index = faiss.IndexFlatL2(self.dimension)
+#         self.text_store = []
+
+#         if os.path.exists(VECTOR_INDEX_PATH):
+#             os.remove(VECTOR_INDEX_PATH)
+#         if os.path.exists(VECTOR_DATA_PATH):
+#             os.remove(VECTOR_DATA_PATH)
+
+#         self._save_db()
+#         print(f"{C_GREEN}[VectorDB] Database reset complete.{C_RESET}")
+
+#     def _create_new_db(self):
+#         self.index = faiss.IndexFlatL2(self.dimension)
+#         self.text_store = []
+#         self._save_db()
+#         print(f"{C_CYAN}[VectorDB] Created new IndexFlatL2 DB.{C_RESET}")
+
+#     def _save_db(self):
+#         faiss.write_index(self.index, VECTOR_INDEX_PATH)
+#         with open(VECTOR_DATA_PATH, "wb") as f:
+#             pickle.dump(self.text_store, f)
+
+#     def add_chunks(self, chunks: List[Dict[str, Any]]):
+#         if client is None or self.index is None:
+#             return
+
+#         existing_texts = {c.get("text") for c in self.text_store}
+#         new_embeddings = []
+#         new_chunks = []
+
+#         for chunk in chunks:
+#             text = chunk.get("text", "").strip()
+#             if text and text not in existing_texts:
+#                 emb = _get_embedding(text)
+#                 if not np.all(emb == 0):
+#                     new_embeddings.append(emb)
+#                     new_chunks.append(chunk)
+
+#         if new_embeddings:
+#             self.index.add(np.array(new_embeddings).astype("float32"))
+#             self.text_store.extend(new_chunks)
+#             self._save_db()
+#             print(f"{C_BLUE}[VectorDB] Added {len(new_chunks)} new chunks.{C_RESET}")
+
+#     def search(self, query: str, k: int = 20) -> List[Tuple[Dict[str, Any], float]]:
+#         if client is None or self.index is None or self.index.ntotal == 0:
+#             return []
+
+#         query_embedding = _get_embedding(query).reshape(1, -1)
+#         if np.all(query_embedding == 0):
+#             print(f"{C_RED}[VectorDB ERROR] Invalid query embedding.{C_RESET}")
+#             return []
+
+#         k_actual = min(k, self.index.ntotal)
+#         D, I = self.index.search(query_embedding.astype("float32"), k_actual)
+
+#         results = []
+#         for dist, idx in zip(D[0], I[0]):
+#             results.append((self.text_store[idx], dist))
+
+#         return results
 
 # ==================================================================================================
 # INTEGRATED TEST BLOCK

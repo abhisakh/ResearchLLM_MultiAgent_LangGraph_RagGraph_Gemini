@@ -27,14 +27,19 @@ class EvaluationAgent:
 
     def __init__(self, agent_id: str = "evaluation_agent", model: str = LLM_MODEL):
         self.id = agent_id
-        self.model = model  # Synchronized variable name with SynthesisAgent
+        self.model = model
 
     def execute(self, state: ResearchState) -> ResearchState:
-        print(f"\n{C_ACTION}[{self.id.upper()} START] Evaluating report using Global Client (Model: {self.model})...{C_RESET}")
+        # --- MODIFICATION 1: BREADCRUMB TRACKING ---
+        if "visited_nodes" not in state or state["visited_nodes"] is None:
+            state["visited_nodes"] = []
+        state["visited_nodes"].append(self.id)
+
+        print(f"\n{C_ACTION}[{self.id.upper()} START] Evaluating report...{C_RESET}")
 
         # 1. Verification: Ensure client is available
         if client is None:
-            print(f"{C_RED}[{self.id.upper()} ERROR] Global client is None. Authentication failed in core.utilities.{C_RESET}")
+            print(f"{C_RED}[{self.id.upper()} ERROR] Global client is None.{C_RESET}")
             state.update({'needs_refinement': False, 'report_generated': True})
             return state
 
@@ -54,19 +59,19 @@ class EvaluationAgent:
 
         # --- Construct evaluation prompt ---
         eval_prompt = f"""
-        Determine if the 'Final Report' successfully addresses the 'Execution Plan'.
+        Analyze if the 'Final Report' successfully addresses the 'Execution Plan'.
 
+        USER INTENT: {user_query}
         PLAN: {execution_plan}
         REPORT: {final_report}
 
         Respond ONLY with a JSON object matching the EvaluationSchema:
-        - needs_refinement: boolean
-        - refinement_reason: string
+        - needs_refinement: boolean (True if missing data or logic errors exist)
+        - refinement_reason: string (be specific about what is missing)
         """
 
         try:
             # 2. Use the Global Client (SDK Style) with Beta Parsed output
-            # This replaces the LangChain 'invoke' and matches SynthesisAgent logic
             response = client.beta.chat.completions.parse(
                 model=self.model,
                 messages=[
@@ -91,7 +96,6 @@ class EvaluationAgent:
 
         except Exception as e:
             print(f"{C_RED}[{self.id.upper()} ERROR] Global Client call failed: {e}{C_RESET}")
-            # Safety exit
             state.update({'needs_refinement': False, 'report_generated': True})
 
         return state

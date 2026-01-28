@@ -10,6 +10,8 @@ langgraph-checkpoint-sqlite
 faiss-cpu                # For vector storage and similarity search (alternative to Chroma)
 numpy                    # Required by faiss-cpu
 pypdf                    # For PDF parsing (used by RetrievalAgent)
+sentence-transformers.   # Cross encoder reranking
+bs4
 
 # --- Tool Agents (API & Web Search) ---
 arxiv                    # Arxiv Agent

@@ -18,6 +18,7 @@ C_BLUE = "\033[94m"  # Agent Info
 C_MAGENTA = "\033[95m" # Router/Supervisor
 C_CYAN = "\033[96m"  # Initialization/Setup
 C_ACTION = "\033[38;5;208m" # Action/Start
+C_PURPLE = "\033[95m"  # Reranking / Special Logic
 
 # --- Global Configuration Constants ---
 OPENAI_API_KEY = os.getenv("GPT_5_API_KEY")

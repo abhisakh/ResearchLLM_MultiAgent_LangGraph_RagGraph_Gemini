@@ -1,82 +1,117 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List
 from core.research_state import ResearchState
-from core.utilities import C_ACTION, C_RESET, C_BLUE, C_YELLOW, C_MAGENTA, C_RED
+from core.utilities import C_ACTION, C_RESET, C_BLUE, C_YELLOW, C_MAGENTA, C_RED, C_CYAN
 
 # ==================================================================================================
 # SECTION 1: SUPERVISOR AGENT (PROCEDURAL ROUTER)
 # ==================================================================================================
 class SupervisorAgent:
     """
-    Central coordinator of the research workflow.
-    Fixed to handle the Refinement Loop and avoid the 'END' Fallback.
+    Procedural Router for LangGraph-based multi-agent research workflow.
+    Fully aligned with ResearchState TypedDict.
     """
-    ALL_TOOL_KEYS = ["pubmed", "arxiv", "openalex", "web", "materials"]
+
     MAX_REFINEMENT_ATTEMPTS = 2
+
+    DATA_KEYWORDS = [
+        "missing", "data", "search", "papers",
+        "pubmed", "arxiv", "found", "sources", "literature"
+    ]
+    PDF_KEYWORDS = ["pdf", "extraction", "parsing", "read"]
+    CONTEXT_KEYWORDS = ["relevance", "context", "snippets", "rag"]
 
     def __init__(self, agent_id: str = "supervisor_agent"):
         self.id = agent_id
-        print(f"[{self.id.upper()} INIT] Supervisor initialized.{C_RESET}")
+        print(f"{C_CYAN}[{self.id.upper()} INIT] Supervisor logic synchronized.{C_RESET}")
 
     def execute(self, state: ResearchState) -> ResearchState:
-        """
-        Logic to prepare the state for the next node.
-        """
-        # Detect if we are entering a refinement loop from Evaluation
-        needs_refinement = state.get('needs_refinement', False)
+        # --- Breadcrumb Tracking ---
+        state.setdefault("visited_nodes", []).append(self.id)
 
-        if needs_refinement:
-            current_retries = state.get('refinement_retries', 0) + 1
-            reason = state.get('refinement_reason', 'Addressing feedback.')
+        # --- Guardrail: Irrelevant Intent ---
+        if state.get("primary_intent") == "irrelevant":
+            state["next"] = "END"
+            return state
 
-            print(f"\n{C_ACTION}[{self.id.upper()} ACTION] *** REFINEMENT LOOP {current_retries}/{self.MAX_REFINEMENT_ATTEMPTS} ***{C_RESET}")
-            print(f"{C_YELLOW}Reason: {reason}{C_RESET}")
+        # --- Refinement Gate ---
+        if state.get("needs_refinement", False):
+            return self._handle_refinement(state)
 
-            # RESET STATE FOR REFRESHED SEARCH/SYNTHESIS
-            state.update({
-                'is_refining': True,
-                'refinement_retries': current_retries,
-                'report_generated': False,
-                'rag_complete': False, # Force re-filtering
-                'raw_tool_data': [],    # Clear to avoid duplicate/old data
-                'references': [],
-                'needs_refinement': False # Reset flag so we don't loop forever
-            })
-        else:
-            # Standard path
-            if not state.get('is_refining'):
-                print(f"\n{C_ACTION}[{self.id.upper()} ACTION] Starting **INITIAL SEARCH** phase.{C_RESET}")
-                state['refinement_retries'] = 0
-
-        # Determine the next destination
-        next_destination = self.select_next_agent(state)
-        state['next'] = next_destination
-
-        print(f"{C_MAGENTA} >> [ROUTER] Supervisor directs flow to: {next_destination}{C_RESET}")
+        # --- Normal Sequential Routing ---
+        state["next"] = self.select_next_agent(state)
         return state
 
+    # =====================================================
+    # Refinement Handler (State-Accurate)
+    # =====================================================
+    def _handle_refinement(self, state: ResearchState) -> ResearchState:
+        retries = state.get("refinement_retries", 0)
+
+        if retries >= self.MAX_REFINEMENT_ATTEMPTS:
+            state["next"] = "END"
+            return state
+
+        retries += 1
+        state["refinement_retries"] = retries
+
+        reason = state.get("refinement_reason", "").lower()
+
+        print(f"\n{C_MAGENTA}[SUPERVISOR] Refinement {retries}/{self.MAX_REFINEMENT_ATTEMPTS}{C_RESET}")
+        print(f"{C_MAGENTA}Reason: {reason}{C_RESET}")
+
+        # --- Classify refinement ---
+        is_data_issue = any(k in reason for k in self.DATA_KEYWORDS)
+        is_pdf_issue = any(k in reason for k in self.PDF_KEYWORDS)
+        is_context_issue = any(k in reason for k in self.CONTEXT_KEYWORDS)
+
+        injected = False
+
+        # --- Tool Injection ONLY for data acquisition ---
+        if is_data_issue:
+            tools_to_inject = ["openalex", "semanticscholar", "chemrxiv"]
+            active_tools = state.get("active_tools", [])
+
+            for tool in tools_to_inject:
+                if tool not in active_tools:
+                    active_tools.append(tool)
+                    injected = True
+
+            state["active_tools"] = active_tools
+
+        # --- Reset ONLY downstream regenerable artifacts ---
+        state.update({
+            "is_refining": True,
+            "needs_refinement": False,
+            "report_generated": False,
+            "final_report": "",
+            "filtered_context": "",
+            "rag_complete": False
+        })
+
+        # =================================================
+        # ENFORCED ROUTING (CRITICAL FIX)
+        # =================================================
+        if injected:
+            # MUST regenerate queries so tools actually execute
+            state["next"] = "planning_agent"
+            return state
+
+        if is_pdf_issue:
+            state["next"] = "retrieval_agent"
+        elif is_context_issue:
+            state["next"] = "rag_agent"
+        else:
+            state["next"] = "synthesis_agent"
+
+        return state
+
+    # =====================================================
+    # Initial Sequential Flow (Exact to ResearchState)
+    # =====================================================
     def select_next_agent(self, state: ResearchState) -> str:
-        """
-        Pure routing logic. Ensure strings match your graph.add_node() keys.
-        """
-        # 1. SUCCESS EXIT
         if state.get("report_generated") and not state.get("needs_refinement"):
             return "END"
 
-        # 2. MAX RETRY EXIT
-        if state.get('refinement_retries', 0) > self.MAX_REFINEMENT_ATTEMPTS:
-            print(f"{C_RED}[ROUTING] Max refinement limit reached. Terminating.{C_RESET}")
-            return "END"
-
-        # 3. REFINEMENT OVERRIDE
-        # If we are refining, we usually want to re-run queries or re-synthesize.
-        if state.get("is_refining"):
-            # If we already have the data but synthesis was poor, go to synthesis.
-            # But usually, refinement means we need BETTER data.
-            if not state.get("raw_tool_data"):
-                return "query_gen_agent"
-            return "synthesis_agent"
-
-        # 4. INITIAL SEQUENTIAL FLOW
         if not state.get("semantic_query"):
             return "clean_query_agent"
 
@@ -89,16 +124,153 @@ class SupervisorAgent:
         if not state.get("tiered_queries"):
             return "query_gen_agent"
 
-        # 5. DATA ACQUISITION TO SYNTHESIS BRIDGE
-        if not state.get("rag_complete"):
-            # This represents the transition after tools have run
-            return "synthesis_agent"
+        if not state.get("raw_tool_data"):
+            return "retrieval_agent"
+
+        if not state.get("full_text_chunks"):
+            return "retrieval_agent"
+
+        if not state.get("filtered_context") or not state.get("rag_complete"):
+            return "rag_agent"
 
         if not state.get("report_generated"):
             return "synthesis_agent"
 
-        # 6. FINAL FALLBACK
-        return "END"
+        return "evaluation_agent"
+
+
+# class SupervisorAgent:
+#     """
+#     Procedural Router: Manages the lifecycle of the research,
+#     handling the transition from initial planning to iterative refinement.
+#     RESTORED: Full deterministic routing and phase-based logic.
+#     UPGRADED: Triple-Tool Injection (OpenAlex, SemanticScholar, ChemRxiv) for refinement.
+#     """
+#     MAX_REFINEMENT_ATTEMPTS = 2
+
+#     def __init__(self, agent_id: str = "supervisor_agent"):
+#         self.id = agent_id
+#         print(f"{C_CYAN}[{self.id.upper()} INIT] Supervisor logic synchronized.{C_RESET}")
+
+#     def execute(self, state: ResearchState) -> ResearchState:
+#         # 1. BREADCRUMB TRACKING
+#         if "visited_nodes" not in state or state["visited_nodes"] is None:
+#             state["visited_nodes"] = []
+#         state["visited_nodes"].append(self.id)
+
+#         # --- GUARDRAIL SHORT-CIRCUIT ---
+#         if state.get("primary_intent") == "irrelevant":
+#             print(f"{C_RED}[{self.id.upper()}] Irrelevant query detected. Terminating flow.{C_RESET}")
+#             state['next'] = 'END'
+#             return state
+
+#         # 2. EVALUATION & REFINEMENT GATE
+#         needs_refinement = state.get('needs_refinement', False)
+#         current_retries = state.get('refinement_retries', 0)
+
+#         if needs_refinement:
+#             if current_retries < self.MAX_REFINEMENT_ATTEMPTS:
+#                 current_retries += 1
+#                 reason = state.get('refinement_reason', 'Improving report quality.').lower()
+
+#                 print(f"\n{C_ACTION}[{self.id.upper()}] *** REFINEMENT LOOP {current_retries}/{self.MAX_REFINEMENT_ATTEMPTS} ***{C_RESET}")
+#                 print(f"{C_YELLOW}Reason: {reason}{C_RESET}")
+
+#                 # --- UPGRADED: MULTI-TOOL REFINEMENT INJECTION ---
+#                 active_tools = state.get("active_tools", [])
+
+#                 # Pivot to broader academic databases if the primary ones (Pubmed/Arxiv) failed
+#                 tools_to_inject = ["openalex", "semanticscholar", "chemrxiv"]
+#                 injected_any = False
+#                 for tool in tools_to_inject:
+#                     if tool not in active_tools:
+#                         active_tools.append(tool)
+#                         injected_any = True
+
+#                 if injected_any:
+#                     print(f"{C_CYAN}[{self.id.upper()}] Broadening scope: Injected {tools_to_inject} into active tools.{C_RESET}")
+#                     state["active_tools"] = active_tools
+
+#                 # Update State for Refinement
+#                 state.update({
+#                     'is_refining': True,
+#                     'refinement_retries': current_retries,
+#                     'report_generated': False,
+#                     'needs_refinement': False  # Reset for next evaluation pass
+#                 })
+
+#                 # DETERMINISTIC ROUTING BASED ON REASON (RESTORED ORIGINAL LOGIC)
+#                 # If data is missing, we MUST go back to Planning to integrate the NEW tools
+#                 if any(k in reason for k in ["missing", "data", "search", "papers", "pubmed", "arxiv", "found"]):
+#                     state['next'] = "planning_agent"
+#                 elif any(k in reason for k in ["pdf", "extraction", "parsing", "read"]):
+#                     state['next'] = "retrieval_agent"
+#                 elif any(k in reason for k in ["relevance", "context", "snippets"]):
+#                     state['next'] = "rag_agent"
+#                 else:
+#                     state['next'] = "synthesis_agent"
+
+#                 return state
+#             else:
+#                 print(f"{C_RED}[{self.id.upper()}] Max refinements reached. Ending.{C_RESET}")
+#                 state['next'] = 'END'
+#                 return state
+
+#         # 3. INITIAL SEQUENTIAL FLOW (Phase-based routing)
+#         state['next'] = self.select_next_agent(state)
+
+#         print(f"{C_MAGENTA} >> [ROUTER] Supervisor directs flow to: {state['next']}{C_RESET}")
+#         return state
+
+#     def select_next_agent(self, state: ResearchState) -> str:
+#         """
+#         Logic for the first-pass sequential execution.
+#         Ensures all nodes are visited in the correct order.
+#         """
+#         # --- GUARDRAIL EXIT ---
+#         if state.get("primary_intent") == "irrelevant":
+#             return "END"
+
+#         # --- SUCCESS EXIT ---
+#         if state.get("report_generated") and not state.get("needs_refinement"):
+#             return "END"
+
+#         # --- INITIAL FLOW ---
+#         if not state.get("semantic_query"):
+#             return "clean_query_agent"
+
+#         if not state.get("primary_intent"):
+#             return "intent_agent"
+
+#         if not state.get("execution_plan"):
+#             return "planning_agent"
+
+#         if not state.get("tiered_queries"):
+#             return "query_gen_agent"
+
+#         # --- TOOL DATA RETRIEVAL ---
+#         # If tools are selected but no data has been fetched yet
+#         if not state.get("raw_tool_data"):
+#             # This represents the tool execution node (usually a tool executor in the graph)
+#             return "retrieval_agent"
+
+#         # --- POST-TOOL PROCESSING ---
+#         if not state.get("full_text_chunks"):
+#             return "retrieval_agent"
+
+#         # RAG / Filtering Phase
+#         if not state.get("filtered_context") or not state.get("rag_complete"):
+#             return "rag_agent"
+
+#         # Synthesis Phase
+#         if not state.get("report_generated"):
+#             return "synthesis_agent"
+
+#         # Evaluation Phase (if report is generated, it goes to evaluation before END)
+#         if not state.get("evaluation_complete") and state.get("report_generated"):
+#             return "evaluation_agent"
+
+#         return "END"
 
 
 # from typing import Dict, Any, Optional

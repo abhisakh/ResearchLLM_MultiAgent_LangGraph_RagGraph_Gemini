@@ -1,6 +1,272 @@
+# ################################################################################
+# # FILE: main_ui.py | FULLY OPTIMIZED & PATH-SYNCED VERSION
+# ################################################################################
+
+# import streamlit as st
+# import requests
+# import json
+# import uuid
+# import base64
+# import os
+
+# # 1. INITIALIZATION & STATE
+# if "session_id" not in st.session_state:
+#     st.session_state.session_id = str(uuid.uuid4())
+# if "messages" not in st.session_state:
+#     st.session_state.messages = []
+# if "last_visited_path" not in st.session_state:
+#     st.session_state.last_visited_path = []
+# if "processing" not in st.session_state:
+#     st.session_state.processing = False
+
+# API_BASE_URL = "http://localhost:8000"
+
+# # 2. IMAGE HANDLER (Base64)
+# def get_base64_of_bin_file(bin_file):
+#     if os.path.exists(bin_file):
+#         with open(bin_file, "rb") as f:
+#             return base64.b64encode(f.read()).decode()
+#     return ""
+
+# logo_left_html = f"data:image/jpg;base64,{get_base64_of_bin_file('ai.jpg')}"
+# logo_right_html = f"data:image/jpg;base64,{get_base64_of_bin_file('genai.jpg')}"
+
+# # 3. PAGE CONFIG + GLOBAL STYLING
+# st.set_page_config(page_title="Research Assistant LLM", page_icon="🔬", layout="wide")
+
+# st.markdown("""
+# <style>
+# @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono&display=swap');
+# header[data-testid="stHeader"], [data-testid="stDecoration"] { display: none !important; }
+# .stApp { background-color: #0B0E14 !important; }
+
+# /* HEADER */
+# .fixed-header {
+#     position: fixed; top: 0; left: 0; width: 100vw; height: 25vh;
+#     background: #0D1117; border-bottom: 2px solid #30363d;
+#     display: flex; align-items: center; justify-content: center; gap: 4vw; z-index: 9999;
+# }
+# .header-logo { width: 500px; height: 200px; object-fit: cover; border-radius: 12px; border: 2px solid #FB8500; }
+# .header-title { font-size: 42px; font-weight: 800; color: #FB8500; }
+
+# /* LAYOUT SPACING */
+# [data-testid="stHorizontalBlock"] { margin-top: 25vh !important; }
+# [data-testid="column"]:nth-child(2) {
+#     height: 72vh !important; overflow-y: auto !important;
+#     border-left: 1px solid #30363d; border-right: 1px solid #30363d;
+#     padding: 0 20px 120px 20px !important;
+# }
+
+# .status-pulse {
+#     width: 12px; height: 12px; background: #FB8500; border-radius: 50%;
+#     animation: pulse-ring 1.5s infinite;
+# }
+# @keyframes pulse-ring {
+#     0%   { box-shadow: 0 0 0 0 rgba(251,133,0,0.7); }
+#     70%  { box-shadow: 0 0 0 12px rgba(251,133,0,0); }
+#     100% { box-shadow: 0 0 0 0 rgba(251,133,0,0); }
+# }
+# </style>
+# """, unsafe_allow_html=True)
+
+# # 4. HELPERS
+# def safe_json_format(data):
+#     try:
+#         if isinstance(data, str): data = json.loads(data)
+#         return json.dumps(data, indent=2)
+#     except: return str(data)
+
+# def fetch_history(session_id):
+#     try:
+#         r = requests.get(f"{API_BASE_URL}/chat-history/{session_id}")
+#         if r.status_code == 200:
+#             st.session_state.messages = [
+#                 {"role": "user" if m["role"] == "user" else "assistant",
+#                  "content": m.get("message", m.get("content", ""))}
+#                 for m in r.json()]
+#             return True
+#     except: return False
+
+# def fetch_session_list():
+#     try:
+#         r = requests.get(f"{API_BASE_URL}/list-sessions")
+#         return [s["session_id"] for s in r.json()] if r.status_code == 200 else []
+#     except: return []
+
+# # 5. UI HEADER
+# st.markdown(f"""
+# <div class="fixed-header">
+#     <img class="header-logo" src="{logo_left_html}">
+#     <div><h1 class="header-title">Research Assistant LLM</h1><p style="color:#FB8500; opacity:.6; font-family:'JetBrains Mono';">SYSTEM PROTOCOL: ACTIVE</p></div>
+#     <img class="header-logo" src="{logo_right_html}">
+# </div>
+# """, unsafe_allow_html=True)
+
+# col_left, col_middle, col_right = st.columns([1, 2, 1])
+
+# # --- LEFT COLUMN: MISSION OPS ---
+# with col_left:
+#     st.markdown("### 🛰️ Mission Ops")
+#     if st.session_state.processing:
+#         path = st.session_state.last_visited_path
+#         current = path[-1].replace("_", " ").upper() if path else "THINKING..."
+#         st.markdown(f"<div style='padding:15px; background:#2a1a00; border:1px solid #FB8500; border-radius:10px;'><div style='display:flex; gap:10px; align-items:center;'><div class='status-pulse'></div><span style='color:#FB8500;'>AGENT ACTIVE</span></div><div style='font-size:20px; font-weight:800; color:white;'>{current}</div></div>", unsafe_allow_html=True)
+
+#     st.code(f"PROTOCOL ID: {st.session_state.session_id[:12]}", language="bash")
+#     if st.button("🚀 NEW MISSION", use_container_width=True):
+#         st.session_state.session_id, st.session_state.messages, st.session_state.last_visited_path = str(uuid.uuid4()), [], []
+#         st.rerun()
+
+#     st.divider()
+#     sessions = fetch_session_list()
+#     if sessions:
+#         selected = st.selectbox("Sessions", sessions, label_visibility="collapsed")
+#         if st.button("RESTORE ARCHIVE DATA", use_container_width=True):
+#             if fetch_history(selected):
+#                 st.session_state.session_id, st.session_state.last_visited_path = selected, []
+#                 st.rerun()
+
+# # --- MIDDLE COLUMN: RESEARCH LOG ---
+# with col_middle:
+#     st.markdown("### 📑 Research Log")
+#     for msg in st.session_state.messages:
+#         with st.chat_message(msg["role"]): st.markdown(msg["content"])
+
+#     if prompt := st.chat_input("Input research coordinates..."):
+#         st.session_state.processing = True
+#         st.session_state.messages.append({"role": "user", "content": prompt})
+#         with st.chat_message("assistant"):
+#             status = st.empty()
+#             status.markdown("📡 *Synthesizing...*")
+#             try:
+#                 r = requests.post(f"{API_BASE_URL}/research-chat", json={"session_id": st.session_state.session_id, "message": prompt}, timeout=180)
+#                 if r.status_code == 200:
+#                     data = r.json()
+#                     # SYNC FIX: Ensure naming alignment between backend JSON and Mermaid dictionary keys
+#                     raw_path = data.get("visited_path", [])
+#                     st.session_state.last_visited_path = [n if n != "retrieval_agent" else "retrieve_data" for n in raw_path]
+
+#                     response = data.get("response", "")
+#                     if data.get("raw_data"): response += f"\n\n```json\n{safe_json_format(data.get('raw_data'))}\n```"
+#                     st.session_state.messages.append({"role": "assistant", "content": response})
+#                 st.session_state.processing = False
+#                 st.rerun()
+#             except Exception as e:
+#                 st.session_state.processing = False
+#                 status.error(str(e))
+
+# # --- RIGHT COLUMN: LOGIC ENGINE ---
+# with col_right:
+#     st.markdown("### 🧠 Logic Engine")
+#     try:
+#         r = requests.get(f"{API_BASE_URL}/graph-visualization")
+#         if r.status_code == 200:
+#             viz_data = r.json()
+#             raw_mermaid = viz_data["mermaid_syntax"]
+#             active_nodes = st.session_state.get("last_visited_path", [])
+
+#             # 1. Clean and Inject Active Nodes
+#             sanitized = raw_mermaid.split("classDef")[0].strip()
+#             class_block = "\n".join(f"class {n} activeNode" for n in set(active_nodes))
+#             final_mermaid = f"{sanitized}\n{class_block}"
+
+#             # 2. Encode Path for JS Highlighting
+#             js_path_array = json.dumps(active_nodes)
+#             encoded_mermaid = base64.b64encode(final_mermaid.encode()).decode()
+
+#             st.components.v1.html(f"""
+#                 <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+#                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+#                     <button id="expandBtn" style="padding:5px 10px; border:none; border-radius:6px; background:#FB8500; color:#000; cursor:pointer; font-weight:700;">🔍 Fullscreen Mode</button>
+#                 </div>
+#                 <div id="logic-wrapper" style="position:relative; height:620px; width:100%; border:2px solid #FB8500; border-radius:12px; overflow:hidden; background: #001219;">
+#                     <pre class="mermaid" id="main-m" style="visibility: hidden;">{final_mermaid}</pre>
+#                 </div>
+
+#                 <script type="module">
+#                     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs';
+
+#                     mermaid.initialize({{
+#                         startOnLoad: true, securityLevel: 'loose', theme: 'base',
+#                         flowchart: {{ nodeSpacing:140, rankSpacing:100, padding:20, curve:'basis' }},
+#                         themeVariables: {{ primaryColor:'#003566', primaryTextColor:'#FFFFFF', primaryBorderColor:'#FB8500', lineColor:'#FB8500' }}
+#                     }});
+
+#                     function setupStyles(selector) {{
+#                         const svg = document.querySelector(selector + " svg");
+#                         if(!svg) return;
+
+#                         const pathSequence = {js_path_array};
+#                         const activeEdges = [];
+#                         for(let i=0; i < pathSequence.length - 1; i++) {{
+#                             activeEdges.push({{ from: pathSequence[i], to: pathSequence[i+1] }});
+#                         }}
+
+#                         svg.querySelectorAll(".edgePath").forEach(edge => {{
+#                             const path = edge.querySelector("path");
+#                             if(!path) return;
+
+#                             // Check if this edge is a link in the active sequential path
+#                             const isMainPath = activeEdges.some(pair =>
+#                                 (edge.classList.contains("LS-"+pair.from) && edge.classList.contains("LE-"+pair.to)) ||
+#                                 (edge.classList.contains("LS-"+pair.to) && edge.classList.contains("LE-"+pair.from))
+#                             );
+
+#                             const isDashed = window.getComputedStyle(path).strokeDasharray !== "none" || path.getAttribute("stroke-dasharray");
+
+#                             if (isMainPath) {{
+#                                 path.style.stroke = "#FB8500";
+#                                 path.style.strokeWidth = "5px";
+#                                 path.style.strokeOpacity = "1";
+#                                 path.style.filter = "drop-shadow(0 0 5px #FB8500)";
+#                                 // Sync Arrowhead
+#                                 const markerId = path.getAttribute("marker-end")?.replace(/url\(|#|\)/g, "");
+#                                 if(markerId) {{
+#                                     const marker = svg.querySelector("#" + markerId + " path");
+#                                     if(marker) marker.style.fill = "#FB8500";
+#                                 }}
+#                             }} else {{
+#                                 // Ghost the rest
+#                                 path.style.stroke = isDashed ? "#00CCFF" : "#003566";
+#                                 path.style.strokeWidth = "1px";
+#                                 path.style.strokeOpacity = "0.08";
+#                             }}
+#                         }});
+#                     }}
+
+#                     function fitDiagram(selector) {{
+#                         const svg = document.querySelector(selector + " svg");
+#                         if(svg) {{
+#                             svg.style.width="100%"; svg.style.height="100%";
+#                             svg.style.maxWidth="none";
+#                             const pz = svgPanZoom(svg, {{ fit: true, center: true, zoomScaleSensitivity: 0.4 }});
+#                             setupStyles(selector);
+#                             setTimeout(() => {{ pz.fit(); pz.center(); }}, 100);
+#                             if(selector === "#logic-wrapper") document.getElementById("main-m").style.visibility = "visible";
+#                         }}
+#                     }}
+
+#                     setTimeout(() => {{ fitDiagram("#logic-wrapper"); }}, 1000);
+#                 </script>
+
+#                 <style>
+#                     svg {{ background: #001219 !important; overflow: visible !important; }}
+#                     .node rect, .node circle {{ fill: #003566 !important; stroke: #FB8500 !important; stroke-width: 2.5px !important; rx: 10; ry: 10; }}
+#                     .nodeLabel {{ color: #FFFFFF !important; font-weight: 700 !important; font-size: 16px !important; }}
+#                     .activeNode rect, .activeNode circle {{ fill: #FB8500 !important; stroke: #FFFFFF !important; stroke-width: 4.5px !important; }}
+#                     .activeNode .nodeLabel {{ color: #001219 !important; font-weight: 900 !important; }}
+#                     .activeNode {{ filter: drop-shadow(0 0 15px #FB8500); }}
+#                 </style>
+#             """, height=640)
+
+#     except Exception as e:
+#         st.error(f"Logic Engine Interface Error: {e}")
+
+
+
 ################################################################################
 # FILE: main_ui.py
-# UPGRADE: Iron-Clad Sticky Sides | Large Typography | Sanitized Logic Engine
+# FINAL RESTORED VERSION: Fixed Archive Sync | Sticky Layout | Path Highlights
 ################################################################################
 
 import streamlit as st
@@ -9,9 +275,21 @@ import json
 import uuid
 import base64
 import os
+from datetime import datetime
 
 # -----------------------------------------------------------------------------
-# 1. IMAGE HANDLER (Base64 for Local ai.jpg)
+# 1. INITIALIZATION & STATE MANAGEMENT
+# -----------------------------------------------------------------------------
+if 'session_id' not in st.session_state: st.session_state['session_id'] = str(uuid.uuid4())
+if 'messages' not in st.session_state: st.session_state['messages'] = []
+if 'turn_paths' not in st.session_state: st.session_state['turn_paths'] = {}
+if 'active_view_path' not in st.session_state: st.session_state['active_view_path'] = []
+if 'processing' not in st.session_state: st.session_state['processing'] = False
+
+API_BASE_URL = "http://localhost:8000"
+
+# -----------------------------------------------------------------------------
+# 2. IMAGE HANDLER (Base64)
 # -----------------------------------------------------------------------------
 def get_base64_of_bin_file(bin_file):
     if os.path.exists(bin_file):
@@ -20,122 +298,76 @@ def get_base64_of_bin_file(bin_file):
         return base64.b64encode(data).decode()
     return ""
 
-img_base64 = get_base64_of_bin_file("ai.jpg")
-logo_html = f"data:image/jpg;base64,{img_base64}" if img_base64 else ""
+logo_left_html = f"data:image/jpg;base64,{get_base64_of_bin_file('ai.jpg')}"
+logo_right_html = f"data:image/jpg;base64,{get_base64_of_bin_file('genai.jpg')}"
 
 # -----------------------------------------------------------------------------
-# 2. MASTER CSS (Headers, Logic, and Sticky Positioning)
+# 3. MASTER CSS (Headers, Logic, and Sticky Positioning)
 # -----------------------------------------------------------------------------
-API_BASE_URL = "http://localhost:8000"
-
 st.set_page_config(page_title="Research Assistant LLM", page_icon="🔬", layout="wide")
 
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono&display=swap');
 
-    /* 1. APP RESET & SCROLL LOCK */
     header[data-testid="stHeader"], [data-testid="stDecoration"] {{ display: none !important; }}
-    .stApp {{ background-color: #0B0E14 !important; overflow: hidden !important; height: 100vh; }}
+    .stApp {{ background-color: #0B0E14 !important; overflow: hidden; }}
 
-    /* 2. THE 25% FIXED HEADER */
+    /* HEADER */
     .fixed-header {{
-        position: fixed;
-        top: 0; left: 0;
-        width: 100vw; height: 25vh;
-        background-color: #0D1117;
-        z-index: 9999;
-        border-bottom: 2px solid #30363d;
-        display: flex; justify-content: center; align-items: center; gap: 40px;
+        position: fixed; top: 0; left: 0; width: 100vw; height: 25vh;
+        background-color: #0D1117; z-index: 9999; border-bottom: 2px solid #30363d;
+        display: flex; justify-content:center; align-items: center; gap: 4vw;
     }}
-    .header-logo {{ width: 450px; height: 200px; border-radius: 15px; border: 2px solid #98D8C8; object-fit: contain; }}
-    .header-title {{ font-size: 48px; font-weight: 800; color: #98D8C8; margin: 0; }}
+    .header-logo {{ width: 500px; height: 200px; border-radius: 12px; border: 2px solid #98D8C8; object-fit: cover; }}
+    .header-title {{ font-size: 42px; font-weight: 800; color: #98D8C8; margin: 0; }}
 
-    /* 3. IRON-CLAD STICKY COLUMN SYSTEM */
+    /* STICKY COLUMN SYSTEM */
     [data-testid="stHorizontalBlock"] {{ margin-top: 25vh !important; }}
 
-    /* LEFT COLUMN LOCK - Directly targeting inner div for stability */
-    [data-testid="column"]:nth-child(1) > div {{
-        position: fixed !important;
-        width: 22vw !important;
-        top: 30vh !important; /* Positioned below header */
-        left: 2vw;
-        z-index: 1000;
-    }}
-
-    /* RIGHT COLUMN LOCK - Directly targeting inner div for stability */
+    [data-testid="column"]:nth-child(1) > div,
     [data-testid="column"]:nth-child(3) > div {{
-        position: fixed !important;
-        width: 22vw !important;
-        top: 30vh !important;
-        right: 2vw;
-        z-index: 1000;
+        position: sticky !important;
+        top: 28vh !important;
     }}
 
     /* MIDDLE COLUMN SCROLLING */
     [data-testid="column"]:nth-child(2) {{
-        height: 75vh !important;
+        height: 72vh !important;
         overflow-y: auto !important;
-        margin-left: 25vw !important;
-        margin-right: 25vw !important;
         border-left: 1px solid #30363d;
         border-right: 1px solid #30363d;
-        padding: 0 25px 100px 25px !important; /* Bottom padding for input clearance */
+        padding: 0 20px 100px 20px !important;
     }}
 
-    /* 4. UPGRADED TYPOGRAPHY (Large Chat Text) */
-    [data-testid="stChatMessage"] p {{
-        font-size: 1.3rem !important;
-        line-height: 1.7 !important;
-        font-family: 'Inter', sans-serif !important;
-        color: #E6EDF3 !important;
-    }}
+    /* TYPOGRAPHY & CHAT */
+    [data-testid="stChatMessage"] p {{ font-size: 1.2rem !important; line-height: 1.6; font-family: 'Inter'; color: #E6EDF3; }}
+    [data-testid="stMarkdownContainer"] h3 {{ font-size: 1.8rem !important; color: #98D8C8; letter-spacing: 2px; border-left: 5px solid #98D8C8; padding-left: 15px; text-transform: uppercase; }}
 
-    .stChatInput textarea {{
-        font-size: 1.1rem !important;
-    }}
+    /* STATUS INDICATORS */
+    .status-pulse {{ width: 12px; height: 12px; background: #98D8C8; border-radius: 50%; animation: pulse-ring 1.5s infinite; }}
+    @keyframes pulse-ring {{ 0% {{ box-shadow: 0 0 0 0 rgba(152, 216, 200, 0.7); }} 70% {{ box-shadow: 0 0 0 10px rgba(152, 216, 200, 0); }} 100% {{ box-shadow: 0 0 0 0 rgba(152, 216, 200, 0); }} }}
 
-    [data-testid="stMarkdownContainer"] h3 {{
-        font-size: 2.2rem !important;
-        font-weight: 700 !important;
-        color: #98D8C8 !important;
-        text-transform: uppercase;
-        letter-spacing: 3px;
-        margin-bottom: 25px !important;
-        border-left: 6px solid #98D8C8;
-        padding-left: 15px;
+    /* CUSTOM BUTTON FOR AGENT PATH */
+    .stButton > button {{
+        border-radius: 20px;
+        background: #1a2a24;
+        border: 1px solid #98D8C8;
+        color: #98D8C8;
+        font-family: 'JetBrains Mono';
+        padding: 5px 15px;
+        transition: all 0.3s;
     }}
-
-    /* 5. UI ELEMENTS */
-    [data-testid="stChatMessage"] {{
-        background-color: #161B22 !important;
-        border: 1px solid #30363d !important;
-        border-radius: 12px !important;
+    .stButton > button:hover {{
+        background: #98D8C8;
+        color: #0B0E14;
+        box-shadow: 0 0 15px #98D8C8;
     }}
-
-    .stButton>button {{
-        background-color: #98D8C8 !important;
-        color: #0B0E14 !important;
-        font-weight: 700 !important;
-        height: 3.5em;
-        font-size: 1.1rem !important;
-        border-radius: 8px !important;
-        transition: 0.3s;
-    }}
-
-    .stButton>button:hover {{
-        background-color: #7abdaf !important;
-        box-shadow: 0 0 15px rgba(152, 216, 200, 0.4);
-    }}
-
-    /* Custom Scrollbar */
-    [data-testid="column"]:nth-child(2)::-webkit-scrollbar {{ width: 6px; }}
-    [data-testid="column"]:nth-child(2)::-webkit-scrollbar-thumb {{ background: #30363d; border-radius: 10px; }}
     </style>
     """, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 3. HELPER FUNCTIONS
+# 4. HELPER FUNCTIONS
 # -----------------------------------------------------------------------------
 def safe_json_format(data):
     try:
@@ -148,10 +380,23 @@ def fetch_history(session_id: str):
         res = requests.get(f"{API_BASE_URL}/chat-history/{session_id}")
         if res.status_code == 200:
             history = res.json()
-            st.session_state['messages'] = [
-                {"role": ("user" if e['role'] == 'user' else "assistant"), "content": e.get('message', '')}
-                for e in history
-            ]
+            st.session_state['messages'] = []
+            st.session_state['turn_paths'] = {}
+            for e in history:
+                role = "user" if e.get('role') == 'user' else "assistant"
+                msg_id = e.get('id')
+                content = e.get('message', '')
+
+                # --- UPDATED TELEMETRY DISPLAY ---
+                visited = e.get('visited_nodes', [])
+                if role == "assistant" and visited:
+                    # Create a clean, joined string of agents
+                    path_breadcrumb = " → ".join([f"`{n}`" for n in visited])
+                    content += f"\n\n---\n**🛤️ Agent Execution Path:**\n{path_breadcrumb}"
+
+                st.session_state['messages'].append({"id": msg_id, "role": role, "content": content})
+                if visited:
+                    st.session_state['turn_paths'][msg_id] = visited
             return True
     except: return False
 
@@ -162,35 +407,35 @@ def fetch_session_list():
     except: return []
 
 # -----------------------------------------------------------------------------
-# 4. PAGE HEADER & INITIALIZATION
+# 5. UI LAYOUT
 # -----------------------------------------------------------------------------
-if 'session_id' not in st.session_state: st.session_state['session_id'] = str(uuid.uuid4())
-if 'messages' not in st.session_state: st.session_state['messages'] = []
-
 st.markdown(f"""
     <div class="fixed-header">
-        <img class="header-logo" src="{logo_html}">
-        <div style="text-align: left;">
-            <h1 class="header-title">Research Assistant LLM</h1>
-            <p style="color: #98D8C8; opacity: 0.6; margin-top: 5px; font-size: 18px; font-family: 'JetBrains Mono';">
-                SYSTEM PROTOCOL: ACTIVE // ARCHITECTURE: MULTI-AGENT SYNTHESIS
-            </p>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+        <img class="header-logo" src="{logo_left_html}">
+        <div><h1 class="header-title">Research Assistant LLM</h1><p style="color:#98D8C8; opacity:0.6; font-family:'JetBrains Mono';">SYSTEM PROTOCOL: ACTIVE // ARCHITECTURE: MULTI-AGENT</p></div>
+        <img class="header-logo" src="{logo_right_html}">
+    </div>""", unsafe_allow_html=True)
 
-# -----------------------------------------------------------------------------
-# 5. LAYOUT EXECUTION
-# -----------------------------------------------------------------------------
 col_left, col_middle, col_right = st.columns([1, 2, 1])
 
+# --- LEFT COLUMN: MISSION OPS ---
 with col_left:
     st.markdown("### 🛰️ Mission Ops")
-    st.code(f"PROTOCOL ID: {st.session_state['session_id'][:12]}", language="bash")
+    if st.session_state['processing']:
+        st.markdown(f"""
+            <div style='padding:15px; background:#1a2a24; border:1px solid #98D8C8; border-radius:10px; margin-bottom:20px;'>
+                <div style='display:flex; align-items:center; gap:10px;'><div class="status-pulse"></div><span style='color:#98D8C8; font-family:"JetBrains Mono"; font-size:12px;'>AGENT ACTIVE</span></div>
+                <div style='color:white; font-size:18px; font-weight:800; margin-top:8px;'>EXECUTING LOGIC...</div>
+            </div>""", unsafe_allow_html=True)
+    else:
+        st.markdown("<div style='padding:15px; background:#0D1117; border:1px solid #30363d; border-radius:10px; margin-bottom:20px; color:#666; font-family:\"JetBrains Mono\";'>SYSTEM STANDBY</div>", unsafe_allow_html=True)
 
+    st.code(f"PROTOCOL ID: {st.session_state['session_id'][:12]}", language="bash")
     if st.button("🚀 INITIATE NEW MISSION", use_container_width=True):
         st.session_state['session_id'] = str(uuid.uuid4())
         st.session_state['messages'] = []
+        st.session_state['turn_paths'] = {}
+        st.session_state['active_view_path'] = []
         st.rerun()
 
     st.divider()
@@ -200,164 +445,182 @@ with col_left:
         selected = st.selectbox("Historical Streams", options=sessions, label_visibility="collapsed")
         if st.button("RESTORE ARCHIVE DATA", use_container_width=True):
             st.session_state['session_id'] = selected
-            fetch_history(selected)
-            st.rerun()
+            if fetch_history(selected): st.rerun()
 
+# --- MIDDLE COLUMN: RESEARCH LOG ---
 with col_middle:
     st.markdown("### 📑 Research Log")
-
-    # Display Chat History
     for msg in st.session_state['messages']:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
+            if msg["id"] in st.session_state['turn_paths']:
+                # The crucial visual trigger
+                if st.button(f"🔍 Inspect Agent Path", key=f"btn_{msg['id']}"):
+                    st.session_state['active_view_path'] = st.session_state['turn_paths'][msg["id"]]
+                    st.rerun()
 
-    # Chat Input Interface
     if prompt := st.chat_input("Input research coordinates..."):
-        st.chat_message("user").markdown(prompt)
-        st.session_state['messages'].append({"role": "user", "content": prompt})
+        st.session_state['processing'] = True
+        u_id = str(uuid.uuid4())
+        st.session_state['messages'].append({"id": u_id, "role": "user", "content": prompt})
 
         with st.chat_message("assistant"):
             status_box = st.empty()
             status_box.markdown("📡 *Synthesizing Multi-Agent Response...*")
             try:
-                res = requests.post(
-                    f"{API_BASE_URL}/research-chat",
-                    json={"session_id": st.session_state['session_id'], "message": prompt}
-                )
+                res = requests.post(f"{API_BASE_URL}/research-chat", json={"session_id": st.session_state['session_id'], "message": prompt}, timeout=180)
                 if res.status_code == 200:
                     data = res.json()
-                    response_msg = data.get('response', 'Error.')
+                    msg_id = data.get('id')
+                    # Use the cleaned agent names
+                    path = [str(n).strip().replace('"', '') for n in data.get('visited_path', [])]
 
-                    # Formatting JSON data for research log
-                    if data.get('raw_data') and data.get('raw_data') != "No tool data available":
-                        response_msg += f"\n\n---\n**📊 Telemetry Data:**\n```json\n{safe_json_format(data.get('raw_data'))}\n```"
+                    st.session_state['turn_paths'][msg_id] = path
+                    st.session_state['active_view_path'] = path
 
-                    status_box.markdown(response_msg)
-                    st.session_state['messages'].append({"role": "assistant", "content": response_msg})
-                else:
-                    status_box.error("Neural Link Failure: Code 500")
+                    response_msg = data.get('response', '')
+
+                    # --- UPDATED TELEMETRY DISPLAY ---
+                    if path:
+                        path_breadcrumb = " → ".join([f"`{n}`" for n in path])
+                        response_msg += f"\n\n---\n**Tracked Path:** {path_breadcrumb}"
+
+                    st.session_state['messages'].append({"id": msg_id, "role": "assistant", "content": response_msg})
+                st.session_state['processing'] = False
+                st.rerun()
             except Exception as e:
-                status_box.error(f"System Link Offline: {e}")
+                st.session_state['processing'] = False
+                status_box.error(f"Link Error: {e}")
 
+# --- RIGHT COLUMN: LOGIC ENGINE (Fixed Path Highlighting) ---
 with col_right:
     st.markdown("### 🧠 Logic Engine")
 
-    try:
-        viz_res = requests.get(f"{API_BASE_URL}/graph-visualization")
-        if viz_res.status_code == 200:
-            viz_data = viz_res.json()
-            raw_code = viz_data['mermaid_syntax']
+    if st.session_state['active_view_path']:
+        # Clean the path nodes to match mermaid IDs
+        active_path = [str(n).strip().replace('"', '') for n in st.session_state['active_view_path']]
+        st.caption(f"Active Path: {' → '.join(active_path)}")
 
-            # 1. CUMULATIVE HISTORY SCAN
-            # We join all messages to ensure we don't just see the 'last' action
-            full_conversation_history = " ".join([m['content'] for m in st.session_state.get('messages', [])]).lower()
+        try:
+            viz_res = requests.get(f"{API_BASE_URL}/graph-visualization")
+            if viz_res.status_code == 200:
+                viz_data = viz_res.json()
+                raw_mermaid = viz_data["mermaid_syntax"]
 
-            # Mapping Log keywords -> Mermaid Node IDs
-            path_mapping = {
-                "clean_query_agent": ["cleaning", "clean_query", "cleaned"],
-                "intent_agent": ["intent", "determining intent", "constraints"],
-                "planning_agent": ["planning", "plan generated", "steps"],
-                "query_gen_agent": ["query_gen", "generating queries", "tiered"],
-                "pubmed_search": ["pubmed", "ncbi"],
-                "arxiv_search": ["arxiv", "cornell"],
-                "web_search": ["web", "duckduckgo", "ddg"],
-                "retrieve_data": ["retrieval", "chunking", "chunks"],
-                "rag_filter": ["rag", "vector", "embedding"],
-                "synthesis_agent": ["synthesis", "final report", "writing"],
-                "evaluation_agent": ["evaluation", "evaluating", "refine"]
-            }
+                # --- NEW LOGIC: CALCULATE EDGE INDICES ---
+                # Mermaid indexes links (arrows) starting from 0 in the order they appear.
+                lines = raw_mermaid.split('\n')
+                link_indices = []
+                current_link_count = 0
 
-            # Identify all "Active" nodes from the entire session
-            active_nodes = ["supervisor"]
-            for node_id, keywords in path_mapping.items():
-                if any(k in full_conversation_history for k in keywords):
-                    active_nodes.append(node_id)
+                for line in lines:
+                    if "-->" in line or "->" in line:
+                        # Check if this specific link is part of our active path
+                        for i in range(len(active_path) - 1):
+                            src, dst = active_path[i], active_path[i+1]
+                            if src in line and dst in line:
+                                link_indices.append(current_link_count)
+                        current_link_count += 1
 
-            # 2. REBUILD GRAPH WITH CUMULATIVE HIGHLIGHTS
-            import re
-            connections = re.findall(r'([\w\-]+)\s*[-.]+>\s*([\w\-]+)', raw_code)
-            clean_lines = []
-            seen = set()
+                # Dynamic Style Injection
+                active_nodes_css = "\n".join([f"class {node} activeNode" for node in active_path])
+                # This makes the lines solid and bright
+                active_links_css = "\n".join([f"linkStyle {idx} stroke:#98D8C8,stroke-width:4px,opacity:1.0" for idx in link_indices])
 
-            for start, end in connections:
-                s = start.replace("__start__", "START").replace("__end__", "END")
-                e = end.replace("__start__", "START").replace("__end__", "END")
+                # Assemble final syntax
+                sanitized_mermaid = raw_mermaid.split("classDef")[0].strip()
+                final_mermaid = f"{sanitized_mermaid}\n{active_nodes_css}\n{active_links_css}"
 
-                # Cleanup horizontal clutter
-                search_tools = ["arxiv_search", "pubmed_search", "web_search", "openalex_search", "materials_search"]
-                if s in search_tools and e in search_tools: continue
+                html_code = f"""
+<div id="logic-wrapper">
+    <div id="mermaid-holder">
+        <pre class="mermaid">{final_mermaid}</pre>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs';
 
-                if (s, e) not in seen:
-                    # HIGHLIGHT: If both nodes have been touched during the session, make it a solid path
-                    if s.lower() in active_nodes and e.lower() in active_nodes:
-                        arrow = "==>"
-                    else:
-                        arrow = "-.->"
+    mermaid.initialize({{
+        startOnLoad: true, theme: 'base', securityLevel: 'loose',
+        flowchart: {{ useMaxWidth: false, htmlLabels: true, curve: 'basis' }},
+        themeVariables: {{
+            primaryColor: '#003566',
+            lineColor: '#30363d'
+        }}
+    }});
 
-                    clean_lines.append(f"    {s}{arrow}{e}")
-                    seen.add((s, e))
+    const highlightActiveArrows = () => {{
+        const svg = document.querySelector("#mermaid-holder svg");
+        if (!svg) return;
 
-            final_mermaid = "graph TD\n" + "\n".join(clean_lines)
+        // 1. Find all active edge groups (the ones linkStyle touched)
+        const activeEdges = svg.querySelectorAll('g.edgePath');
 
-            # Style classes
-            for node in active_nodes:
-                final_mermaid += f"\n    class {node} activeNode"
+        activeEdges.forEach(edge => {{
+            const style = edge.getAttribute('style') || "";
+            // If the group has our active green color
+            if (style.includes('rgb(152, 216, 200)') || style.includes('#98D8C8')) {{
 
-            # Add specific pulse if Refinement is needed
-            if "refine" in full_conversation_history:
-                final_mermaid += f"\n    class evaluation_agent pulseNode"
-
-            # 3. ADVANCED STYLING & RENDERER
-            html_code = f"""
-            <style>
-                @keyframes pulse {{
-                    0% {{ stroke: #98D8C8; stroke-width: 2; }}
-                    50% {{ stroke: #ff4b4b; stroke-width: 6; }}
-                    100% {{ stroke: #98D8C8; stroke-width: 2; }}
+                // Set the line to solid
+                const path = edge.querySelector('.path');
+                if (path) {{
+                    path.style.strokeWidth = '6px';
+                    path.style.opacity = '1';
                 }}
-                .pulseNode rect {{ animation: pulse 2s infinite; }}
-            </style>
-            <div id="wrapper" style="height: 550px; width: 100%; background: #0B0E14; border: 2px solid #30363d; border-radius: 12px; display: flex;">
-                <div id="mermaid-holder" style="flex-grow: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden;">
-                    <pre class="mermaid">
-                        {final_mermaid}
-                    </pre>
-                </div>
-            </div>
-            <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
-            <script type="module">
-                import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-                mermaid.initialize({{
-                    startOnLoad: true,
-                    theme: 'dark',
-                    themeVariables: {{
-                        'primaryColor': '#1c2128',
-                        'primaryTextColor': '#E6EDF3',
-                        'primaryBorderColor': '#98D8C8',
-                        'lineColor': '#98D8C8',
-                        'fontSize': '14px'
-                    }},
-                    flowchart: {{ useMaxWidth: false, curve: 'basis' }}
-                }});
-                const setupZoom = () => {{
-                    const svg = document.querySelector("#mermaid-holder svg");
-                    if (svg) {{
-                        svg.style.width = "100%"; svg.style.height = "100%";
-                        svgPanZoom(svg, {{ zoomEnabled: true, controlIconsEnabled: true, fit: true, center: true }});
-                        return true;
+
+                // 2. Find the Marker ID from the path's marker-end attribute
+                const markerValue = window.getComputedStyle(path).markerEnd;
+                const markerId = markerValue.replace('url("', '').replace('")', '').replace('#', '');
+
+                // 3. Find that marker in the DEFS section
+                const marker = svg.querySelector(`[id="${{markerId}}"]`);
+                if (marker) {{
+                    marker.style.overflow = 'visible'; // Ensure it isn't clipped
+                    const markerPath = marker.querySelector('path');
+                    if (markerPath) {{
+                        markerPath.style.fill = '#FFA500'; // BRIGHT ORANGE
+                        markerPath.style.stroke = '#FFA500';
+                        markerPath.style.opacity = '1';
                     }}
-                    return false;
-                }};
-                let t = 0; const check = setInterval(() => {{ if (setupZoom() || t > 20) clearInterval(check); t++; }}, 300);
-            </script>
-            """
-            st.components.v1.html(html_code, height=570)
+                }}
+            }}
+        }});
+    }};
 
-            with st.expander("🔬 View Routing Protocol Code"):
-                st.code(final_mermaid, language="mermaid")
+    setTimeout(() => {{
+        const svg = document.querySelector("#mermaid-holder svg");
+        if (svg) {{
+            svg.style.width = "100%"; svg.style.height = "100%";
+            window.pz = svgPanZoom(svg, {{ zoomEnabled: true, fit: true, center: true }});
 
-    except Exception as e:
-        st.info("System initializing...")
+            // Run highlight logic multiple times to catch Mermaid's delayed rendering
+            highlightActiveArrows();
+            setTimeout(highlightActiveArrows, 100);
+            setTimeout(highlightActiveArrows, 500);
+        }}
+    }}, 800);
+</script>
+<style>
+    #logic-wrapper {{ height: 620px; width: 100%; background: #040926; border: 2px solid #30363d; border-radius: 16px; overflow: hidden; }}
 
+    /* NODES */
+    .activeNode rect {{ fill: #98D8C8 !important; stroke: #fff !important; stroke-width: 3px !important; filter: drop-shadow(0 0 5px #98D8C8); }}
+    .activeNode .nodeLabel {{ color: #040926 !important; font-weight: 800 !important; }}
 
+    /* DEFAULT FAINT STATE */
+    .edgePath .path {{ opacity: 0.1; stroke: #30363d !important; }}
+    .marker path {{ fill: #30363d !important; opacity: 0.1 !important; }}
 
+    /* ACTIVE PATHS (FORCE GREEN) */
+    g.edgePath[style*="stroke: rgb(152, 216, 200)"] .path,
+    g.edgePath[style*="stroke:#98D8C8"] .path {{
+        opacity: 1.0 !important;
+        stroke: #98D8C8 !important;
+        stroke-width: 6px !important;
+    }}
+</style>
+"""
+            st.components.v1.html(html_code, height=640)
+        except Exception as e:
+            st.error(f"Logic Engine Error: {e}")

@@ -1,0 +1,99 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Full Diagram</title>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs';
+mermaid.initialize({
+    startOnLoad: true,
+    securityLevel:'loose',
+    theme:'base',
+    flowchart: { nodeSpacing: 110, rankSpacing: 70 }
+});
+</script>
+<style>
+body { margin:0; background-color:#000; }
+pre.mermaid { margin:0; }
+.node rect, .node circle { fill:#111827; stroke:#22D3EE; stroke-width:2.5px; rx:8; ry:8; }
+.activeNode rect, .activeNode circle { fill:#22D3EE; stroke:#fff; stroke-width:4px; }
+.nodeLabel, .nodeLabel span { color:#F9FAFB; font-weight:700; font-size:16px; }
+</style>
+</head>
+<body>
+<pre class="mermaid">
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([__start__]):::first
+	supervisor_agent(supervisor_agent)
+	clean_query_agent(clean_query_agent)
+	intent_agent(intent_agent)
+	planning_agent(planning_agent)
+	query_gen_agent(query_gen_agent)
+	pubmed_search(pubmed_search)
+	arxiv_search(arxiv_search)
+	openalex_search(openalex_search)
+	materials_search(materials_search)
+	web_search(web_search)
+	retrieve_data(retrieve_data)
+	rag_agent(rag_agent)
+	synthesis_agent(synthesis_agent)
+	evaluation_agent(evaluation_agent)
+	__end__([__end__]):::last
+	__start__ --> supervisor_agent;
+	arxiv_search -.-> materials_search;
+	arxiv_search -.-> openalex_search;
+	arxiv_search -.-> pubmed_search;
+	arxiv_search -.-> retrieve_data;
+	arxiv_search -.-> web_search;
+	clean_query_agent --> intent_agent;
+	evaluation_agent -.-> __end__;
+	evaluation_agent -.-> supervisor_agent;
+	intent_agent --> planning_agent;
+	materials_search -.-> arxiv_search;
+	materials_search -.-> openalex_search;
+	materials_search -.-> pubmed_search;
+	materials_search -.-> retrieve_data;
+	materials_search -.-> web_search;
+	openalex_search -.-> arxiv_search;
+	openalex_search -.-> materials_search;
+	openalex_search -.-> pubmed_search;
+	openalex_search -.-> retrieve_data;
+	openalex_search -.-> web_search;
+	planning_agent --> query_gen_agent;
+	pubmed_search -.-> arxiv_search;
+	pubmed_search -.-> materials_search;
+	pubmed_search -.-> openalex_search;
+	pubmed_search -.-> retrieve_data;
+	pubmed_search -.-> web_search;
+	query_gen_agent -.-> arxiv_search;
+	query_gen_agent -.-> materials_search;
+	query_gen_agent -.-> openalex_search;
+	query_gen_agent -.-> pubmed_search;
+	query_gen_agent -.-> retrieve_data;
+	query_gen_agent -.-> web_search;
+	rag_agent --> synthesis_agent;
+	retrieve_data --> rag_agent;
+	supervisor_agent -. &nbsp;END&nbsp; .-> __end__;
+	supervisor_agent -.-> clean_query_agent;
+	supervisor_agent -.-> intent_agent;
+	supervisor_agent -.-> planning_agent;
+	supervisor_agent -.-> query_gen_agent;
+	supervisor_agent -.-> rag_agent;
+	supervisor_agent -.-> retrieve_data;
+	supervisor_agent -.-> synthesis_agent;
+	synthesis_agent --> evaluation_agent;
+	web_search -.-> arxiv_search;
+	web_search -.-> materials_search;
+	web_search -.-> openalex_search;
+	web_search -.-> pubmed_search;
+	web_search -.-> retrieve_data;
+
+</pre>
+</body>
+</html>

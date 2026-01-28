@@ -1,5 +1,6 @@
 from typing import TypedDict, List, Dict, Any, Optional
 
+
 class ResearchState(TypedDict):
     """
     Central shared memory for the Supervisor-driven multi-agent research workflow,
@@ -40,5 +41,11 @@ class ResearchState(TypedDict):
     needs_refinement: bool              # CRITICAL FLAG: Set by EvaluationAgent.
     refinement_reason: str              # Feedback from the Evaluation LLM.
 
+    # Track how many times we have looped back
+    refinement_retries: int
+
     # Internal routing/control fields
     next: str                           # Key used by the graph to determine the next node or 'TERMINATE'
+
+    # Used for tracking the sequential visited agent
+    visited_nodes: List[str]  # Use 'add' to accumulate the path

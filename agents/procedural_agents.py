@@ -1,4 +1,6 @@
 import re
+import json
+from typing import Any
 from core.research_state import ResearchState
 from core.utilities import C_ACTION, C_RESET, C_GREEN, C_YELLOW, C_RED
 
@@ -7,37 +9,52 @@ class CleanQueryAgent:
     Agent responsible for cleaning the user's query and generating a semantic query.
     """
     def __init__(self):
+        # Match this exactly to the key in ResearchGraph.add_node()
         self.id = "clean_query_agent"
 
-    def execute(self, state: ResearchState) -> ResearchState:
-        """
-        Processes the user query and fills the 'semantic_query' in the state.
-        """
+    def execute(self, state: Any) -> Any:
+        # 1. TRACK VISIT (The Breadcrumb Trail for Mermaid)
+        if "visited_nodes" not in state or state["visited_nodes"] is None:
+            state["visited_nodes"] = []
+
+        state["visited_nodes"].append(self.id)
+
         user_query = state.get("user_query", "").strip()
+
+        # Guard clause for empty queries
+        if not user_query:
+            print(f"{C_RED}[{self.id.upper()} ERROR] No user query found in state!{C_RESET}")
+            state["semantic_query"] = "empty_query"
+            return state
+
         print(f"\n{C_ACTION}[{self.id.upper()} START] Cleaning initial query: '{user_query[:100]}...'{C_RESET}")
 
-        # Basic cleaning: collapse multiple whitespaces
+        # 2. ROBUST CLEANING
+        # Collapse whitespaces and remove special characters that might confuse downstream LLMs
         cleaned_query = " ".join(user_query.split())
-
-        # --- Add more robust cleaning here ---
-        # Example: Remove common non-semantic punctuation for cleaner LLM input
         cleaned_query = re.sub(r'[?!()\[\]\"\'*]', '', cleaned_query)
         cleaned_query = re.sub(r'--', ' ', cleaned_query)
         cleaned_query = cleaned_query.strip()
-        # ------------------------------------
 
+        # 3. SEMANTIC GENERATION
+        # This fills the key the Supervisor is looking for to move to 'intent_agent'
         semantic_query = self.generate_semantic_query(cleaned_query)
 
-        # Update the state with the cleaned versions
+        # Update the state
         state["user_query"] = cleaned_query
         state["semantic_query"] = semantic_query
 
         print(f"{C_YELLOW}[{self.id.upper()} STATE] Updated semantic_query: **'{semantic_query[:50]}...'** {C_RESET}")
         print(f"{C_GREEN}[{self.id.upper()} DONE] Query cleaning complete.{C_RESET}")
+
         return state
 
     def generate_semantic_query(self, query: str) -> str:
-        # Placeholder for future NLP enhancements.
+        """
+        Placeholder for semantic enrichment. In a full implementation,
+        this would call a 'CleanQuery' LLM chain.
+        """
+        # For now, we return the cleaned query to satisfy the Supervisor's routing logic
         return query
 
 
@@ -63,6 +80,7 @@ if __name__ == "__main__":
         "primary_intent": "",
         "execution_plan": [],
         "material_elements": [],
+        "system_constraints": [],
         "api_search_term": "",
         "tiered_queries": {},
         "active_tools": [],
@@ -77,7 +95,8 @@ if __name__ == "__main__":
         "refinement_reason": "",
         "is_refining": False,
         "refinement_retries": 0,
-        "next": None,
+        "next": "",
+        "visited_nodes": [],
     }
 
     # --- Test CleanQueryAgent ---
@@ -113,3 +132,4 @@ if __name__ == "__main__":
         print(f"{C_RED}[FAIL] An unexpected error occurred: {e}{C_RESET}")
 
     print(f"\n{C_CYAN}*** PROCEDURAL AGENT TESTS COMPLETE ***{C_RESET}")
+    print(json.dumps(state_after_clean, indent=4))
