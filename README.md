@@ -1,9 +1,9 @@
 <div align="center">
 
-  # 🔬 Advanced Multi-Agent Research Framework(GEN-AI) 
-  ## (🧠 Declarative Research Agent)  
+  # 🔬 Advanced Multi-Agent Research Framework(GEN-AI)
+  ## (🧠 Declarative Research Agent)
   **Autonomous AI agent for scientific literature discovery**
-  
+
   ![Status](https://img.shields.io/badge/status-active-success)
   ![License](https://img.shields.io/badge/license-MIT-blue)
   ![Build](https://img.shields.io/badge/build-passing-brightgreen)
@@ -11,13 +11,13 @@
 </div>
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/51bf24e5-8daf-4e4f-b511-10f2e569da53" width="900" 
+  <img src="https://github.com/user-attachments/assets/51bf24e5-8daf-4e4f-b511-10f2e569da53" width="900"
       style="
       border-radius: 18px;
       border: 1px solid #e5e7eb;
       box-shadow: 0 12px 32px rgba(0,0,0,0.12);"
     />
-  
+
 </div>
 
 ---
@@ -252,21 +252,21 @@ The system uses aggressive CSS targeting to override Streamlit's default behavio
    with st.chat_message("assistant"):
        status = st.empty()
        status.markdown("📡 *Synthesizing...*")
-       
+
        res = requests.post(f"{API_BASE_URL}/research-chat",
-                           json={"session_id": st.session_state['session_id'], 
+                           json={"session_id": st.session_state['session_id'],
                                  "message": prompt})
        data = res.json()
        msg = data.get('response', 'Error.')
-       
+
        # Append JSON data if available
        if data.get('raw_data') and data.get('raw_data') != "No tool data available":
            msg += f"\n\n---\n**📊 Data:**\n```json\n{safe_json_format(data.get('raw_data'))}\n```"
-       
+
        status.markdown(msg)
        st.session_state['messages'].append({"role": "assistant", "content": msg})
    ```
-   
+
    **Execution Flow:**
    - Creates placeholder for live updates
    - Shows "Synthesizing" status during API call
@@ -315,9 +315,9 @@ st.session_state = {
 
 **State Initialization:**
 ```python
-if 'session_id' not in st.session_state: 
+if 'session_id' not in st.session_state:
     st.session_state['session_id'] = str(uuid.uuid4())
-if 'messages' not in st.session_state: 
+if 'messages' not in st.session_state:
     st.session_state['messages'] = []
 ```
 
@@ -357,12 +357,12 @@ def fetch_history(session_id: str):
         if res.status_code == 200:
             history = res.json()
             st.session_state['messages'] = [
-                {"role": ("user" if e['role'] == 'user' else "assistant"), 
+                {"role": ("user" if e['role'] == 'user' else "assistant"),
                  "content": e.get('message', '')}
                 for e in history
             ]
             return True
-    except: 
+    except:
         return False
 ```
 
@@ -381,7 +381,7 @@ def fetch_session_list():
     try:
         res = requests.get(f"{API_BASE_URL}/list-sessions")
         return [s['session_id'] for s in res.json()] if res.status_code == 200 else []
-    except: 
+    except:
         return []
 ```
 
@@ -395,7 +395,7 @@ def fetch_session_list():
 res = requests.post(
     f"{API_BASE_URL}/research-chat",
     json={
-        "session_id": st.session_state['session_id'], 
+        "session_id": st.session_state['session_id'],
         "message": prompt
     }
 )
@@ -453,7 +453,7 @@ data = res.json()
 #### 2. Header Removal
 
 ```css
-header[data-testid="stHeader"], 
+header[data-testid="stHeader"],
 [data-testid="stDecoration"] {
     display: none !important;
 }
@@ -537,10 +537,10 @@ logo_html = f"data:image/jpg;base64,{img_base64}"
 ```python
 def safe_json_format(data):
     try:
-        if isinstance(data, str): 
+        if isinstance(data, str):
             data = json.loads(data)
         return json.dumps(data, indent=2)
-    except: 
+    except:
         return str(data)
 ```
 
@@ -760,7 +760,7 @@ sequenceDiagram
     participant LG as LangGraph Engine
 
     UI->>API: POST /research-chat (User Query)
-    
+
     rect rgb(240, 240, 240)
     Note over API, SQL: [Point 1: User Logging]
     API->>SQL: log_to_db (Role: User)
@@ -768,13 +768,13 @@ sequenceDiagram
 
     API->>VDB: reset_db()
     API->>LG: invoke(InitialState)
-    
+
     loop Research Process
         LG->>LG: Agents update ResearchState keys
     end
 
     LG-->>API: Final ResearchState
-    
+
     rect rgb(240, 240, 240)
     Note over API, SQL: [Point 2: Agent Logging]
     API->>SQL: log_to_db (Role: Agent, State Payload)
@@ -805,26 +805,26 @@ The following Mermaid diagram illustrates the request-response lifecycle, showin
 graph TD
     %% Entry Points
     User((User/Frontend)) -->|POST /research-chat| API[FastAPI Endpoint]
-    
+
     %% Initialization Phase
     subgraph Initialization
         API -->|1. Reset| VDB[(Vector DB Wrapper)]
         API -->|2. Create| State[Initial ResearchState]
     end
-    
+
     %% Execution Phase
     subgraph Execution_Engine
         State -->|3. Offload| TP[ThreadPoolExecutor]
         TP -->|4. Invoke| LG{LangGraph App}
         LG -->|Nodes/Edges| LG
     end
-    
+
     %% Persistence & Safety
     subgraph Persistence_Layer
         LG -->|5. Result| Clean[Recursive Cleanser]
         Clean -->|6. Log| SQL[(SQLite: chat_logs)]
     end
-    
+
     %% Final Output
     SQL -->|7. Return| API
     API -->|JSON Response| User
@@ -1202,7 +1202,7 @@ The result is a transparent, debuggable, and scalable multi-agent system.
 
 ## CleanQueryAgent
 
-**File:** `procedural_agent.py`  
+**File:** `procedural_agent.py`
 **Agent ID:** `clean_query_agent`
 
 ### Purpose
@@ -2105,3 +2105,249 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## 📧 Contact
 
 For questions or feedback, please open an issue on GitHub.
+
+## Retrieval Agent
+```mermaid
+flowchart TD
+    A[Raw Tool Data / URLs] --> B{PDF Available?}
+
+    B -- Yes --> C[Download PDF 🌐]
+    C --> D[Extract Text 📄]
+    D --> E[Chunk Text ✂️]
+
+    B -- No --> F[Use Abstract Text 📝]
+    F --> E
+
+    E --> G[Deduplication Check 🔁]
+    G --> H[Attach Metadata 🏷️<br/> Source, URL, ID]
+    H --> I[Store in Shared State 🗂️]
+
+    I --> J[LLM-Ready Text Chunks 🤖]
+
+```
+
+## RAG Agent
+```mermaid
+flowchart TD
+    A[Research State] --> B[Structured Data Extraction 🧠<br/> tool_id == 'materials_search' ]
+    A --> C[Text Chunks from raw_tool_data and full_text_chunks]
+
+    C --> D[Index in Vector DB 📊]
+    D --> E[Vector Search 🔍]
+
+    E --> F[Top-K Results]
+    F --> G[Neighbor Expansion 📐<br/> Previous + Next Chunks]
+
+    G --> H[Deduplication 🔁]
+    H --> I[Keyword Gate 🏷️]
+
+    I --> J[Final Chunk Selection]
+    B --> K[Final Context Assembly 📦]
+    J --> K
+
+    K --> L[LLM-Ready Context 🤖]
+
+```
+
+```mermaid
+flowchart TD
+    Start([RAGAgent.execute]) --> Breadcrumb[Add 'rag_agent' to visited_nodes]
+    Breadcrumb --> Safety{API Key & Index exists?}
+
+    Safety -- No --> Fail[Set Skip Message]
+    Fail --> End([Return State])
+
+    Safety -- Yes --> CollectStructured[1. Collect Structured Data<br/>from Tool Results]
+    CollectStructured --> PrepareChunks[2. Prepare Text Chunks<br/>for Vector DB]
+
+    PrepareChunks --> DataCheck{Data Available?}
+    DataCheck -- No --> NoData[Set 'No data available']
+    NoData --> End
+
+    DataCheck -- Yes --> Index[3. Index Chunks into VectorDB]
+    Index --> Search[4. Vector Search<br/>Fetch top 8 candidates]
+
+    Search --> DocMap[5. Build Document Map<br/>Sort by chunk_index]
+    DocMap --> Expansion[6. Neighbor Expansion<br/>Grab 1 before/after hits]
+
+    Expansion --> Filter[7. Deduplication &<br/>Keyword Gate Check]
+
+    Filter --> FilterCheck{Any Chunks left?}
+    FilterCheck -- No --> Fallback[8. Fallback:<br/>Use raw chunks]
+    FilterCheck -- Yes --> Assemble[9. Assemble Context:<br/>Structured + Chunks]
+
+    Fallback --> Assemble
+    Assemble --> FinalUpdate[10. Set filtered_context<br/>rag_complete = True]
+    FinalUpdate --> End
+
+    %% Style Highlights
+    classDef highlight fill:#98D8C8,stroke:#fff,stroke-width:2px,color:#040926;
+    class Start,End highlight;
+
+    classDef logic fill:#003566,stroke:#30363d,color:#fff;
+    class Search,Expansion,Filter logic;
+```
+## Supervisor Agent
+```mermaid
+flowchart TD
+
+    %% =========================
+    %% ENTRY & SUPERVISOR
+    %% =========================
+    START([Graph Entry])
+    SUP[SupervisorAgent]
+
+    END([END])
+
+    START --> SUP
+
+    SUP -->|primary_intent == irrelevant| END
+
+    %% =========================
+    %% REFINEMENT GATE
+    %% =========================
+    SUP --> REFINE_CHECK{needs_refinement?}
+
+    REFINE_CHECK -- No --> SEQ_ROUTING
+    REFINE_CHECK -- Yes --> REFINE_LIMIT{refinement_retries < MAX?}
+
+    REFINE_LIMIT -- No --> END
+
+    %% =========================
+    %% REFINEMENT LOGIC
+    %% =========================
+    REFINE_LIMIT -- Yes --> CLASSIFY_REFINE{Refinement Reason}
+
+    CLASSIFY_REFINE -- Missing data / papers --> TOOL_INJECT
+    CLASSIFY_REFINE -- PDF parsing --> RETRIEVAL
+    CLASSIFY_REFINE -- Context / relevance --> RAG
+    CLASSIFY_REFINE -- Writing / structure --> SYNTHESIS
+
+    TOOL_INJECT[[Inject OpenAlex<br/>SemanticScholar<br/>ChemRxiv]]
+    TOOL_INJECT --> PLANNING
+
+    %% =========================
+    %% INITIAL SEQUENTIAL FLOW
+    %% =========================
+    SEQ_ROUTING{State Check}
+
+    SEQ_ROUTING -- No semantic_query --> CLEAN_QUERY
+    SEQ_ROUTING -- No primary_intent --> INTENT
+    SEQ_ROUTING -- No execution_plan --> PLANNING
+    SEQ_ROUTING -- No tiered_queries --> QUERY_GEN
+    SEQ_ROUTING -- No raw_tool_data --> RETRIEVAL
+    SEQ_ROUTING -- No full_text_chunks --> RETRIEVAL
+    SEQ_ROUTING -- No filtered_context<br/>or rag incomplete --> RAG
+    SEQ_ROUTING -- No report_generated --> SYNTHESIS
+    SEQ_ROUTING -- Report generated --> EVALUATION
+
+    %% =========================
+    %% CORE AGENTS
+    %% =========================
+    CLEAN_QUERY[clean_query_agent]
+    INTENT[intent_agent]
+    PLANNING[planning_agent]
+    QUERY_GEN[query_gen_agent]
+
+    %% =========================
+    %% TOOL EXECUTION
+    %% =========================
+    QUERY_GEN --> TOOL_ROUTER{route_to_tools}
+
+    TOOL_ROUTER --> SEMSCH[SemanticScholar]
+    TOOL_ROUTER --> CHEMRX[ChemRxiv]
+    TOOL_ROUTER --> PUBMED[PubMed]
+    TOOL_ROUTER --> ARXIV[Arxiv]
+    TOOL_ROUTER --> OPENALEX[OpenAlex]
+    TOOL_ROUTER --> MATERIALS[Materials]
+    TOOL_ROUTER --> WEB[Web]
+
+    SEMSCH --> TOOL_CHAIN
+    CHEMRX --> TOOL_CHAIN
+    PUBMED --> TOOL_CHAIN
+    ARXIV --> TOOL_CHAIN
+    OPENALEX --> TOOL_CHAIN
+    MATERIALS --> TOOL_CHAIN
+    WEB --> TOOL_CHAIN
+
+    TOOL_CHAIN --> RETRIEVAL
+
+    %% =========================
+    %% DATA → RAG → SYNTHESIS
+    %% =========================
+    RETRIEVAL[retrieval_agent]
+    RAG[rag_agent]
+    SYNTHESIS[synthesis_agent]
+    EVALUATION[evaluation_agent]
+
+    RETRIEVAL --> RAG
+    RAG --> SYNTHESIS
+    SYNTHESIS --> EVALUATION
+
+    %% =========================
+    %% EVALUATION LOOP
+    %% =========================
+    EVALUATION -->|needs_refinement = true| SUP
+    EVALUATION -->|acceptable| END
+
+```
+
+## Synthesis Agent
+```mermaid
+graph TD
+    Start([Start SynthesisAgent.execute]) --> G1{Guardrail 1: Intent}
+
+    subgraph Validation_Layer [Pre-Generation Validation]
+    G1 -- Research --> ContextCheck{Context Length > 200?}
+    ContextCheck -- No --> LackData[Return: Lack of Context]
+    ContextCheck -- Yes --> LLM1[<b>LLM Interaction 1: Relevance Check</b>]
+    LLM1 --> G2{Guardrail 2: Semantic Fit?}
+    G2 -- No --> FailRel[Return: Relevance Failure]
+    end
+
+    subgraph Processing_Layer [Internal Logic - No LLM]
+    G2 -- Yes --> ExtractMat[_extract_material_data]
+    ExtractMat --> ExtractRefs[_extract_references]
+    ExtractRefs --> ModeSwitch{Mode: Initial or Refine?}
+    end
+
+    subgraph Prompt_Layer [COIE Prompt Construction]
+    ModeSwitch -- Initial --> PromptA[Standard COIE Prompt]
+    ModeSwitch -- Refine --> PromptB[Feedback-Aware Prompt]
+    PromptA & PromptB --> Methodology[Inject Active Tool Receipts]
+    end
+
+    subgraph Synthesis_Layer [Report Generation]
+    Methodology --> LLM2[<b>LLM Interaction 2: Scientific Synthesis</b>]
+    LLM2 --> Finalize[State Update: final_report]
+    end
+
+    Finalize --> Next((Next: EvaluationAgent))
+    G1 -- Irrelevant --> Exit([Bypass Agent])
+```
+
+## Evaluation Agent
+```mermaid
+graph TD
+    Start([Start EvaluationAgent]) --> Density{Check Report Density}
+
+    subgraph G1_Validation [Initial Validation]
+    Density -- < 200 Chars --> ForceRefine[Force Refinement: Insufficient Content]
+    Density -- OK --> LLM_Audit[<b>LLM Interaction: Structural Audit</b>]
+    end
+
+    subgraph LLM_Analysis [JSON-Schema Evaluation]
+    LLM_Audit --> Parse{Match Plan vs Report}
+    Parse --> Success{All criteria met?}
+    end
+
+    subgraph State_Update [Routing Decision]
+    Success -- No --> SetTrue[needs_refinement = TRUE]
+    SetTrue --> AddReason[Save Specific Refinement Reason]
+    Success -- Yes --> SetFalse[needs_refinement = FALSE]
+    end
+
+    AddReason --> Exit((Return to Supervisor))
+    SetFalse --> Exit
+    ForceRefine --> Exit
+```
