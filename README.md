@@ -78,7 +78,7 @@ This system consists of three major layers:
 ---
 
 # 🎨 Frontend Interface (Streamlit UI)
-<- [Back](#table)
+<-- [Back](#table)
 
 **File:** `main_ui.py`
 
@@ -719,7 +719,7 @@ with col_left:
 ---
 <a id="the-request-journey-frontend-to-backend"></a>
 # 🛰️ The Request Journey: Frontend to Backend
-
+<-- [Back](#table)
 The system operates using a **Decoupled Architecture**, where the user interface and the processing engine communicate over a network via the FastAPI Gateway.
 
 ### Step 1: User Submission
@@ -794,7 +794,7 @@ sequenceDiagram
 ---
 
 # 🗃️ Backend Architecture
-
+<-- [Back](#table)
 The backend is implemented as a FastAPI-based execution orchestrator (**backend.py**) that serves as the authoritative control plane for the entire research system. It acts as a strict boundary layer between the asynchronous web interface and the deterministic, state-driven LangGraph research engine.
 
 Unlike traditional chatbot backends, this module does not contain business or reasoning logic. Instead, it guarantees correct execution, concurrency isolation, state integrity, persistence, and observability for autonomous multi-agent workflows.
@@ -903,7 +903,7 @@ Since LangGraph's `.invoke()` is a synchronous, CPU-bound task in our current se
 ---
 
 # 🔬 Advanced Multi-Agent Research Framework
-
+<-- [Back](#table)
 This framework implements a state-driven, autonomous research pipeline using LangGraph. It coordinates specialized agents to perform deep-dive scientific literature reviews, material property analysis, and factual synthesis with an integrated evaluation-refinement loop.
 
 ## 🗺️ System Architecture
@@ -1201,7 +1201,7 @@ The result is a transparent, debuggable, and scalable multi-agent system.
 ---
 
 # Detailed Agent Overview
-
+<-- [Back](#table)
 ## CleanQueryAgent
 
 **File:** `procedural_agent.py`
