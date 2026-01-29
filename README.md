@@ -792,7 +792,7 @@ sequenceDiagram
 - **State Cleansing:** Before the data is returned to the UI or stored in the DB, it undergoes a recursive "cleansing" to remove problematic characters that might crash the database or the browser's JSON parser
 
 ---
-<a id ="#backend-architecture"></a>
+<a id ="backend-architecture"></a>
 # 🗃️ Backend Architecture
 <-- [Back](#table)
 
