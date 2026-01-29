@@ -25,7 +25,7 @@
 ## 📖 Table of Contents
 - [Architecture Overview](#architecture-overview)
 - [Frontend Interface](#-frontend-interface-streamlit-ui)
-  - [UI Architecture & Design Philosophy](#-ui-architecture--design-philosophy)
+  - [UI Architecture & Design Philosophy](#ui-architecture--design-philosophy)
   - [Layout System](#-layout-system)
   - [Component Breakdown](#-component-breakdown)
   - [State Management](#-state-management)
@@ -83,6 +83,7 @@ This system consists of three major layers:
 
 The frontend is a production-grade Streamlit application designed with a **fixed-position architecture** and **military-grade visual hierarchy**. It provides real-time interaction with the multi-agent research system while maintaining complete visual stability across all user interactions.
 
+<a id="ui-architecture--design-philosophy"></a>
 ## 🏗️ UI Architecture & Design Philosophy
 
 ### Core Design Principles
