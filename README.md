@@ -78,7 +78,7 @@ This system consists of three major layers:
 ---
 
 # 🎨 Frontend Interface (Streamlit UI)
--[Back](#table)
+<- [Back](#table)
 
 **File:** `main_ui.py`
 
