@@ -905,6 +905,7 @@ Since LangGraph's `.invoke()` is a synchronous, CPU-bound task in our current se
 
 # 🔬 Advanced Multi-Agent Research Framework
 <-- [Back](#table)
+
 This framework implements a state-driven, autonomous research pipeline using LangGraph. It coordinates specialized agents to perform deep-dive scientific literature reviews, material property analysis, and factual synthesis with an integrated evaluation-refinement loop.
 
 ## 🗺️ System Architecture
@@ -921,7 +922,8 @@ The architecture is built on a **Supervisor-Worker pattern**. The Supervisor man
 
 ---
 
-## 🧠 ResearchState (Shared Workflow State)
+# 🧠 ResearchState (Shared Workflow State)
+<-- [Back](#table)
 
 ResearchState is the central shared memory used by all agents in the LangGraph workflow. Each agent reads from and writes to this state to coordinate planning, tool execution, retrieval, synthesis, and evaluation.
 
@@ -1203,6 +1205,7 @@ The result is a transparent, debuggable, and scalable multi-agent system.
 
 # Detailed Agent Overview
 <-- [Back](#table)
+
 ## CleanQueryAgent
 
 **File:** `procedural_agent.py`
@@ -1248,6 +1251,7 @@ flowchart TD
 ---
 
 ## IntentAgent
+<-- [Back](#table)
 
 **Purpose:** Determines the primary intent of the user query and extracts structured constraints. Outputs to `ResearchState`.
 
@@ -1278,6 +1282,7 @@ flowchart TD
 ---
 
 ## PlanningAgent
+<-- [Back](#table)
 
 **Purpose:** Generates a step-by-step execution plan and dynamically selects active tools based on the user's intent, query, and constraints. Handles **refinement logic** if previous execution attempts failed, ensuring failed tools are deactivated and alternatives are activated.
 
@@ -1313,6 +1318,7 @@ flowchart TD
 ---
 
 ## QueryGenerationAgent
+<-- [Back](#table)
 
 **Purpose:** Generates **tiered, tool-specific search queries** and extracts relevant chemical/material elements from the user's query. Ensures queries are only created for **active tools** and handles refinement instructions for problematic tools (e.g., ArXiv category adjustment).
 
@@ -1366,10 +1372,12 @@ flowchart TD
 ---
 
 # 🧰 Tool Agents (`tool_agents.py`)
+<-- [Back](#table)
 
 This module contains all **tool-specific agents** used in the LangGraph workflow. Each agent inherits from `BaseToolAgent` and implements its own retrieval logic while following common guardrails.
 
 ## BaseToolAgent
+<-- [Back](#table)
 
 ### 🎯 Purpose
 
@@ -1398,6 +1406,7 @@ Abstract base class for all tool agents. Provides:
 ---
 
 ## PubMedAgent
+<-- [Back](#table)
 
 ### 🎯 Purpose
 
@@ -1437,6 +1446,7 @@ Fetches biomedical literature via PubMed API using tiered queries.
 ---
 
 ## ArxivAgent
+<-- [Back](#table)
 
 ### 🎯 Purpose
 
@@ -1483,6 +1493,7 @@ Fetches preprints from Arxiv and optionally filters by publication time.
 ---
 
 ## OpenAlexAgent
+<-- [Back](#table)
 
 ### 🎯 Purpose
 
@@ -1526,6 +1537,7 @@ Fetches scholarly works from OpenAlex with structured metadata.
 ---
 
 ## MaterialsAgent
+<-- [Back](#table)
 
 ### 🎯 Purpose
 
@@ -1566,6 +1578,7 @@ Queries the Materials Project API for material properties.
 ---
 
 ## WebAgent
+<-- [Back](#table)
 
 ### 🎯 Purpose
 
@@ -1609,6 +1622,7 @@ Performs general web search using DuckDuckGo for supplemental information.
 ---
 
 ## 📚 Retrieval & RAG Pipeline
+<-- [Back](#table)
 
 This project uses a two-stage Retrieval-Augmented Generation (RAG) pipeline designed to be model-agnostic, scalable, and robust to heterogeneous data sources.
 
@@ -1623,6 +1637,7 @@ The pipeline consists of:
   - **Keyword Gating:** Filters out academic boilerplate (e.g., "References", "Conflict of Interest") to save token space
 
 ### 📥 RetrievalAgent
+<-- [Back](#table)
 
 **Purpose:** The RetrievalAgent is responsible for converting raw tool outputs (PDFs, abstracts, snippets) into structured, semantically meaningful text chunks suitable for vector-based retrieval.
 
@@ -1784,6 +1799,7 @@ flowchart TD
 ---
 
 ## ✍️ SynthesisAgent
+<-- [Back](#table)
 
 The SynthesisAgent is responsible for generating the final scientific research report from the filtered RAG context and structured tool outputs. It supports both initial report generation and refinement rewrites, driven entirely by state flags set earlier in the workflow.
 
@@ -1969,6 +1985,7 @@ It ensures the system produces credible research output, not just fluent text.
 ---
 
 ## 🧪 EvaluationAgent
+<-- [Back](#table)
 
 The EvaluationAgent is responsible for assessing the SynthesisAgent's final report against the dynamic execution plan and determining whether refinement is needed. It uses GPT-4 with a structured Pydantic schema to ensure reliable, boolean-based routing in the LangGraph workflow.
 
@@ -2098,14 +2115,17 @@ Once the graph reaches `__end__` or the max iterations are hit, the system calcu
 ---
 
 ## 📄 License
+<-- [Back](#table)
 
 MIT License
 
 ## 🤝 Contributing
+<-- [Back](#table)
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📧 Contact
+<-- [Back](#table)
 
 For questions or feedback, please open an issue on GitHub.
 
