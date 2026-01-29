@@ -31,7 +31,7 @@
   - [State Management](#-state-management)
   - [API Integration](#-api-integration)
   - [Styling System](#-styling-system)
-- [The Request Journey: Frontend to Backend](#-the-request-journey-frontend-to-backend)
+- [The Request Journey/: Frontend to Backend](#-the-request-journey-frontend-to-backend)
   - [Data Flow & Database Trigger Points](#-data-flow--database-trigger-points)
   - [Execution Architecture Diagram](#-execution-architecture-diagram)
   - [Key Design Principles](#-key-design-principles)
