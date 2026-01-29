@@ -720,6 +720,7 @@ with col_left:
 <a id="the-request-journey-frontend-to-backend"></a>
 # 🛰️ The Request Journey: Frontend to Backend
 <-- [Back](#table)
+
 The system operates using a **Decoupled Architecture**, where the user interface and the processing engine communicate over a network via the FastAPI Gateway.
 
 ### Step 1: User Submission
