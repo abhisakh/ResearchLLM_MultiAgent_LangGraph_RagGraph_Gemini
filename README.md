@@ -2062,7 +2062,8 @@ class EvaluationSchema(BaseModel):
 
 ---
 
-## 🚀 Main Loop Execution & Management
+# 🚀 Main Loop Execution & Management
+<-- [Back](#table)
 
 The execution layer is responsible for initializing the environment, defining the starting state, and managing the LangGraph stream. It specifically handles the logic for the Refinement Loop, ensuring that if a report is rejected by the EvaluationAgent, the system re-runs the RAG and Synthesis phases with improved context.
 
