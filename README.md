@@ -35,7 +35,7 @@
   - [Data Flow & Database Trigger Points](#-data-flow--database-trigger-points)
   - [Execution Architecture Diagram](#-execution-architecture-diagram)
   - [Key Design Principles](#-key-design-principles)
-- [Backend Architecture](#-backend-architecture)
+- [Backend Architecture](#backend-architecture)
   - [High-Level Component Flow](#-high-level-component-flow)
   - [Database Schema](#-database-schema-chat_historydb)
   - [Key Backend Functions](#-key-backend-functions)
@@ -792,9 +792,10 @@ sequenceDiagram
 - **State Cleansing:** Before the data is returned to the UI or stored in the DB, it undergoes a recursive "cleansing" to remove problematic characters that might crash the database or the browser's JSON parser
 
 ---
-
+<a id ="#backend-architecture"></a>
 # 🗃️ Backend Architecture
 <-- [Back](#table)
+
 The backend is implemented as a FastAPI-based execution orchestrator (**backend.py**) that serves as the authoritative control plane for the entire research system. It acts as a strict boundary layer between the asynchronous web interface and the deterministic, state-driven LangGraph research engine.
 
 Unlike traditional chatbot backends, this module does not contain business or reasoning logic. Instead, it guarantees correct execution, concurrency isolation, state integrity, persistence, and observability for autonomous multi-agent workflows.
