@@ -997,7 +997,8 @@ The state persists across refinement loops, allowing iterative improvement witho
 
 ---
 
-## 🧠 LangGraph Architecture Overview
+# 🧠 LangGraph Architecture Overview
+<-- [Back](#table)
 
 **graph.py**
 
