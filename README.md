@@ -31,7 +31,7 @@
   - [State Management](#-state-management)
   - [API Integration](#-api-integration)
   - [Styling System](#-styling-system)
-- [The Request Journey: Frontend to Backend](# 🛰️-the-request-journey-frontend-to-backend)
+- [The Request Journey: Frontend to Backend](#the-request-journey-frontend-to-backend)
   - [Data Flow & Database Trigger Points](#-data-flow--database-trigger-points)
   - [Execution Architecture Diagram](#-execution-architecture-diagram)
   - [Key Design Principles](#-key-design-principles)
@@ -715,7 +715,7 @@ with col_left:
 ---
 
 ---
-
+<a id="the-request-journey-frontend-to-backend"></a>
 # 🛰️ The Request Journey: Frontend to Backend
 
 The system operates using a **Decoupled Architecture**, where the user interface and the processing engine communicate over a network via the FastAPI Gateway.
