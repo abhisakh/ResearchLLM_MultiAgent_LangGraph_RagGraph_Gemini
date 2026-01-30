@@ -669,7 +669,7 @@ class QueryGenerationAgent:
                 tool: {tier: f"<{tool}_{tier}_query>" for tier in self.search_tiers.get(tool, [])}
                 for tool in active_tools
             },
-            "material_elements": ["Primary_Compound", "Component_1", "Component_2"]
+            "material_elements": ["Primary_Compound formula", "Component_1 formula", "Component_2 formula"]
         }
 
         # The core prompt - All your original features are preserved here
