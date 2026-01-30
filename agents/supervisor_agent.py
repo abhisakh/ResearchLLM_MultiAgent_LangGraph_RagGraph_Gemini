@@ -96,10 +96,18 @@ class SupervisorAgent:
             state["next"] = "planning_agent"
             return state
 
+        if is_data_issue:
+            # Even if 'injected' is False, if the Evaluator is unhappy
+            # with data coverage, we should re-plan or re-query.
+            state["next"] = "query_gen_agent" # Go here to regenerate better queries
+            return state
+
         if is_pdf_issue:
             state["next"] = "retrieval_agent"
+
         elif is_context_issue:
             state["next"] = "rag_agent"
+
         else:
             state["next"] = "synthesis_agent"
 
