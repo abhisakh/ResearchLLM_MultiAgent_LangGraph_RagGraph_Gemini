@@ -2431,7 +2431,99 @@ graph TD
     style End fill:#00c853,stroke:#333,stroke-width:2px
 ```
 
-    AddReason --> Exit((Return to Supervisor))
-    SetFalse --> Exit
-    ForceRefine --> Exit
+---
+## Intent Agent
+```mermaid
+graph TD
+    Start([Start Execute]) --> Input[Receive Semantic Query]
+    Input --> LLM[LLM Classification <br/><i>gpt-4o-mini</i>]
+    
+    subgraph Classification [Intent Categories]
+        LLM --> Gen[General Research]
+        LLM --> Mat[Material Property Search]
+        LLM --> Irr[Irrelevant / Out of Scope]
+        LLM --> Chat[Casual Chat / Greeting]
+    end
+
+    subgraph StateUpdate [State Preparation]
+        Gen & Mat --> SetValid[Set primary_intent = valid]
+        Irr & Chat --> SetInvalid[Set primary_intent = irrelevant]
+    end
+
+    SetValid --> Route[Route to Planning Agent]
+    SetInvalid --> Guard[Route to Synthesis for Rejection]
+    
+    Route & Guard --> Hub([Return to Supervisor Hub])
+
+    %% Styling
+    style Start fill:#f9f,stroke:#333
+    style Hub fill:#f96,stroke:#333
+    style LLM fill:#4285F4,color:#fff
+    style Irr fill:#ffcdd2
+    style Gen fill:#c8e6c9
 ```
+---
+## Planning Agent
+```mermaid
+graph TD
+    Start([Start Execute]) --> Load[Load Query & Intent]
+    
+    subgraph Analysis [Strategic Analysis]
+        Load --> Decon[Deconstruct Query into Sub-topics]
+        Decon --> ToolMatch[Map Topics to Best-Fit Tool Agents]
+    end
+
+    subgraph Generation [Plan Construction]
+        ToolMatch --> Schema[Apply ExecutionPlan Schema]
+        Schema --> LLM[LLM Logic Generator <br/><i>gpt-4o-mini</i>]
+    end
+
+    subgraph Refinement [Adaptive Logic]
+        LLM --> Check{Is Refining?}
+        Check -->|Yes| Integrate[Incorporate Evaluation Feedback]
+        Check -->|No| Finalize[Finalize Sequential Steps]
+        Integrate --> Finalize
+    end
+
+    Finalize --> State[Update active_tools & execution_plan]
+    State --> Hub([Return to Supervisor Hub])
+
+    %% Styling
+    style Start fill:#f9f,stroke:#333
+    style Hub fill:#f96,stroke:#333
+    style LLM fill:#4285F4,color:#fff
+    style Check fill:#fff9c4
+```
+## Query Generation agent
+```mermaid
+graph TD
+    Start([Start Execute]) --> Input[Load Execution Plan & Query]
+    
+    subgraph Synthesis [Query Engineering]
+        Input --> Context[Analyze Scientific Context]
+        Context --> KeyTerm[Extract Technical Keywords]
+        KeyTerm --> ToolSynt[Match Search Syntax to Tools]
+    end
+
+    subgraph LLMGen [Generation Phase]
+        ToolSynt --> Prompt[Construct Tool-Specific Prompt]
+        Prompt --> LLM[LLM Generator <br/><i>gpt-4o-mini</i>]
+    end
+
+    subgraph Output [State Update]
+        LLM --> Parse[Parse Tool-Query Mapping]
+        Parse --> Filter[De-duplicate & Sanitize Queries]
+        Filter --> State[Update tool_queries & semantic_query]
+    end
+
+    State --> Hub([Return to Supervisor Hub])
+
+    %% Styling
+    style Start fill:#f9f,stroke:#333
+    style Hub fill:#f96,stroke:#333
+    style LLM fill:#4285F4,color:#fff
+    style Synthesis fill:#e1f5fe,stroke:#01579b
+```
+
+
+
