@@ -2061,46 +2061,6 @@ class EvaluationSchema(BaseModel):
     )
 ```
 ---
-```mermaid
-graph TD
-    %% Central Hub
-    Super[Supervisor Agent Hub]
-
-    %% Entry Point
-    User((User Query)) --> Super
-
-    %% Spokes
-    Clean[Clean Query Agent]
-    Intent[Intent Agent]
-    Plan[Planning Agent]
-    QGen[Query Gen Agent]
-    Tools[Tool Agents <br/> ArXiv, PubMed, etc.]
-    Ret[Retrieval Agent]
-    RAG[RAG Agent]
-    Syn[Synthesis Agent]
-    Eval[Evaluation Agent]
-
-    %% Logic Flow (The Hub-and-Spoke Pattern)
-    Super <-->|1. Clean| Clean
-    Super <-->|2. Classify| Intent
-    Super <-->|3. Strategy| Plan
-    Super <-->|4. Formulate| QGen
-    Super <-->|5. Search| Tools
-    Super <-->|6. Fetch PDF| Ret
-    Super <-->|7. Vectorize| RAG
-    Super <-->|8. Write| Syn
-    Super <-->|9. Quality Audit| Eval
-
-    %% Decision Point
-    Eval -.->|Needs Refinement| Super
-    Eval -.->|Satisfactory| End([Final Report Output])
-
-    %% Styling
-    style Super fill:#f96,stroke:#333,stroke-width:4px
-    style End fill:#00c853,stroke:#333,stroke-width:2px
-```
-
----
 
 # 🚀 Main Loop Execution & Management
 <-- [Back](#table)
@@ -2412,6 +2372,48 @@ graph TD
     SetTrue --> AddReason[Save Specific Refinement Reason]
     Success -- Yes --> SetFalse[needs_refinement = FALSE]
     end
+```
+---
+## Supervisor Agent
+
+```mermaid
+graph TD
+    %% Central Hub
+    Super[Supervisor Agent Hub]
+
+    %% Entry Point
+    User((User Query)) --> Super
+
+    %% Spokes
+    Clean[Clean Query Agent]
+    Intent[Intent Agent]
+    Plan[Planning Agent]
+    QGen[Query Gen Agent]
+    Tools[Tool Agents <br/> ArXiv, PubMed, etc.]
+    Ret[Retrieval Agent]
+    RAG[RAG Agent]
+    Syn[Synthesis Agent]
+    Eval[Evaluation Agent]
+
+    %% Logic Flow (The Hub-and-Spoke Pattern)
+    Super <-->|1. Clean| Clean
+    Super <-->|2. Classify| Intent
+    Super <-->|3. Strategy| Plan
+    Super <-->|4. Formulate| QGen
+    Super <-->|5. Search| Tools
+    Super <-->|6. Fetch PDF| Ret
+    Super <-->|7. Vectorize| RAG
+    Super <-->|8. Write| Syn
+    Super <-->|9. Quality Audit| Eval
+
+    %% Decision Point
+    Eval -.->|Needs Refinement| Super
+    Eval -.->|Satisfactory| End([Final Report Output])
+
+    %% Styling
+    style Super fill:#f96,stroke:#333,stroke-width:4px
+    style End fill:#00c853,stroke:#333,stroke-width:2px
+```
 
     AddReason --> Exit((Return to Supervisor))
     SetFalse --> Exit
