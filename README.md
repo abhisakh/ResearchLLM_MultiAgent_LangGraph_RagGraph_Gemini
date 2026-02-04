@@ -2321,57 +2321,73 @@ flowchart TD
 ## Synthesis Agent
 ```mermaid
 graph TD
-    Start([Start SynthesisAgent.execute]) --> G1{Guardrail 1: Intent}
+    Start([Start Execute]) --> Guard{Check Intent}
+    
+    %% Intent Branch
+    Guard -->|Irrelevant| Reject[Generate Polite Rejection]
+    Reject --> Hub([Return to Supervisor Hub])
 
-    subgraph Validation_Layer [Pre-Generation Validation]
-    G1 -- Research --> ContextCheck{Context Length > 200?}
-    ContextCheck -- No --> LackData[Return: Lack of Context]
-    ContextCheck -- Yes --> LLM1[<b>LLM Interaction 1: Relevance Check</b>]
-    LLM1 --> G2{Guardrail 2: Semantic Fit?}
-    G2 -- No --> FailRel[Return: Relevance Failure]
+    %% Main Path
+    Guard -->|Scientific| ExtractMat[Extract Material Data <br/><i>_extract_material_data</i>]
+    ExtractMat --> MapRefs[Map Metadata to Links <br/><i>_extract_references</i>]
+    
+    subgraph PromptConstruction [LLM Synthesis Phase]
+        MapRefs --> BuildPrompt[Format Research Prompt <br/><i>_format_prompt</i>]
+        BuildPrompt --> LLM[Call LLM <br/><i>gpt-4o-mini</i>]
     end
 
-    subgraph Processing_Layer [Internal Logic - No LLM]
-    G2 -- Yes --> ExtractMat[_extract_material_data]
-    ExtractMat --> ExtractRefs[_extract_references]
-    ExtractRefs --> ModeSwitch{Mode: Initial or Refine?}
+    subgraph PostProcessing [Refining the Output]
+        LLM --> Reindex[Re-order Citations <br/><i>_reorder_citations</i>]
+        Reindex --> LinkVerify[Verify Markdown Links]
     end
 
-    subgraph Prompt_Layer [COIE Prompt Construction]
-    ModeSwitch -- Initial --> PromptA[Standard COIE Prompt]
-    ModeSwitch -- Refine --> PromptB[Feedback-Aware Prompt]
-    PromptA & PromptB --> Methodology[Inject Active Tool Receipts]
-    end
+    LinkVerify --> Success[Set report_generated = True]
+    Success --> Hub
+    
+    %% Error Handling
+    LLM -.->|API Error| Err[Graceful Error Handling]
+    Err --> Hub
 
-    subgraph Synthesis_Layer [Report Generation]
-    Methodology --> LLM2[<b>LLM Interaction 2: Scientific Synthesis</b>]
-    LLM2 --> Finalize[State Update: final_report]
-    end
-
-    Finalize --> Next((Next: EvaluationAgent))
-    G1 -- Irrelevant --> Exit([Bypass Agent])
+    %% Styling
+    style Start fill:#f9f,stroke:#333
+    style Hub fill:#f96,stroke:#333
+    style LLM fill:#4285F4,color:#fff
+    style Reject fill:#ffcdd2
 ```
 
 ## Evaluation Agent
 ```mermaid
 graph TD
-    Start([Start EvaluationAgent]) --> Density{Check Report Density}
-
-    subgraph G1_Validation [Initial Validation]
-    Density -- < 200 Chars --> ForceRefine[Force Refinement: Insufficient Content]
-    Density -- OK --> LLM_Audit[<b>LLM Interaction: Structural Audit</b>]
+    Start([Start Execute]) --> Load[Load Final Report & Plan]
+    
+    subgraph AuditPhase [Quality Audit]
+        Load --> Criteria{Check Criteria}
+        Criteria --> Q1[All planned tools used?]
+        Criteria --> Q2[Scientific accuracy & depth?]
+        Criteria --> Q3[Links & Citations present?]
     end
 
-    subgraph LLM_Analysis [JSON-Schema Evaluation]
-    LLM_Audit --> Parse{Match Plan vs Report}
-    Parse --> Success{All criteria met?}
+    subgraph DecisionEngine [Decision Logic]
+        Q1 & Q2 & Q3 --> Score[Evaluate Scores]
+        Score --> PassFail{Needs Refinement?}
     end
 
-    subgraph State_Update [Routing Decision]
-    Success -- No --> SetTrue[needs_refinement = TRUE]
-    SetTrue --> AddReason[Save Specific Refinement Reason]
-    Success -- Yes --> SetFalse[needs_refinement = FALSE]
-    end
+    %% Failure Path
+    PassFail -->|True| Refine[Generate Refinement Reason]
+    Refine --> SetRefine[Set is_refining = True]
+    SetRefine --> Hub([Return to Supervisor Hub])
+
+    %% Success Path
+    PassFail -->|False| Success[Set final_report = Approved]
+    Success --> SetEnd[Set next = END]
+    SetEnd --> Hub
+
+    %% Styling
+    style Start fill:#f9f,stroke:#333
+    style Hub fill:#f96,stroke:#333
+    style PassFail fill:#fff9c4,stroke:#fbc02d
+    style Success fill:#c8e6c9,stroke:#2e7d32
+    style Refine fill:#ffcdd2,stroke:#c62828
 ```
 ---
 ## Supervisor Agent
