@@ -2524,6 +2524,34 @@ graph TD
     style LLM fill:#4285F4,color:#fff
     style Synthesis fill:#e1f5fe,stroke:#01579b
 ```
+---
+```mermaid
+graph TD
+    Start([Start Execute]) --> Input[Receive Raw User Input]
+    
+    subgraph PreProcessing [Normalization]
+        Input --> Strip[Remove Greetings & Filler <br/><i>"Hello", "Can you please..."</i>]
+        Strip --> Fix[Correct Typos & Spelling]
+    end
 
+    subgraph Intelligence [Semantic Preservation]
+        Fix --> Guard{Technical Check}
+        Guard -->|Specific Term| Keep[Preserve Domain Terms <br/><i>e.g., 'Liquidography'</i>]
+        Guard -->|Vague| Enhance[Add Contextual Keywords]
+    end
+
+    subgraph StateUpdate [Finalization]
+        Keep & Enhance --> Format[Format as Semantic Query]
+        Format --> Update[Update state.semantic_query]
+    end
+
+    Update --> Hub([Return to Supervisor Hub])
+
+    %% Styling
+    style Start fill:#f9f,stroke:#333
+    style Hub fill:#f96,stroke:#333
+    style Intelligence fill:#fff9c4,stroke:#fbc02d
+    style PreProcessing fill:#e1f5fe,stroke:#01579b
+```
 
 
