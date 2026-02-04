@@ -2530,7 +2530,7 @@ graph TD
     Start([Start Execute]) --> Input[Receive Raw User Input]
     
     subgraph PreProcessing [Normalization]
-        Input --> Strip[Remove Greetings & Filler <br/><i>"Hello", "Can you please..."</i>]
+        Input --> Strip[Remove Greetings & Filler <br/><i>Hello, Can you please...</i>]
         Strip --> Fix[Correct Typos & Spelling]
     end
 
