@@ -2553,5 +2553,53 @@ graph TD
     style Intelligence fill:#fff9c4,stroke:#fbc02d
     style PreProcessing fill:#e1f5fe,stroke:#01579b
 ```
+---
+## Backend
+```mermaid
+graph TD
+    %% Client and Interface
+    User((User/Frontend)) -->|POST /research-chat| API[FastAPI Endpoint]
+    
+    subgraph Startup [Initialization]
+        API -.->|Startup Event| VDB[VectorDBWrapper]
+        API -.->|Startup Event| GraphInit[ResearchGraph & LangGraph]
+        VDB --> Reset[Reset Database]
+    end
+
+    subgraph RequestHandling [Request Lifecycle]
+        API --> DBLog[log_to_db: User Query]
+        DBLog --> State[Initialize ResearchState]
+        State --> Executor[ThreadPoolExecutor]
+    end
+
+    subgraph CoreLogic [LangGraph Execution]
+        Executor -->|Invoke| LG[research_agent_app]
+        LG --> Path[visited_nodes Tracking]
+        LG --> Cleansing[UTF-8 & Surrogate Cleansing]
+    end
+
+    subgraph Persistence [SQLite Storage]
+        Path --> DBLogAgent[log_to_db: Agent Report]
+        DBLogAgent --> ChatLog[(chat_history.db)]
+    end
+
+    Cleansing --> Response[JSON Response Output]
+    Response --> User
+
+    %% Secondary Endpoints
+    User -->|GET /chat-history| Hist[History API]
+    Hist -->|Query| ChatLog
+    User -->|GET /graph-visualization| Viz[Mermaid Engine]
+    Viz -->|draw_mermaid| LG
+
+    %% Styling
+    style LG fill:#4285F4,color:#fff,stroke:#333,stroke-width:2px
+    style ChatLog fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style API fill:#00c853,color:#fff
+    style Startup fill:#fff3e0,stroke:#ff9800,stroke-dasharray: 5 5
+```
+
+
+
 
 
