@@ -24,6 +24,7 @@
 <a id="table"></a>
 ## 📖 Table of Contents
 - [Architecture Overview](#architecture-overview)
+- [Installation and Setup](#installation)
 - [Frontend Interface](#-frontend-interface-streamlit-ui)
   - [UI Architecture & Design Philosophy](#ui-architecture--design-philosophy)
   - [Layout System](#-layout-system)
@@ -74,6 +75,11 @@ This system consists of three major layers:
 1. **Frontend Layer** - Streamlit-based UI with fixed layout architecture
 2. **Backend Layer** - FastAPI gateway managing state and persistence
 3. **Agent Layer** - LangGraph-orchestrated multi-agent research pipeline
+---
+
+<a id ="installation"></a>
+# Installation and Setup
+<-- [Back](#table)
 
 ---
 
