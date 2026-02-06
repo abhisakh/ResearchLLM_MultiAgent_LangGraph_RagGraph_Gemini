@@ -109,9 +109,9 @@ This ensures consistent dependency versions across development and deployment en
 ## Create a .env 
 Inside the root directory creat a '.env' and provide the following informations
 ```python
-MP_API_KEY='.................'# 
-GPT_API_KEY='................'# 
-S2_API_KEY='.................' # 
+MP_API_KEY='.................' 
+GPT_API_KEY='................'
+S2_API_KEY='.................'
 ```
 - KEY for [Material-Projects](https://next-gen.materialsproject.org/api)
 - KEY for [Open-AI](https://openai.com/api/)
