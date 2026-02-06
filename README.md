@@ -84,7 +84,7 @@ This system consists of three major layers:
 ## ⚙️ Installation & Setup
 #### 1️⃣ Clone the repository
 ```python
-git clone <your-repo-url>
+git clone <[https://github.com/abhisakh/ResearchLLM_MultiAgent_LangGraph_RagGraph.git](https://github.com/abhisakh/ResearchLLM_MultiAgent_LangGraph_RagGraph.git)>
 cd Final_Modular_ResearchLLM
 ```
 
@@ -106,11 +106,18 @@ Install them using:
 pip install -r requirements.txt
 ```
 This ensures consistent dependency versions across development and deployment environments.
+## Create a .env 
+Inside the root directory creat a '.env' and provide the following informations
+```python
+MP_API_KEY='.................'# KEY for [Material-Projects](https://next-gen.materialsproject.org/api)
+GPT_API_KEY='................'# KEY for [Open-AI](https://openai.com/api/)
+S2_API_KEY='.................' # KEY for [Schemantic-scholer](https://www.semanticscholar.org/product/api)
+```
 
 ## 🚀 Running the Application
 This project consists of two independently managed components: a backend API and a frontend UI.
 
-#### 🔹 Backend (FastAPI + Uvicorn)
+### 🔹 Backend (FastAPI + Uvicorn)
 The backend exposes the research system, agent orchestration, vector database, and LLM logic via a FastAPI application.
 Run the backend using:
 ```python
@@ -127,7 +134,56 @@ Swagger documentation:
 ⚠️ Do not run the backend using python backend.py.
 FastAPI requires an ASGI server (Uvicorn) to manage its lifecycle.
 
+### 🔹 Frontend (Streamlit UI)
 
+The frontend provides an interactive user interface for the research system.
+
+Run the frontend using:
+```python
+cd frontend
+streamlit run ui_main.py
+```
+
+The UI will open automatically in your browser at:
+[http://localhost:8501](http://localhost:8501/)
+
+⚠️ Do not run the frontend using python ui_main.py.
+Streamlit requires its own runtime to manage sessions and UI state.
+
+## 🧠 Design Rationale: Python, Uvicorn, and Streamlit
+
+Although the entire project is written in Python, different components are executed using specialized runtimes to ensure correctness, scalability, and clarity of responsibility.
+
+### 🔹 Python (Core Language)
+
+- Used to implement:
+  - LLM agents
+  - Research logic
+  - Vector database handling
+  - State management
+
+- Python provides the shared foundation across backend and frontend.
+
+### 🔹 Uvicorn (Backend Runtime)
+
+Acts as an ASGI server for FastAPI
+Responsible for:
+- Managing the API lifecycle
+- Handling concurrent requests
+- Executing startup and shutdown events
+- Enables scalable and asynchronous backend execution.
+
+### 🔹 Streamlit (Frontend Runtime)
+
+Provides a managed UI runtime
+Responsible for:
+- Rendering the user interface
+- Handling session state
+- Rerunning Python code on user interaction
+- Simplifies rapid prototyping and interaction with the backend API.
+
+***Key idea:***
+Python defines what the system does, while Uvicorn and Streamlit define how and when that Python code runs.
 
 ---
 
