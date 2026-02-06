@@ -81,6 +81,92 @@ This system consists of three major layers:
 # Installation and Setup
 <-- [Back](#table)
 
+## 📁 File and Folder Structure
+
+The project follows a modular and layered directory structure designed to clearly separate backend intelligence, frontend presentation, and experimental artifacts.
+All components are implemented in Python, while execution is handled by appropriate runtimes depending on responsibility.
+```python
+├── __init__.py
+├── backend
+│   ├── agents
+│   │   ├── __init__.py
+│   │   ├── evaluation_agent.py
+│   │   ├── planning_agents.py
+│   │   ├── procedural_agents.py
+│   │   ├── rag_agents.py
+│   │   ├── supervisor_agent.py
+│   │   ├── synthesis_agent.py
+│   │   └── tool_agents.py
+│   ├── backend.py
+│   ├── chat_history.db
+│   ├── core
+│   │   ├── __init__.py
+│   │   ├── research_state.py
+│   │   ├── utilities.py
+│   │   └── vector_db.py
+│   ├── graph
+│   │   ├── __init__.py
+│   │   └── research_graph.py
+│   ├── main.py
+│   ├── vector_data.pkl
+│   └── vector_index.faiss
+├── frontend
+│   ├── ai.jpg
+│   ├── genai.jpg
+│   └── ui_main.py
+├── requirements.txt
+└── testing_block
+    ├── chat_history.db
+    ├── chat_history_old.db
+    ├── full_diagram.html
+    ├── old.py
+    ├── planning_agents_........old.py
+    ├── rag_tool.txt
+    ├── research_graph_............old.py
+    ├── supervisor_agent_.........old.py
+    ├── test_model.py
+    ├── vector_data.pkl
+    └── vector_index.faiss
+```
+---
+### 🔹 Root Level
+- requirements.txt — Python dependency list for reproducible environments
+- __init__.py — Marks the project as a Python package
+
+---
+
+### 🔹 backend/ — Core Research & API Layer
+Contains the ***FastAPI-based backend*** responsible for agent orchestration, research workflows, vector search, and persistence.
+- backend.py — FastAPI application entry point (run via uvicorn)
+- agents/ — Modular LLM agents (planning, RAG, synthesis, supervision, tools)
+- core/ — Shared infrastructure (state, utilities, vector database abstraction)
+- graph/ — Central research graph defining agent execution flow
+
+---
+
+**Persistent files**
+- chat_history.db — conversation memory (SQLite)
+- vector_index.faiss / vector_data.pkl — persisted vector embeddings
+
+---
+### 🔹 frontend/ — User Interface Layer
+Contains the Streamlit-based frontend for interacting with the research system.
+- ui_main.py — Main Streamlit application (run via streamlit run)
+- Image assets — UI branding and visual elements
+---
+
+### 🔹 testing_block/ — Experiments & Legacy Artifacts
+Isolated workspace for:
+- Experimental scripts
+- Legacy agent and graph implementations
+- Archived databases and vector indexes
+- Diagrams and prototyping files
+
+***This directory is intentionally excluded from production execution.***
+
+
+---
+
 ## ⚙️ Installation & Setup
 #### 1️⃣ Clone the repository
 ```python
