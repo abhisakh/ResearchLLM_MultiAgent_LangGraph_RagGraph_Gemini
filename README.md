@@ -119,10 +119,10 @@ uvicorn backend:app --reload
 ```
 
 The API will be available at:
-http://127.0.0.1:8000[http://127.0.0.1:8000]
+[http://127.0.0.1:8000](http://127.0.0.1:8000)
 
 Swagger documentation:
-http://127.0.0.1:8000/docs[http://127.0.0.1:8000/docs]
+[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
 ⚠️ Do not run the backend using python backend.py.
 FastAPI requires an ASGI server (Uvicorn) to manage its lifecycle.
