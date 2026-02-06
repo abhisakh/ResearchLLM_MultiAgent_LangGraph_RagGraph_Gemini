@@ -81,6 +81,54 @@ This system consists of three major layers:
 # Installation and Setup
 <-- [Back](#table)
 
+## ⚙️ Installation & Setup
+#### 1️⃣ Clone the repository
+```python
+git clone <your-repo-url>
+cd Final_Modular_ResearchLLM
+```
+
+#### 2️⃣ Create and activate a virtual environment
+***macOS / Linux***
+```python
+python3 -m venv .venv
+source .venv/bin/activate   
+```
+***#(Windows)***
+```python
+.venv\Scripts\activate 
+```
+## 📦 Installing Dependencies
+All required Python packages are listed in requirements.txt.
+Install them using:
+
+```python
+pip install -r requirements.txt
+```
+This ensures consistent dependency versions across development and deployment environments.
+
+## 🚀 Running the Application
+This project consists of two independently managed components: a backend API and a frontend UI.
+
+#### 🔹 Backend (FastAPI + Uvicorn)
+The backend exposes the research system, agent orchestration, vector database, and LLM logic via a FastAPI application.
+Run the backend using:
+```python
+cd backend
+uvicorn backend:app --reload
+```
+
+The API will be available at:
+http://127.0.0.1:8000[http://127.0.0.1:8000]
+
+Swagger documentation:
+http://127.0.0.1:8000/docs[http://127.0.0.1:8000/docs]
+
+⚠️ Do not run the backend using python backend.py.
+FastAPI requires an ASGI server (Uvicorn) to manage its lifecycle.
+
+
+
 ---
 
 # 🎨 Frontend Interface (Streamlit UI)
