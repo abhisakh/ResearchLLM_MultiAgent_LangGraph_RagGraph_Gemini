@@ -113,9 +113,10 @@ MP_API_KEY='.................'#
 GPT_API_KEY='................'# 
 S2_API_KEY='.................' # 
 ```
-KEY for [Material-Projects](https://next-gen.materialsproject.org/api)
-KEY for [Open-AI](https://openai.com/api/)
-KEY for [Schemantic-scholer](https://www.semanticscholar.org/product/api)
+- KEY for [Material-Projects](https://next-gen.materialsproject.org/api)
+- KEY for [Open-AI](https://openai.com/api/)
+- KEY for [Schemantic-scholer](https://www.semanticscholar.org/product/api)
+  
 ## 🚀 Running the Application
 This project consists of two independently managed components: a backend API and a frontend UI.
 
