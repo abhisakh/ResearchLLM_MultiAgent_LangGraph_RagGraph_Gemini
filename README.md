@@ -106,7 +106,7 @@ Install them using:
 pip install -r requirements.txt
 ```
 This ensures consistent dependency versions across development and deployment environments.
-## Create a .env 
+## Create a .env file
 Inside the root directory creat a '.env' and provide the following informations
 ```python
 MP_API_KEY='.................' 
