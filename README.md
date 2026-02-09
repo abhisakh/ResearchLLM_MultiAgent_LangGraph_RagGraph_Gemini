@@ -2848,7 +2848,7 @@ graph TD
 
 ## 3. GET /graph-visualization
 ```mermaid
-graph LR
+graph TD
     User((User)) -->|Call| Viz[GET /graph-visualization]
     
     subgraph Logic [Mermaid Generation]
