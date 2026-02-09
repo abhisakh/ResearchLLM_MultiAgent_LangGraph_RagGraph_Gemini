@@ -2849,20 +2849,26 @@ graph TD
 ## 3. GET /graph-visualization
 ```mermaid
 graph TD
-    User((User)) -->|Call| Viz[GET /graph-visualization]
-    
-    subgraph Logic [Mermaid Generation]
-        Viz --> Check[Check research_agent_app exists]
-        Check --> Raw[draw_mermaid]
-        Raw --> Sanitize["Regex Clean: Remove <p> & self-loops"]
-        Sanitize --> Encode[Base64 Encoding]
+    subgraph Offline_Logic [Offline: System Blueprint]
+        Code[research_agent_app] -->|Introspection| Mermaid[Base Mermaid Syntax]
+        Mermaid --> Clean[Regex Sanitization]
     end
 
-    Encode --> Final["JSON {mermaid_syntax, image_url}"]
-    Final --> User
+    subgraph Online_Logic [Online: Live Path Overlay]
+        DB[(chat_history.db)] -->|Session ID| Fetch[Extract raw_data & visited_nodes]
+        Fetch --> Path[Identify Activated Agents]
+    end
 
-    style Viz fill:#4285F4,color:#fff
-    style Logic fill:#e1f5fe,stroke:#01579b
+    subgraph Frontend_Render [Final Visualization]
+        Clean --> Combine{Logic Engine}
+        Path --> Combine
+        Combine --> Final["Highlighted Graph <br/>(The 'Thinking' Map)"]
+    end
+
+    %% Styling
+    style Offline_Logic fill:#e1f5fe,stroke:#01579b
+    style Online_Logic fill:#fff3e0,stroke:#ff9800
+    style Final fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
 ```
 
 ---
