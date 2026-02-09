@@ -2797,6 +2797,96 @@ graph TD
     style API fill:#00c853,color:#fff
     style Startup fill:#fff3e0,stroke:#ff9800,stroke-dasharray: 5 5
 ```
+---
+
+## 1. POST /research-chat
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API as FastAPI (research_chat)
+    participant DB as SQLite (ChatLog)
+    participant VDB as VectorDB
+    participant LG as ResearchGraph (LangGraph)
+
+    Client->>API: Send message + session_id
+    API->>DB: log_to_db (User Message)
+    API->>VDB: reset_db()
+    Note over API,LG: Execute in ThreadPoolExecutor
+    API->>LG: invoke(initial_state)
+    activate LG
+    LG-->>LG: Agent Loops (RAG, Synthesis, etc.)
+    LG->>API: Return cleansed_result
+    deactivate LG
+    API->>DB: log_to_db (Agent Report + visited_nodes)
+    API-->>Client: JSON {response, visited_path, metadata}
+```
+---
+
+## 2. GET /chat-history/{session_id}
+
+```mermaid
+graph TD
+    Client((Frontend)) -->|Request session_id| API[GET /chat-history]
+    API --> OpenDB[Open SessionLocal]
+    OpenDB --> Query[Query ChatLog Table]
+    
+    subgraph Processing [Data Normalization]
+        Query --> ParseJSON{Is raw_data/visited_nodes JSON?}
+        ParseJSON -->|Yes| Clean[_safe_json_parse]
+        ParseJSON -->|No| Raw[Return as String]
+    end
+
+    Clean & Raw --> Entry[Construct ChatEntry List]
+    Entry --> Return[Return List-ChatEntry-]
+    Return --> Client
+    
+    style API fill:#00c853,color:#fff
+    style Processing fill:#f5f5f5,stroke:#333
+```
+
+---
+
+## 3. GET /graph-visualization
+```mermaid
+graph LR
+    User((User)) -->|Call| Viz[GET /graph-visualization]
+    
+    subgraph Logic [Mermaid Generation]
+        Viz --> Check[Check research_agent_app exists]
+        Check --> Raw[draw_mermaid]
+        Raw --> Sanitize["Regex Clean: Remove <p> & self-loops"]
+        Sanitize --> Encode[Base64 Encoding]
+    end
+
+    Encode --> Final["JSON {mermaid_syntax, image_url}"]
+    Final --> User
+
+    style Viz fill:#4285F4,color:#fff
+    style Logic fill:#e1f5fe,stroke:#01579b
+```
+
+---
+
+## 4. GET /list-sessions
+```mermaid
+graph TD
+    User((User)) --> API[GET /list-sessions]
+    API --> DB[(SQLite DB)]
+    DB --> Distinct[Query Distinct session_id]
+    
+    subgraph Loop [For each Session]
+        Distinct --> Latest[Find latest message by timestamp]
+        Latest --> Meta[Extract snippet & last_ts]
+    end
+
+    Meta --> List[JSON Session List]
+    List --> User
+
+    style DB fill:#f5f5f5,stroke:#333
+    style API fill:#00c853,color:#fff
+```
+
+---
 
 
 
