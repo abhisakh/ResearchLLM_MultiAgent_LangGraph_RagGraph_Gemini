@@ -22,8 +22,7 @@ from core.utilities import (
 class RetrievalAgent:
     """
     Agent responsible for downloading and processing research content.
-    RESTORED: Full PDF parsing, chunking, and deduplication logic.
-    UPGRADED: Added BeautifulSoup HTML fallback to prevent skipping PubMed/OpenAlex results.
+    ALIGNED: Reports back to Supervisor Hub; uses processed_doc_ids to avoid redundant work.
     """
     def __init__(self, agent_id: str = "retrieval_agent", chunk_size: int = 500, model: str = LLM_MODEL):
         self.id = agent_id
@@ -31,208 +30,102 @@ class RetrievalAgent:
         self.model = model
 
     def _fetch_content(self, url: str) -> Optional[Dict[str, Any]]:
-        """
-        Unified fetcher that identifies PDF vs HTML content.
-        """
         try:
-            time.sleep(1.5)  # Slightly longer polite delay
-
-            # --- STEALTH HEADER BLOCK ---
+            time.sleep(1.5)
             stealth_headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
                 'Referer': 'https://www.google.com/',
-                'DNT': '1',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1'
+                'Connection': 'keep-alive'
             }
-
             response = requests.get(url, timeout=15, headers=stealth_headers, allow_redirects=True)
 
-            # Catch 403 specifically to log the WAF encounter
             if response.status_code == 403:
-                print(f"{C_YELLOW}[{self.id.upper()} WAF] 403 Forbidden on {url[:40]}. Switching to fallback. {C_RESET}")
+                print(f"{C_YELLOW}[{self.id.upper()} WAF] 403 Forbidden on {url[:40]}.{C_RESET}")
                 return None
-            response.raise_for_status()
 
+            response.raise_for_status()
             content_type = response.headers.get('Content-Type', '').lower()
 
-            # 1. PDF Path
             if 'application/pdf' in content_type or url.lower().endswith('.pdf'):
                 return {'type': 'pdf', 'data': BytesIO(response.content)}
-
-            # 2. HTML Path (Fallback for PubMed/OpenAlex landing pages)
             if 'text/html' in content_type or b'<!doc' in response.content[:10].lower():
                 return {'type': 'html', 'data': response.text}
-
             return None
         except Exception as e:
-            if 'arxiv' not in url.lower():
-                print(f"{C_RED}[{self.id.upper()} ERROR] Failed to fetch {url[:50]}... : {e}{C_RESET}")
             return None
 
     def _extract_text_from_pdf(self, pdf_stream: BytesIO) -> str:
         try:
             reader = PdfReader(pdf_stream)
             return " ".join(page.extract_text() or "" for page in reader.pages)
-        except Exception as e:
-            print(f"{C_RED}[{self.id.upper()} ERROR] PDF extraction failed: {e}{C_RESET}")
-            return ""
+        except Exception: return ""
 
     def _extract_text_from_html(self, html_text: str) -> str:
-        """
-        Extracts abstracts or main content from academic landing pages.
-        """
         try:
             soup = BeautifulSoup(html_text, 'html.parser')
-            # Strip unwanted tags
-            for script_or_style in soup(["script", "style", "header", "footer", "nav"]):
-                script_or_style.decompose()
-
-            # Target common academic abstract identifiers
-            content = soup.find('div', {'id': 'abstract'}) or \
-                      soup.find('div', {'class': 'abstract-content'}) or \
-                      soup.find('article') or \
-                      soup.find('main')
-
-            if content:
-                return content.get_text(separator=' ', strip=True)
-
-            # Final fallback: Grab the first 8-10 meaningful paragraphs
+            for s in soup(["script", "style", "header", "footer", "nav"]): s.decompose()
+            content = soup.find('div', {'id': 'abstract'}) or soup.find('div', {'class': 'abstract-content'}) or soup.find('article')
+            if content: return content.get_text(separator=' ', strip=True)
             paragraphs = [p.get_text(strip=True) for p in soup.find_all('p') if len(p.get_text()) > 50]
             return " ".join(paragraphs[:10])
-        except Exception as e:
-            print(f"{C_RED}[{self.id.upper()} ERROR] HTML scrape failed: {e}{C_RESET}")
-            return ""
+        except Exception: return ""
 
     def _chunk_text(self, text: str) -> List[str]:
-        """Original chunking logic with sentence-boundary awareness."""
         if not text: return []
         max_chars = int(self.chunk_size * 3.5)
-        overlap_chars = int(max_chars * 0.1)
         text = re.sub(r'\s+', ' ', text).strip()
         sentences = re.split(r'(?<=[.!?])\s+', text)
         chunks, current_chunk = [], ""
-
         for sentence in sentences:
-            if len(sentence) > max_chars:
-                if current_chunk: chunks.append(current_chunk.strip())
-                current_chunk = ""
-                for i in range(0, len(sentence), max_chars):
-                    chunks.append(sentence[i:i + max_chars].strip())
-                continue
-
-            if len(current_chunk) + len(sentence) + 1 <= max_chars:
+            if len(current_chunk) + len(sentence) <= max_chars:
                 current_chunk += (" " if current_chunk else "") + sentence
             else:
                 chunks.append(current_chunk.strip())
-                current_chunk = current_chunk[-overlap_chars:] + " " + sentence if overlap_chars > 0 and len(current_chunk) > overlap_chars else sentence
-
+                current_chunk = sentence
         if current_chunk: chunks.append(current_chunk.strip())
         return chunks
 
     def execute(self, state: ResearchState) -> ResearchState:
-        # 1. BREADCRUMB TRACKING (Your original feature)
-        if "visited_nodes" not in state or state["visited_nodes"] is None:
-            state["visited_nodes"] = []
-        state["visited_nodes"].append(self.id)
+        state.setdefault("visited_nodes", []).append(self.id)
+        print(f"\n{C_ACTION}[{self.id.upper()} START] Fetching and Processing Content...{C_RESET}")
 
-        print(f"\n{C_ACTION}[{self.id.upper()} START] Running Retrieval + Deduplication...{C_RESET}")
-
-        # 2. DEDUPLICATION GATE
         existing_chunks = state.get('full_text_chunks', [])
         processed_doc_ids = {chunk['doc_id'] for chunk in existing_chunks if 'doc_id' in chunk}
         raw_data = state.get('raw_tool_data', [])
-
-        state.setdefault('full_text_chunks', [])
         all_new_chunks = []
         downloaded_urls_this_run = set()
 
-        # 3. UNIFIED PROCESSING (PDF & HTML)
         for entry in raw_data:
-            # Check both possible URL sources
             target_url = entry.get('metadata', {}).get('pdf_url') or entry.get('metadata', {}).get('url')
-
-            if not target_url or target_url in processed_doc_ids:
+            if not target_url or target_url in processed_doc_ids or entry.get('tool_id') == 'materials_search':
                 continue
 
-            if entry.get('tool_id') == 'materials_search':
-                continue
-
-            # FETCH PHASE
             fetch_result = self._fetch_content(target_url)
-            if not fetch_result:
-                continue
+            if not fetch_result: continue
 
-            # PARSE PHASE
-            if fetch_result['type'] == 'pdf':
-                text = self._extract_text_from_pdf(fetch_result['data'])
-            else:
-                text = self._extract_text_from_html(fetch_result['data'])
+            text = self._extract_text_from_pdf(fetch_result['data']) if fetch_result['type'] == 'pdf' else self._extract_text_from_html(fetch_result['data'])
+            if not text.strip(): continue
 
-            if not text.strip():
-                continue
-
-            # CHUNK & STORE PHASE
             downloaded_urls_this_run.add(target_url)
             chunks = self._chunk_text(text)
             doc_hash = abs(hash(target_url)) % 10000
-
             for i, chunk in enumerate(chunks):
-                all_new_chunks.append({
-                    "chunk_id": f"{entry['tool_id']}_{doc_hash}_{i}",
-                    "doc_id": target_url,
-                    "chunk_index": i,
-                    "text": chunk,
-                    "source": entry['tool_id'],
-                    "url": target_url
-                })
+                all_new_chunks.append({"chunk_id": f"{entry['tool_id']}_{doc_hash}_{i}", "doc_id": target_url, "text": chunk, "source": entry['tool_id']})
 
-        # 4. FINAL ABSTRACT FALLBACK (Ensuring NO data is left behind)
+        # Abstract Fallback logic
         for entry in raw_data:
-            source_url = entry.get('metadata', {}).get('url') or entry.get('metadata', {}).get('pdf_url')
-            if not source_url or source_url in processed_doc_ids or source_url in downloaded_urls_this_run:
+            url = entry.get('metadata', {}).get('url') or entry.get('metadata', {}).get('pdf_url')
+            if not url or url in processed_doc_ids or url in downloaded_urls_this_run or entry.get('tool_id') == 'materials_search':
                 continue
-
-            if entry.get('tool_id') == 'materials_search':
-                continue
-
-            raw_text = entry.get('text', '').strip()
-            if not raw_text: continue
-
-            chunks = self._chunk_text(raw_text)
-            doc_hash = abs(hash(source_url)) % 10000
-
+            if not entry.get('text'): continue
+            chunks = self._chunk_text(entry['text'])
             for i, chunk in enumerate(chunks):
-                all_new_chunks.append({
-                    "chunk_id": f"{entry['tool_id']}_abs_{doc_hash}_{i}",
-                    "doc_id": source_url,
-                    "chunk_index": i,
-                    "text": chunk,
-                    "source": entry['tool_id'],
-                    "url": source_url
-                })
+                all_new_chunks.append({"chunk_id": f"{entry['tool_id']}_abs_{abs(hash(url))%1000}_{i}", "doc_id": url, "text": chunk, "source": entry['tool_id']})
 
-        # 5. COMMIT & LOGGING
-        # Only add a warning chunk if the ENTIRE system (past + present) is empty.
-        # This prevents overwriting valid data from Attempt 1 during Attempt 2.
-        if not all_new_chunks and not state.get('full_text_chunks'):
-            all_new_chunks = [{
-                "chunk_id": "sys_warning_empty",
-                "doc_id": "none",
-                "chunk_index": 0,
-                "text": "Critical: No research content could be retrieved after filtering and fallbacks.",
-                "source": "system",
-                "url": "N/A"
-            }]
-
-        # Use extend to preserve the 'breadcrumb' of data from previous refinement loops
-        state['full_text_chunks'].extend(all_new_chunks)
-
-        print(f"{C_YELLOW}[{self.id.upper()} STATE] Added {len(all_new_chunks)} new chunks. Total: {len(state['full_text_chunks'])}{C_RESET}")
+        state.setdefault('full_text_chunks', []).extend(all_new_chunks)
+        state["next"] = "supervisor_agent" # HUB-AND-SPOKE ROUTE
         print(f"{C_GREEN}[{self.id.upper()} DONE] Retrieval complete.{C_RESET}")
-
         return state
 
 
@@ -240,179 +133,87 @@ class RetrievalAgent:
 # RAG Agent (Section 8) - FULLY UPGRADED
 # ==================================================================================================
 class RAGAgent:
-    def __init__(
-        self,
-        agent_id: str = "rag_agent",
-        max_chunks_to_keep: int = 8,
-        vector_db: Optional[VectorDBWrapper] = None
-    ):
+    """
+    Agent responsible for Vector Search, Reranking, and Neighbor Expansion.
+    ALIGNED: Uses Cross-Encoders for precision and routes back to Hub.
+    """
+    def __init__(self, agent_id: str = "rag_agent", max_chunks_to_keep: int = 8, vector_db: Optional[VectorDBWrapper] = None):
         self.id = agent_id
         self.max_chunks_to_keep = max_chunks_to_keep
         self.vector_db = vector_db if vector_db is not None else VectorDBWrapper()
-
-        # --- INITIALIZE RERANKER ---
-        # We load it here once so it doesn't reload every time execute() is called
+        # Loading Reranker (Cross-Encoder) - This ensures high precision
         self.reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
 
     def _passes_keyword_gate(self, chunk_text: str, literal_term: str) -> bool:
-        """Filters out academic noise unless it contains the specific material term."""
         chunk_lower = chunk_text.lower()
-        is_academic_noise = any(
-            x in chunk_lower for x in ["full text", "arxiv paper", "pubmed abstract"]
-        )
+        is_academic_noise = any(x in chunk_lower for x in ["full text", "arxiv paper", "pubmed abstract"])
         contains_literal = literal_term in chunk_lower if literal_term else True
         return not (is_academic_noise and not contains_literal)
 
     def execute(self, state: ResearchState) -> ResearchState:
-        # --- BREADCRUMB TRACKING ---
-        if "visited_nodes" not in state or state["visited_nodes"] is None:
-            state["visited_nodes"] = []
-        state["visited_nodes"].append(self.id)
+        state.setdefault("visited_nodes", []).append(self.id)
+        print(f"\n{C_ACTION}[{self.id.upper()} START] Reranking & Neighbor Expansion...{C_RESET}")
 
-        print(f"\n{C_ACTION}[{self.id.upper()} START] Running RAG: Vector Search + Neighbor Expansion...{C_RESET}")
-
-        # --- SAFETY CHECKS ---
         if client is None or self.vector_db.index is None:
-            state['filtered_context'] = "RAG processing skipped due to missing API key or Vector DB."
-            state['rag_complete'] = True
-            print(f"{C_RED}[{self.id} FAIL] RAG skipped.{C_RESET}")
+            state.update({'filtered_context': "RAG skipped.", 'rag_complete': True, 'next': 'supervisor_agent'})
             return state
 
         query = state.get('semantic_query', '')
         literal_term = state.get('api_search_term', '').lower()
 
-        # --- 1. COLLECT STRUCTURED CONTEXT (NON-VECTOR) ---
-        structured_context = []
-        for d in state.get('raw_tool_data', []):
-            if d.get('tool_id') == 'materials_search' and d.get('text'):
-                structured_context.append(
-                    f"--- Structured Data (Materials Property) ---\n{d['text']}"
-                )
-
-        if structured_context:
-            print(f"{C_BLUE}[{self.id} INFO] Preserved {len(structured_context)} structured data blocks.{C_RESET}")
-
-        # --- 2. PREPARE CHUNKS FOR VECTOR DB ---
-        structured_chunks = state.get('full_text_chunks', [])
-        chunks_for_db = [
-            c for c in structured_chunks
-            if isinstance(c, dict) and c.get('text')
-        ]
-
-        if not chunks_for_db and not structured_context:
-            state['filtered_context'] = "No data available for RAG."
-            state['rag_complete'] = True
-            print(f"{C_RED}[{self.id} FAIL] No chunks or structured data found.{C_RESET}")
-            return state
-
-        # --- 3. INDEX CHUNKS ---
+        # 1. Indexing
+        chunks_for_db = [c for c in state.get('full_text_chunks', []) if isinstance(c, dict) and c.get('text')]
         if chunks_for_db:
             self.vector_db.add_chunks(chunks_for_db)
-            print(f"{C_BLUE}[{self.id} INFO] Vector DB contains {self.vector_db.index.ntotal} total chunks.{C_RESET}")
 
-        # --- 4. VECTOR SEARCH ---
-        # Fetching top 15 candidates instead of 8 (Reranker needs a larger pool to work with)
+        # 2. Vector Search (Top 30 for the Reranker to sift through)
         top_k_results = self.vector_db.search(query, k=30)
-        print(f"{C_BLUE}[{self.id} INFO] Vector search returned {len(top_k_results)} candidate chunks.{C_RESET}")
 
-        if not top_k_results:
-            print(f"{C_YELLOW}[{self.id} WARN] No vector matches found.{C_RESET}")
-
-        # --- 4.5 CROSS-ENCODER RERANKING BLOCK ---
-        # To deactivate: Comment out this entire block and uncomment the original DISTANCE_THRESHOLD logic below
+        # 3. Cross-Encoder Reranking
         if top_k_results and query:
-            print(f"{C_PURPLE}[{self.id} RERANK] Applying Cross-Encoder scoring...{C_RESET}")
+            print(f"{C_PURPLE}[{self.id} RERANK] Scoring top candidates...{C_RESET}")
             sentence_pairs = [[query, res[0]['text']] for res in top_k_results]
             scores = self.reranker.predict(sentence_pairs)
-
-            reranked_list = []
-            for i in range(len(top_k_results)):
-                reranked_list.append((top_k_results[i][0], scores[i]))
-
-            # Sort by score descending (Higher is better)
-            top_k_results = sorted(reranked_list, key=lambda x: x[1], reverse=True)
-
-            # Reranker Threshold: Scores > 0.1 are usually relevant
-            ACTIVE_THRESHOLD = - 5
-            IS_RERANKED = True
-            print(f"{C_PURPLE}[{self.id} RERANK] Top Score: {top_k_results[0][1]:.4f}{C_RESET}")
+            reranked_list = sorted([(top_k_results[i][0], scores[i]) for i in range(len(top_k_results))], key=lambda x: x[1], reverse=True)
+            top_k_results = reranked_list
+            ACTIVE_THRESHOLD = -5.0
         else:
-            # UPGRADE: Fallback for Cosine Similarity Score
-            # If we aren't reranking, we want chunks with similarity > 0.35
             ACTIVE_THRESHOLD = 0.35
-            IS_RERANKED = False
 
-        # --- 5. BUILD DOCUMENT MAP FOR NEIGHBOR EXPANSION ---
+        # 4. Neighbor Expansion & Keyword Filtering
         doc_map = {}
         for c in self.vector_db.text_store:
             doc_id = c.get('doc_id')
-            if doc_id:
-                doc_map.setdefault(doc_id, []).append(c)
+            if doc_id: doc_map.setdefault(doc_id, []).append(c)
+        for d in doc_map: doc_map[d].sort(key=lambda x: x.get('chunk_index', 0))
 
-        for doc_id in doc_map:
-            doc_map[doc_id].sort(key=lambda x: x.get('chunk_index', 0))
-
-        # --- 6. NEIGHBOR EXPANSION ---
-        expanded_chunks = []
-
+        final_chunks, seen_ids = [], set()
         for chunk_dict, score in top_k_results:
-            # UNIFIED LOGIC: Higher is always better now!
-            # If the score (either Reranker or Cosine) is too low, skip it.
-            if score < ACTIVE_THRESHOLD:
-                continue
+            if score < ACTIVE_THRESHOLD: continue
 
             doc_id = chunk_dict.get("doc_id")
             family = doc_map.get(doc_id, [])
-
-            if not family:
-                continue
-
-            # Find the actual position in the original document
             actual_idx = next((i for i, item in enumerate(family) if item["chunk_id"] == chunk_dict["chunk_id"]), 0)
 
-            # Grab context: 1 chunk before, current chunk, and 1 chunk after
-            start_idx = max(0, actual_idx - 1)
-            end_idx = min(len(family), actual_idx + 2)
+            # Neighbor Expansion logic (1 before, current, 1 after)
+            for i in range(max(0, actual_idx - 1), min(len(family), actual_idx + 2)):
+                c = family[i]
+                if c["chunk_id"] not in seen_ids and self._passes_keyword_gate(c["text"], literal_term):
+                    final_chunks.append(c["text"])
+                    seen_ids.add(c["chunk_id"])
 
-            for i in range(start_idx, end_idx):
-                expanded_chunks.append(family[i])
+            if len(final_chunks) >= self.max_chunks_to_keep: break
 
-        # --- 7. DEDUPLICATION + KEYWORD FILTER ---
-        seen_ids = set()
-        final_chunks = []
-
-        for c in expanded_chunks:
-            if c["chunk_id"] in seen_ids:
-                continue
-            if not self._passes_keyword_gate(c["text"], literal_term):
-                continue
-
-            final_chunks.append(c["text"])
-            seen_ids.add(c["chunk_id"])
-
-            if len(final_chunks) >= self.max_chunks_to_keep:
-                break
-
-        # --- 8. FALLBACK IF FILTERING REMOVED EVERYTHING ---
-        if not final_chunks and chunks_for_db:
-            print(f"{C_RED}[{self.id} FALLBACK] No chunks passed filters. Using raw chunks as fallback.{C_RESET}")
-            final_chunks = [c["text"] for c in chunks_for_db[:self.max_chunks_to_keep]]
-
-        # --- 9. ASSEMBLE FINAL CONTEXT ---
-        final_context_list = structured_context + final_chunks
-        state['filtered_context'] = (
-            "\n---\n".join(final_context_list)
-            if final_context_list
-            else "No relevant context found."
-        )
-
-        # --- 10. FINAL STATE UPDATE ---
+        # 5. Assemble Context
+        structured_context = [f"--- Structured Data ---\n{d['text']}" for d in state.get('raw_tool_data', []) if d.get('tool_id') == 'materials_search']
+        state['filtered_context'] = "\n---\n".join(structured_context + final_chunks) if (structured_context or final_chunks) else "No relevant context found."
         state['rag_complete'] = True
+        state["next"] = "supervisor_agent" # HUB-AND-SPOKE ROUTE
 
-        print(f"{C_YELLOW}[{self.id.upper()} STATE] Final context assembled: {len(final_context_list)} sections.{C_RESET}")
         print(f"{C_GREEN}[{self.id.upper()} DONE] RAG processing complete.{C_RESET}")
-
         return state
+
+#        return state
 # class RAGAgent:
 #     def __init__(
 #         self,

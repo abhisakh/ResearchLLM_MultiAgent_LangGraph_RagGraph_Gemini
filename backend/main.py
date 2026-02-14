@@ -67,6 +67,7 @@ def run_research_query(research_graph: ResearchGraph, query: str):
         "user_query": query,
         "semantic_query": "",
         "primary_intent": "",
+        "reasoning": "",
         "execution_plan": [],
         "material_elements": [],
         "system_constraints": [],

@@ -74,8 +74,12 @@ class BaseToolAgent:
         if not self._should_run(state):
             return state
 
-        # 3. Call specific logic in the child agent
-        return self.run_tool_logic(state)
+        # 3. Call child logic (PubMed, Arxiv, etc.)
+        state = self.run_tool_logic(state)
+
+        # 4. CRITICAL: Hand control back to the Central Hub
+        state["next"] = "supervisor_agent"
+        return state
 
     def run_tool_logic(self, state: ResearchState) -> ResearchState:
         raise NotImplementedError("Subclasses must implement run_tool_logic.")
@@ -783,6 +787,7 @@ if __name__ == "__main__":
     "user_query": "A detailed review on the synthesis and bandgap stability of lead-free CsSnI3 perovskite solar cells using computational and experimental data published in the last decade.",
     "semantic_query": "A detailed review on the synthesis and bandgap stability of lead-free CsSnI3 perovskite solar cells using computational and experimental data published in the last decade.",
     "primary_intent": "literature_review",
+    "reasoning": "",
     "execution_plan": [
         "Step 1: Define the specific parameters for the literature review, focusing on synthesis and bandgap stability of CsSnI3 perovskite solar cells, and set the time frame to the last decade.",
         "Step 2: Use the 'materials' tool to gather data on the material properties and synthesis methods of CsSnI3 perovskite solar cells.",

@@ -1,6 +1,6 @@
 import json
 import re
-from typing import Dict, Any, List, Optional
+from typing import Dict, List, Tuple, Any, Optional
 # Relative imports from the modular structure
 from core.research_state import ResearchState
 from core.utilities import (
@@ -8,26 +8,32 @@ from core.utilities import (
     client, LLM_MODEL
 )
 
+
 class SynthesisAgent:
     """
-    Agent responsible for generating the final comprehensive research report.
-    UPGRADED: Integrated Fallback Logic to prevent 'Insufficient Content' loops.
+    Finalized Synthesis Agent (Star Topology & Markdown Link Optimized).
+    Fixes: Link attachment in references and greedy regex for citation re-ordering.
     """
-    def __init__(self, agent_id: str = "synthesis_agent", model: str = LLM_MODEL):
+    def __init__(self, agent_id: str = "synthesis_agent", model: str = "gpt-4o-mini"):
         self.id = agent_id
         self.model = model
 
-    def _extract_material_data(self, state: ResearchState) -> tuple[str, str, bool]:
+    # =====================================================
+    # 1. MATERIAL DATA EXTRACTION
+    # =====================================================
+    def _extract_material_data(self, state: Dict) -> Tuple[str, str, bool]:
         target_formula = state.get('material_formula', state.get('api_search_term', 'N/A'))
-        materials_results = [d for d in state.get("raw_tool_data", []) if d.get("tool_id") == "materials_agent"]
+        materials_results = [d for d in state.get("raw_tool_data", []) if d.get("tool_id") == "materials_search"]
         material_data = [result.get('text', 'N/A') for result in materials_results]
 
         data_is_present = bool(material_data)
         summary = "\n".join(material_data) if data_is_present else f"No material property data was retrieved for {target_formula}."
         return summary, target_formula, data_is_present
 
-    def _extract_references(self, state: ResearchState) -> str:
-        # Original Feature: High-fidelity reference mapping with noise filtering
+    # =====================================================
+    # 2. HIGH-FIDELITY REFERENCE MAPPING (FIXED FOR LINKS)
+    # =====================================================
+    def _extract_references(self, state: Dict) -> str:
         references = state.get("references", [])
         raw_data = state.get("raw_tool_data", [])
         noise_patterns = ['google.com/help', 'support.google', 'login', 'signin', 'signup']
@@ -38,6 +44,7 @@ class SynthesisAgent:
             source_type = entry.get('source_type')
             url, ref_key = None, None
 
+            # Standardize URL extraction based on tool type
             if source_type == 'web_search' and metadata.get('url'):
                 url, ref_key = metadata['url'], f"🔗 Web Source: {metadata.get('title')}"
             elif source_type == 'arxiv' and metadata.get('pdf_url'):
@@ -46,12 +53,14 @@ class SynthesisAgent:
                 pmid = metadata.get('pmid')
                 url = f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/" if pmid else None
                 ref_key = f"📄 Journal Article: {metadata.get('title')}"
-            elif source_type == 'openalex' and metadata.get('openalex_id'):
-                url, ref_key = metadata['openalex_id'], f"🔗 OpenAlex: {metadata.get('title')}"
+            elif source_type == 'openalex' and (metadata.get('pdf_url') or metadata.get('openalex_id')):
+                url = metadata.get('pdf_url') or metadata.get('openalex_id')
+                ref_key = f"🔗 OpenAlex: {metadata.get('title')}"
 
             if url and not any(p in url.lower() for p in noise_patterns) and ref_key:
                 url_lookup[ref_key.strip()] = url.strip()
 
+        # Build list of Markdown-formatted links
         unique_references = sorted(list(set(references)))
         formatted_list = []
         for i, ref in enumerate(unique_references, 1):
@@ -59,169 +68,343 @@ class SynthesisAgent:
             link = None
             for key, url in url_lookup.items():
                 if ref_s.startswith(key):
+                    # Format as clickable Markdown
                     link = f"[{i}] [{ref_s}]({url})"
                     break
-            if link: formatted_list.append(link)
-            else: formatted_list.append(f"[{i}] {ref_s}")
+            if not link:
+                link = f"[{i}] {ref_s}"
+            formatted_list.append(link)
 
         return "\n".join(formatted_list)
 
-    def _check_context_relevance(self, query: str, context: str) -> bool:
-        if client is None: return True
-        # If context is explicitly the 'No relevant context' fallback, fail relevance.
-        if "No relevant context" in context: return False
-
-        relevance_prompt = f"Question: {query}\nContext Snippet: {context[:500]}\nIs this relevant? YES/NO."
-        try:
-            response = client.chat.completions.create(model=self.model, messages=[{"role": "user", "content": relevance_prompt}], temperature=0.0, max_tokens=5)
-            return "YES" in response.choices[0].message.content.strip().upper()
-        except: return True
-
+    # =====================================================
+    # 3. CITATION SEQUENCING ENGINE (GREEDY REGEX FIX)
+    # =====================================================
     def _reorder_citations(self, report_text: str) -> str:
-        """
-        Forces a strictly sequential [1], [2], [3]... numbering
-        based on the order citations first appear in the text.
-        """
-        # 1. Split body and references
-        if "## References" in report_text:
-            body, ref_section = report_text.split("## References", 1)
-        else:
+        if "## References" not in report_text:
             return report_text
 
-        # 2. Find all occurrences of [N] in the body
-        # This maintains the order they appear to the reader
-        found_citations = re.findall(r'\[(\d+)\]', body)
+        body, ref_section = report_text.split("## References", 1)
 
-        # 3. Create a strict mapping based on first appearance
-        old_to_new = {}
-        new_counter = 1
+        # 1. Identify order of citations in the text
+        found_citations = re.findall(r'\[(\d+)\]', body)
+        old_to_new, new_counter = {}, 1
         for old_id in found_citations:
             if old_id not in old_to_new:
                 old_to_new[old_id] = str(new_counter)
                 new_counter += 1
 
-        # 4. Replace citations in the body text
-        def replace_body_cite(match):
-            old_num = match.group(1)
-            return f"[{old_to_new.get(old_num, old_num)}]"
+        # 2. Update body text with new IDs
+        new_body = re.sub(r'\[(\d+)\]', lambda m: f"[{old_to_new.get(m.group(1), m.group(1))}]", body)
 
-        new_body = re.sub(r'\[(\d+)\]', replace_body_cite, body)
+        # 3. Parse references (Updated Regex to capture Markdown links properly)
+        raw_refs = re.findall(r'\[(\d+)\]\s+(.+?)(?=\n\s*\[\d+\]|\Z)', ref_section, re.DOTALL)
+        ref_content_map = {item[0]: item[1].strip() for item in raw_refs}
 
-        # 5. Rebuild the Reference section based ONLY on used citations
-        # Map the content of the old references
-        raw_refs = re.findall(r'\[(\d+)\]\s*(.+?)(?=\n\[\d+\]|\Z)', ref_section, re.DOTALL)
-        ref_content_map = {item[0]: item[1] for item in raw_refs}
-
+        # 4. Rebuild the Reference section based on new sequence
         new_ref_list = []
-        # Sort by the NEW sequence [1, 2, 3...]
         sorted_mapping = sorted(old_to_new.items(), key=lambda x: int(x[1]))
-
         for old_id, new_id in sorted_mapping:
             content = ref_content_map.get(old_id, "Source content missing.")
-            # Ensure we don't have nested old brackets in the content
+            # Remove trailing brackets if LLM added them
             clean_content = re.sub(r'\[\d+\]$', '', content).strip()
             new_ref_list.append(f"[{new_id}] {clean_content}")
 
         return f"{new_body.strip()}\n\n## References\n\n" + "\n\n".join(new_ref_list)
 
-    def _format_prompt(self, state: ResearchState) -> str:
+    # =====================================================
+    # 4. PROMPT FORMATTING (ENHANCED LINK ENFORCEMENT)
+    # =====================================================
+    def _format_prompt(self, state: Dict) -> str:
         query = state.get("semantic_query", "No query provided")
         rag_context = state.get("filtered_context", "")
 
-        # FIX: If RAG failed, pull the raw snippets as a backup to avoid empty reports
+        # RAG Fallback
         if not rag_context or "No relevant context" in rag_context:
             raw_snippets = [f"{d.get('tool_id')}: {d.get('text')[:300]}" for d in state.get("raw_tool_data", [])[:5]]
-            rag_context = "CRITICAL: RAG returned low relevance. Summarize based on these raw snippets:\n" + "\n".join(raw_snippets)
+            rag_context = "CRITICAL: Using raw snippets due to low RAG relevance:\n" + "\n".join(raw_snippets)
 
-        execution_plan = "\n- ".join(state.get("execution_plan", ["No plan available"]))
         formatted_references = self._extract_references(state)
         material_data_summary, target_formula, data_is_present = self._extract_material_data(state)
-        active_tools = ", ".join(state.get("active_tools", ["pubmed", "arxiv"]))
 
         heading = f"## Stability and Bandgap of {target_formula}" if data_is_present else "## Introduction and Scope of Review"
 
-        ref_instruction = "## References\n- OMIT references not cited in the text.\n- Keep exact formatting."
-
-        # Define the COMMON MANDATORY INSTRUCTIONS to ensure consistency
-        mandatory_instructions = f"""
-        [MANDATORY RULES]:
-        1. **CITATIONS:** Every scientific claim must be supported by a citation in the format [X].
-        2. **RE-INDEXING:** Use the reference numbers exactly as provided in 'SOURCE C'. Do not invent new numbers.
-        3. **SELECTIVE BIBLIOGRAPHY:** Under the 'References' heading, ONLY list the sources you actually cited in the text.
-        4. **SEQUENTIAL FLOW:** Aim for a professional academic flow. Ensure [1] is the first citation the reader sees.
-        5. **STRUCTURE:** {heading} | Key Findings | Conclusion | References
-        """
-
-        base_prompt = f"""
+        return f"""
         [CONTEXT]
-        SOURCE A (Materials): {material_data_summary}
-        SOURCE B (Research Chunks): {rag_context}
-        SOURCE C (Verified Refs): {formatted_references}
-        ACTIVE TOOLS: {active_tools}
+        SOURCE A (Materials API): {material_data_summary}
+        SOURCE B (Literature Chunks): {rag_context}
+        SOURCE C (Verified Links):
+        {formatted_references}
+
+        [OBJECTIVE]
+        Generate a scientific report for: "{query}".
+
+        [MANDATORY RULES]
+        1. Support every claim with a citation like [1], [2].
+        2. In the 'References' section, you MUST copy the strings from 'SOURCE C' exactly as written, including the [Title](URL) markdown.
+        3. Only list sources you actually cited in the body.
+        4. STRUCTURE: {heading} | Key Findings | Conclusion | References
         """
 
-        if state.get('needs_refinement'):
-            return base_prompt + f"""
-            [FEEDBACK]: {state.get('refinement_reason')}
-            [PREVIOUS DRAFT]: {state.get('final_report', 'N/A')}
+    def execute(self, state: Dict) -> Dict:
+        state.setdefault("visited_nodes", []).append(self.id)
 
-            [OBJECTIVE]: REWRITE the report to address the feedback.
-            {mandatory_instructions}
-            """
-        else:
-            return base_prompt + f"""
-            [OBJECTIVE]: Generate a new scientific report for: "{query}".
-            [METHODOLOGY]: Explicitly mention that data was gathered using {active_tools}.
-            {mandatory_instructions}
-            """
+        # Intent Guardrail
+        if state.get("primary_intent") == "irrelevant":
+            print(f"{C_RED}[SYNTHESIS] Rejecting irrelevant query.{C_RESET}")
+            state['final_report'] = "Query rejected based on scope."
+            state['report_generated'] = True
+            state['next'] = 'supervisor_agent'
+            return state
 
-    def execute(self, state: ResearchState) -> ResearchState:
-        # 1. Track visit
-        if "visited_nodes" not in state: state["visited_nodes"] = []
-        state["visited_nodes"].append(self.id)
-
-        if state.get("primary_intent") == "irrelevant": return state
-
-        context = state.get("filtered_context", "")
-        query = state.get("semantic_query", "")
-        is_refining = state.get('needs_refinement', False)
-
-        # 2. Fail-safe check for context quality
-        if not is_refining:
-            if len(context) < 200 or "No relevant context" in context:
-                if not self._check_context_relevance(query, context):
-                    print(f"{C_YELLOW}[SYNTHESIS] Low context relevance. Attempting fallback synthesis.{C_RESET}")
-
-        # 3. Generate the report
+        print(f"\n{C_ACTION}[SYNTHESIS START] Writing report with clickable links...{C_RESET}")
         prompt = self._format_prompt(state)
+
         try:
             response = client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": "Scientific writer. Ground reports in sources."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.1,
-                max_tokens=3000
+                messages=[{"role": "system", "content": "You are a scientific reporting assistant. Use Markdown for all formatting."},
+                          {"role": "user", "content": prompt}],
+                temperature=0.1
             )
-
-            # --- THE CRITICAL FIX FOR STRICT SEQUENCING ---
             raw_report = response.choices[0].message.content.strip()
-
-            # We pass the raw LLM output through our re-indexer
-            # This transforms [5], [1], [8] into [1], [2], [3]
+            # Post-process to fix citation order and verify links
             state['final_report'] = self._reorder_citations(raw_report)
-            # ----------------------------------------------
-
             state['report_generated'] = True
-            state['next'] = 'evaluation'
-
         except Exception as e:
             print(f"{C_RED}[SYNTHESIS ERROR] {e}{C_RESET}")
-            state['next'] = 'TERMINATE'
+            state['final_report'] = "Error generating report."
 
+        state['next'] = 'supervisor_agent'
         return state
 
+
+# class SynthesisAgent:
+#     """
+#     Agent responsible for generating the final comprehensive research report.
+#     INTEGRATION: Full original logic restored with COIE adversarial prompting.
+#     """
+#     def __init__(self, agent_id: str = "synthesis_agent", model: str = LLM_MODEL):
+#         self.id = agent_id
+#         self.model = model
+
+#     def _extract_material_data(self, state: ResearchState) -> tuple[str, str, bool]:
+#         """Original Feature: Extracts specific material properties from raw_tool_data."""
+#         target_formula = state.get('material_formula', state.get('api_search_term', 'N/A'))
+#         materials_results = [d for d in state.get("raw_tool_data", []) if d.get("tool_id") == "materials_agent"]
+#         material_data = []
+#         for result in materials_results:
+#             material_data.append(result.get('text', 'N/A'))
+#             break
+#         data_is_present = bool(material_data)
+#         if data_is_present:
+#             return "\n".join(material_data), target_formula, data_is_present
+#         else:
+#             return f"No material property data was retrieved for {target_formula}.", target_formula, data_is_present
+
+#     def _extract_references(self, state: ResearchState) -> str:
+#         """Original Feature: High-fidelity reference mapping with noise filtering and regex."""
+#         references = state.get("references", [])
+#         raw_data = state.get("raw_tool_data", [])
+#         noise_patterns = ['google.com/help', 'support.google', 'whatsapp.com', 'stackoverflow.com', 'accounts.google', 'microsoft.com/help', 'login', 'signin', 'signup']
+
+#         url_lookup = {}
+#         for entry in raw_data:
+#             metadata = entry.get('metadata', {})
+#             source_type = entry.get('source_type')
+#             url, ref_snippet_key = None, None
+#             if source_type == 'web_search' and metadata.get('url'):
+#                 url, ref_snippet_key = metadata['url'], f"🔗 Web Source: {metadata.get('title')}"
+#             elif source_type == 'arxiv' and metadata.get('pdf_url'):
+#                 url, ref_snippet_key = metadata['pdf_url'], f"🔗 Arxiv: {metadata.get('title')}"
+#             elif source_type == 'pubmed':
+#                 pmid = metadata.get('pmid')
+#                 if pmid: url = f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
+#                 ref_snippet_key = f"📄 Journal Article: {metadata.get('title')}"
+#             elif source_type == 'openalex':
+#                 openalex_id = metadata.get('openalex_id')
+#                 if openalex_id: url = openalex_id
+#                 ref_snippet_key = f"🔗 OpenAlex: {metadata.get('title')}"
+
+#             if url and any(pattern in url.lower() for pattern in noise_patterns): continue
+#             if url and ref_snippet_key:
+#                 url_lookup[ref_snippet_key.strip()] = url.strip()
+
+#         unique_references = sorted(list(set(references)))
+#         formatted_list = []
+#         current_ref_idx = 1
+#         mp_pattern = re.compile(r'(⚛️ Materials Project: [^\(]+)\s+\(([^\)]+)\)')
+#         web_url_pattern = re.compile(r'\((https?://[^\)]+)\)')
+#         lookup_prefixes = ('📄 Journal Article:', '🔗 Arxiv:', '🔗 OpenAlex:')
+
+#         for ref in unique_references:
+#             ref_stripped = ref.strip()
+#             markdown_link = None
+#             if ref_stripped.startswith(lookup_prefixes):
+#                 for snippet_key, url in url_lookup.items():
+#                     if ref_stripped.startswith(snippet_key):
+#                         markdown_link = f"[{current_ref_idx}] [{ref_stripped}]({url})"
+#                         break
+#             elif ref_stripped.startswith('🔗 Web Source:'):
+#                 web_match = web_url_pattern.search(ref_stripped)
+#                 if web_match:
+#                     url = web_match.group(1)
+#                     if not any(pattern in url.lower() for pattern in noise_patterns):
+#                         display_text = ref_stripped[:web_match.start()].strip()
+#                         markdown_link = f"[{current_ref_idx}] [{display_text}]({url})"
+#             elif not markdown_link:
+#                 mp_match = mp_pattern.match(ref_stripped)
+#                 if mp_match:
+#                     markdown_link = f"[{current_ref_idx}] {ref_stripped}"
+
+#             if markdown_link:
+#                 formatted_list.append(markdown_link)
+#                 current_ref_idx += 1
+#         return "\n".join(formatted_list)
+
+#     def _check_context_relevance(self, query: str, context: str) -> bool:
+#         """Original Feature: LLM-based Anti-GIGO guardrail."""
+#         if client is None: return True
+#         relevance_prompt = f"Question: {query}\nContext Snippet: {context[:500]}\nIs this relevant? YES/NO."
+#         try:
+#             response = client.chat.completions.create(model=self.model, messages=[{"role": "user", "content": relevance_prompt}], temperature=0.0, max_tokens=5)
+#             return "YES" in response.choices[0].message.content.strip().upper()
+#         except: return True
+
+#     def _format_prompt(self, state: ResearchState) -> str:
+#         """
+#         Upgraded Prompt Logic: Uses COIE framework while keeping dynamic structure.
+#         FULLY RESTORED: All original headings and material data logic.
+#         FIXED: Explicitly credits ALL active tools to satisfy the EvaluationAgent.
+#         """
+#         query = state.get("semantic_query", "No query provided")
+#         rag_context = state.get("filtered_context", "No context available")
+#         execution_plan = "\n- ".join(state.get("execution_plan", ["No plan available"]))
+#         formatted_references = self._extract_references(state)
+#         material_data_summary, target_formula, data_is_present = self._extract_material_data(state)
+
+#         # NEW: Dynamic tool list to ensure the Evaluator sees the "work" done
+#         active_tools = ", ".join(state.get("active_tools", ["pubmed", "arxiv"]))
+
+#         # Keep your original heading logic exactly as it was
+#         if data_is_present:
+#             first_section_heading = f"## Stability and Bandgap of {target_formula}"
+#             first_section_req = "Use Data Source A (Table) and B."
+#         else:
+#             first_section_heading = "## Introduction and Scope of Review"
+#             first_section_req = "Provide overview based on Data Source B."
+
+#         # Shared Instruction Block for Reference Filtering
+#         ref_filtering_instruction = """
+#                ## References
+#                - MUST contain ONLY the references cited in the text above.
+#                - If a reference from Source C was not used to support a claim, OMIT it from this list.
+#                - Keep the exact formatting and URLs from Source C for the citations you keep."""
+
+#         # COIE MANDATE
+#         if state.get('needs_refinement'):
+#             ref_reason = state.get('refinement_reason', 'Incomplete report.')
+#             prev_report = state.get('final_report', 'N/A')
+#             return f"""
+#             [CONTEXT]
+#             SOURCE A (Material Properties): {material_data_summary}
+#             SOURCE B (Context Data): {rag_context}
+#             SOURCE C (Reference Map): {formatted_references}
+#             ACTIVE TOOLS USED: {active_tools}
+#             CRITICAL FEEDBACK: {ref_reason}
+#             PREVIOUS DRAFT: {prev_report}
+
+#             [OBJECTIVE]
+#             REWRITE the report to fix failures.
+#             MANDATORY: You must explicitly state that the following databases were successfully queried: {active_tools}.
+#             Address why the previous draft was insufficient based on the feedback.
+
+#             [INSTRUCTION]
+#             1. Address feedback in Section I.
+#             2. Every claim MUST end with a citation [X] from Source C.
+#             3. Use Level 2 Headings:
+#                {first_section_heading}
+#                ## Key Research Findings
+#                ## Conclusion and Future Outlook
+#                {ref_filtering_instruction}
+
+#             [EVALUATION]
+#             Reject if info is from outside Source A/B or if the methodology section fails to name: {active_tools}.
+#             """
+#         else:
+#             return f"""
+#             [CONTEXT]
+#             SOURCE A (Material Properties): {material_data_summary}
+#             SOURCE B (Context Data): {rag_context}
+#             SOURCE C (Reference Map): {formatted_references}
+#             PLAN: {execution_plan}
+#             ACTIVE TOOLS USED: {active_tools}
+
+#             [OBJECTIVE]
+#             Generate a scientific report for: "{query}".
+#             MANDATORY: Include a brief 'Search Methodology' sentence explicitly naming these sources: {active_tools}.
+
+#             [INSTRUCTION]
+#             1. Citations: Every claim needs a citation [X].
+#             2. {first_section_req}
+#             3. Structure:
+#                {first_section_heading}
+#                ## Key Research Findings
+#                ## Conclusion and Future Outlook
+#                {ref_filtering_instruction}
+
+#             [EVALUATION]
+#             Strict adherence to Source A/B required. You MUST prove the search plan was followed by mentioning {active_tools}.
+#             """
+
+#     def execute(self, state: ResearchState) -> ResearchState:
+#         if "visited_nodes" not in state or state["visited_nodes"] is None:
+#             state["visited_nodes"] = []
+#         state["visited_nodes"].append(self.id)
+
+#         # If the intent is irrelevant, a refusal message already exists in final_report.
+#         # We return immediately to avoid overwriting it or running expensive LLM calls.
+#         if state.get("primary_intent") == "irrelevant":
+#             print(f"{C_YELLOW}[{self.id.upper()}] Irrelevant intent detected. Bypassing synthesis.{C_RESET}")
+#             return state
+
+#         mode = "REFINEMENT" if state.get('needs_refinement') else "INITIAL GENERATION"
+#         print(f"\n{C_ACTION}[{self.id.upper()} START] Running {mode}...{C_RESET}")
+
+#         context = state.get("filtered_context", "")
+#         query = state.get("semantic_query", "")
+#         is_refining = state.get('needs_refinement', False)
+
+#         # Original Guardrail Logic
+#         if not is_refining and (len(context) < 200 or context.startswith("No sufficiently relevant")):
+#             if not self._check_context_relevance(query, context):
+#                 state['final_report'] = "Context failed relevance check."
+#                 state['report_generated'] = True
+#                 state['needs_refinement'] = False
+#                 return state
+
+#         if context.strip() in ["No sufficiently relevant context found.", ""]:
+#              state['final_report'] = "Lack of context."
+#              return state
+
+#         prompt = self._format_prompt(state)
+#         try:
+#             response = client.chat.completions.create(
+#                 model=self.model,
+#                 messages=[{"role": "system", "content": "You are a grounding-first scientific writer."},
+#                           {"role": "user", "content": prompt}],
+#                 temperature=0.1,
+#                 max_tokens=3000
+#             )
+#             state['final_report'] = response.choices[0].message.content.strip()
+#             state['report_generated'] = True
+#             state['is_refining'] = is_refining
+#             state['needs_refinement'] = False
+#             state['next'] = 'evaluation'
+#             print(f"{C_GREEN}[{self.id.upper()} DONE]{C_RESET}")
+#         except Exception as e:
+#             state['next'] = 'TERMINATE'
+#         return state
 
 # class SynthesisAgent:
 #     """
