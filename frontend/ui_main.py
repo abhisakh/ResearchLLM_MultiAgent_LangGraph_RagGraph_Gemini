@@ -448,46 +448,102 @@ with col_left:
             if fetch_history(selected): st.rerun()
 
 # --- MIDDLE COLUMN: RESEARCH LOG ---
+# --- MIDDLE COLUMN: RESEARCH LOG ---
 with col_middle:
     st.markdown("### 📑 Research Log")
+
     for msg in st.session_state['messages']:
+
+        # ---- CHAT MESSAGE ----
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
-            if msg["id"] in st.session_state['turn_paths']:
-                # The crucial visual trigger
-                if st.button(f"🔍 Inspect Agent Path", key=f"btn_{msg['id']}"):
-                    st.session_state['active_view_path'] = st.session_state['turn_paths'][msg["id"]]
-                    st.rerun()
 
+        # ---- ACTION BUTTONS (OUTSIDE CHAT MESSAGE) ----
+        if msg["id"] in st.session_state['turn_paths']:
+            colA, colB = st.columns([1, 1])
+
+            # -------- GRAPH VIEW BUTTON --------
+            with colA:
+                if st.button(
+                    "🕸 View Graph",
+                    key=f"graph_{msg['id']}",
+                    use_container_width=True
+                ):
+                    st.session_state['active_view_path'] = st.session_state['turn_paths'][msg["id"]]
+                    st.session_state['debug_message_id'] = msg["id"]
+                    st.switch_page("pages/03_Graph_View.py")
+
+            # -------- FULL DEBUG STATE BUTTON --------
+            with colB:
+                if st.button(
+                    "🧠 Debug State",
+                    key=f"debug_{msg['id']}",
+                    use_container_width=True
+                ):
+                    st.session_state['active_view_path'] = st.session_state['turn_paths'][msg["id"]]
+                    st.session_state['debug_message_id'] = msg["id"]
+                    st.switch_page("pages/02_Debug_State.py")
+
+            # Optional tiny spacer (very small)
+            st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
+
+    # ---------------------------------------------------
+    # CHAT INPUT
+    # ---------------------------------------------------
     if prompt := st.chat_input("Input research coordinates..."):
         st.session_state['processing'] = True
         u_id = str(uuid.uuid4())
-        st.session_state['messages'].append({"id": u_id, "role": "user", "content": prompt})
+        st.session_state['messages'].append({
+            "id": u_id,
+            "role": "user",
+            "content": prompt
+        })
 
         with st.chat_message("assistant"):
             status_box = st.empty()
             status_box.markdown("📡 *Synthesizing Multi-Agent Response...*")
+
             try:
-                res = requests.post(f"{API_BASE_URL}/research-chat", json={"session_id": st.session_state['session_id'], "message": prompt}, timeout=600)
+                res = requests.post(
+                    f"{API_BASE_URL}/research-chat",
+                    json={
+                        "session_id": st.session_state['session_id'],
+                        "message": prompt
+                    },
+                    timeout=600
+                )
+
                 if res.status_code == 200:
                     data = res.json()
                     msg_id = data.get('id')
-                    # Use the cleaned agent names
-                    path = [str(n).strip().replace('"', '') for n in data.get('visited_path', [])]
+
+                    path = [
+                        str(n).strip().replace('"', '')
+                        for n in data.get('visited_path', [])
+                    ]
 
                     st.session_state['turn_paths'][msg_id] = path
                     st.session_state['active_view_path'] = path
 
                     response_msg = data.get('response', '')
 
-                    # --- UPDATED TELEMETRY DISPLAY ---
                     if path:
-                        path_breadcrumb = " → ".join([f"`{n}`" for n in path])
-                        response_msg += f"\n\n---\n**Tracked Path:** {path_breadcrumb}"
+                        path_breadcrumb = " → ".join(
+                            [f"`{n}`" for n in path]
+                        )
+                        response_msg += (
+                            f"\n\n---\n**Tracked Path:** {path_breadcrumb}"
+                        )
 
-                    st.session_state['messages'].append({"id": msg_id, "role": "assistant", "content": response_msg})
+                    st.session_state['messages'].append({
+                        "id": msg_id,
+                        "role": "assistant",
+                        "content": response_msg
+                    })
+
                 st.session_state['processing'] = False
                 st.rerun()
+
             except Exception as e:
                 st.session_state['processing'] = False
                 status_box.error(f"Link Error: {e}")
