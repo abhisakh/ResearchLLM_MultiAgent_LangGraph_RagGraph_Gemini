@@ -224,6 +224,7 @@ async def research_chat(q: Query):
             "user_query": q.message,
             "semantic_query": "",
             "primary_intent": "",
+            "reasoning": "",
             "execution_plan": [],
             "material_elements": [],
             "system_constraints": [],
@@ -337,6 +338,34 @@ async def list_sessions():
     finally:
         db.close()
 
+#--------------------------------------------------------------------
+#---------------------- FOR AI TRANSPERANCY--------------------------
+#--------------------------------------------------------------------
+@app.get("/debug/raw-state/{message_id}")
+async def get_raw_state(message_id: str):
+    db = SessionLocal()
+    try:
+        log = db.query(ChatLog).filter(ChatLog.id == message_id).first()
+
+        if not log:
+            raise HTTPException(status_code=404, detail="Message not found")
+
+        if not log.raw_data:
+            return {"raw_data": None}
+
+        try:
+            parsed = json.loads(log.raw_data)
+        except:
+            parsed = log.raw_data
+
+        return {
+            "id": log.id,
+            "session_id": log.session_id,
+            "raw_state": parsed
+        }
+
+    finally:
+        db.close()
 
 # import os
 # import datetime
