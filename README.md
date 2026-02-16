@@ -71,6 +71,7 @@
   - [Backend Feature: The Audit Endpoint](#backend-Feature)
   - [Frontend Feature: The Observability Console](#frontend-Feature)
   - [Debug Console Use Cases](#debug-console)
+    
 ---
 # Architecture Overview
 
