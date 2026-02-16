@@ -67,6 +67,10 @@
   - [The Initial State](#-2-the-initial-state-the-research-blueprint)
   - [The Stream & Refinement Loop](#-3-the-stream--refinement-loop)
   - [Summary of Main Logic](#-summary-of-the-main-logic)
+- [Explainable AI (XAI) & Compliance](#explainable)
+  - [Backend Feature: The Audit Endpoint](#backend-Feature)
+  - [Frontend Feature: The Observability Console](#frontend-Feature)
+  - [Debug Console Use Cases](#debug-console)
 ---
 # Architecture Overview
 
@@ -2317,15 +2321,17 @@ Once the graph reaches `__end__` or the max iterations are hit, the system calcu
 ---
 
 ---
-
+<a id ="explainable"></a>
 ## ⚖️ Explainable AI (XAI) & Compliance
+<-- [Back](#table)
 
 This system is engineered with **EU AI Act principles** in mind. To satisfy requirements for high-risk AI transparency, we have upgraded the architecture to provide a **"Glass Box"** view of the decision-making process.
 
 By capturing the full `ResearchState` at every turn, we ensure that **every claim made by the AI can be audited back to its source**, reasoning path, and tool-usage logs.
 
-### 🛠️ New Backend Feature: The Audit Endpoint
-
+<a id ="backend-Feature"></a>
+### 🛠️ Backend Feature: The Audit Endpoint
+<-- [Back](#table)
 **`GET /debug/raw-state/{message_id}`**
 
 While standard chat history provides a user-friendly summary, this endpoint provides the **Full Technical Audit Trail**.
@@ -2410,8 +2416,9 @@ Host: localhost:8000
 | **Legal Team** | Bias detection | Review if system_constraints were respected |
 
 ---
-
-### 🖥️ New Frontend Feature: The Observability Console
+<a id ="frontend-Feature"></a>
+### 🖥️ Frontend Feature: The Observability Console
+<-- [Back](#table)
 
 We have introduced a dedicated **Agent Execution Debug Page** built with Streamlit. This interface is designed for researchers and auditors who require deeper insight than a standard chat interface allows.
 
@@ -2682,7 +2689,11 @@ graph TD
 
 ---
 
+### 🖥️ Frontend Feature: The Observability Console
+
+<a id ="debug-console"></a>
 ### 📋 Debug Console Use Cases
+<-- [Back](#table)
 
 #### Use Case 1: **Fact-Checking a Research Report**
 
