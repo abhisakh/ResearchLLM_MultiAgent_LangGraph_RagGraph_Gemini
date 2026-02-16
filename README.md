@@ -2420,6 +2420,8 @@ Host: localhost:8000
 <a id ="frontend-Feature"></a>
 ### 🖥️ Frontend Feature: The Observability Console
 <-- [Back](#table)
+<img width="1492" height="834" alt="Screenshot 2026-02-16 at 18 47 32" src="https://github.com/user-attachments/assets/1818b107-53ca-451e-99dc-8ddc94ff8984" />
+
 
 We have introduced a dedicated **Agent Execution Debug Page** built with Streamlit. This interface is designed for researchers and auditors who require deeper insight than a standard chat interface allows.
 
