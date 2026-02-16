@@ -182,7 +182,7 @@ git clone <[https://github.com/abhisakh/ResearchLLM_MultiAgent_LangGraph_RagGrap
 cd Final_Modular_ResearchLLM
 ```
 
-#### 2️⃣ Create and activate a virtual environment
+#### 2️⃣ Create and activate a virtual environment at the root directory
 ***macOS / Linux***
 ```python
 python3 -m venv .venv
