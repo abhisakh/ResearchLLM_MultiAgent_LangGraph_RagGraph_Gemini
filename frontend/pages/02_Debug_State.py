@@ -183,3 +183,52 @@ with colA:
 with colB:
     if st.button("⬅ Back to Main UI"):
         st.switch_page("ui_main.py")
+
+#--------------------------------------------
+# --- CUSTOM CSS FOR TAB FONT SIZE ---
+#--------------------------------------------
+# st.markdown("""
+#     <style>
+#         /* Target the tab button text */
+#         .stTabs [data-baseweb="tab"] p {
+#             font-size: 25px;
+#             font-weight: 600;
+#             color: #008000;
+#         }
+#     </style>
+# """, unsafe_allow_html=True)
+# --- ENHANCED CSS FOR TAB BOX & PADDING ---
+st.markdown("""
+    <style>
+        /* 1. Target the individual Tab Box */
+        .stTabs [data-baseweb="tab"] {
+            height: auto;
+            padding-top: 10px;
+            padding-bottom: 10px;
+            padding-left: 20px;
+            padding-right: 20px;
+            background-color: #f0f2f6; /* Light grey background for inactive tabs */
+            border-radius: 8px 8px 0px 0px; /* Rounded top corners */
+            margin-right: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        /* 2. Target the Text inside the Tab Box */
+        .stTabs [data-baseweb="tab"] p {
+            font-size: 1.2rem; /* Scalable font size */
+            font-weight: 600;
+            color: #31333F;
+            margin: 0px;
+        }
+
+        /* 3. Hover and Active State styling */
+        .stTabs [data-baseweb="tab"]:hover {
+            background-color: #e0e4eb;
+        }
+
+        .stTabs [aria-selected="true"] {
+            background-color: #ffffff !important; /* Active tab stands out */
+            border-bottom: 3px solid #ff4b4b !important; /* Streamlit Red highlight */
+        }
+    </style>
+""", unsafe_allow_html=True)
