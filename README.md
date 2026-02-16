@@ -93,6 +93,9 @@ This system consists of three major layers:
 The project follows a modular and layered directory structure designed to clearly separate backend intelligence, frontend presentation, and experimental artifacts.
 All components are implemented in Python, while execution is handled by appropriate runtimes depending on responsibility.
 ```python
+.
+├── LICENSE
+├── README.md
 ├── __init__.py
 ├── backend
 │   ├── agents
@@ -104,7 +107,7 @@ All components are implemented in Python, while execution is handled by appropri
 │   │   ├── supervisor_agent.py
 │   │   ├── synthesis_agent.py
 │   │   └── tool_agents.py
-│   ├── backend.py
+│   ├── backend.py  -----------------------------> MAIN BACKEND FILE
 │   ├── chat_history.db
 │   ├── core
 │   │   ├── __init__.py
@@ -120,20 +123,18 @@ All components are implemented in Python, while execution is handled by appropri
 ├── frontend
 │   ├── ai.jpg
 │   ├── genai.jpg
-│   └── ui_main.py
+│   ├── pages
+│   │   ├── 02_Debug_State.py
+│   │   └── 03_Graph_View.py
+│   └── ui_main.py  -----------------------------> MAIN FRONTEND FILE
 ├── requirements.txt
 └── testing_block
-    ├── chat_history.db
     ├── chat_history_old.db
     ├── full_diagram.html
     ├── old.py
-    ├── planning_agents_........old.py
     ├── rag_tool.txt
-    ├── research_graph_............old.py
-    ├── supervisor_agent_.........old.py
-    ├── test_model.py
-    ├── vector_data.pkl
-    └── vector_index.faiss
+    └── test_model.py
+
 ```
 ---
 ### 🔹 Root Level
