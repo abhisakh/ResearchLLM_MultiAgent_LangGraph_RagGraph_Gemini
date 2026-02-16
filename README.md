@@ -2316,6 +2316,420 @@ Once the graph reaches `__end__` or the max iterations are hit, the system calcu
 
 ---
 
+---
+
+## ⚖️ Explainable AI (XAI) & Compliance
+
+This system is engineered with **EU AI Act principles** in mind. To satisfy requirements for high-risk AI transparency, we have upgraded the architecture to provide a **"Glass Box"** view of the decision-making process.
+
+By capturing the full `ResearchState` at every turn, we ensure that **every claim made by the AI can be audited back to its source**, reasoning path, and tool-usage logs.
+
+### 🛠️ New Backend Feature: The Audit Endpoint
+
+**`GET /debug/raw-state/{message_id}`**
+
+While standard chat history provides a user-friendly summary, this endpoint provides the **Full Technical Audit Trail**.
+
+#### Functionality
+- **Purpose**: Bypasses all UI-centric data filters to return the raw, stringified JSON state of the LangGraph engine exactly as it existed during that specific execution turn
+- **Compliance Role**: Acts as the "Black Box Recorder" for the agent. Allows developers or auditors to verify if the agent adhered to `system_constraints` and how it handled sensitive or biased data
+- **Data Integrity**: Utilizes our Safe-Parsing Normalization layer, ensuring that even if an execution was interrupted, the partial state is still recoverable for debugging
+
+#### API Specification
+
+**Request:**
+```http
+GET /debug/raw-state/a3f2b1c4-5678-90ab-cdef-1234567890ab HTTP/1.1
+Host: localhost:8000
+```
+
+**Response:**
+```json
+{
+  "message_id": "a3f2b1c4-5678-90ab-cdef-1234567890ab",
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2024-01-09T12:35:12.789Z",
+  "raw_state": {
+    "user_query": "What are the electrochemical properties of LiFePO4?",
+    "semantic_query": "What are the electrochemical properties of LiFePO4",
+    "primary_intent": "material_properties",
+    "system_constraints": [
+      "DOMAIN: Materials Science",
+      "MATERIAL: LiFePO4",
+      "FOCUS: Electrochemical properties"
+    ],
+    "execution_plan": [
+      "Query Materials Project API for LiFePO4 computational data",
+      "Search OpenAlex for peer-reviewed papers",
+      "Perform web search for recent developments"
+    ],
+    "active_tools": ["materials", "openalex", "web"],
+    "tiered_queries": { ... },
+    "raw_tool_data": [ ... ],
+    "full_text_chunks": [ ... ],
+    "filtered_context": "...",
+    "final_report": "...",
+    "needs_refinement": false,
+    "refinement_reason": "Report is satisfactory",
+    "visited_nodes": [
+      "supervisor",
+      "clean_query_agent",
+      "intent_agent",
+      "planning_agent",
+      "query_generation_agent",
+      "materials_search",
+      "openalex_search",
+      "web_search",
+      "retrieve_data",
+      "rag_filter",
+      "synthesis_agent",
+      "evaluation_agent"
+    ],
+    "node_count": 12,
+    "refinement_retries": 0
+  },
+  "execution_metadata": {
+    "total_duration_seconds": 47.3,
+    "tools_executed": ["materials", "openalex", "web"],
+    "documents_retrieved": 16,
+    "chunks_created": 47,
+    "chunks_filtered": 12,
+    "citations_generated": 8
+  }
+}
+```
+
+#### Use Cases
+
+| User Type | Use Case | Benefit |
+|-----------|----------|---------|
+| **Researcher** | Verify citation accuracy | Trace claim back to exact paper chunk |
+| **Auditor** | Compliance review | Confirm ethical AI practices |
+| **Developer** | Debug failed queries | Inspect partial state at failure point |
+| **Data Scientist** | Performance analysis | Analyze retrieval vs synthesis time |
+| **Legal Team** | Bias detection | Review if system_constraints were respected |
+
+---
+
+### 🖥️ New Frontend Feature: The Observability Console
+
+We have introduced a dedicated **Agent Execution Debug Page** built with Streamlit. This interface is designed for researchers and auditors who require deeper insight than a standard chat interface allows.
+
+#### Access the Debug Console
+
+```bash
+streamlit run debug_console.py --server.port 8502
+```
+
+Open browser: `http://localhost:8502`
+
+---
+
+#### Key Modules of the Debug UI
+
+##### 1. 📊 Execution Metrics
+
+Real-time visualization of performance data:
+
+```python
+# Metrics Dashboard
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.metric(
+        label="Node Count",
+        value=state["node_count"],
+        delta=None,
+        help="Total agents involved in the reasoning chain"
+    )
+
+with col2:
+    st.metric(
+        label="Refinement Retries",
+        value=state["refinement_retries"],
+        delta=None,
+        help="Self-correction attempts before final answer"
+    )
+
+with col3:
+    st.metric(
+        label="Documents Retrieved",
+        value=len(state["raw_tool_data"]),
+        delta=None
+    )
+
+with col4:
+    st.metric(
+        label="Vector Chunks",
+        value=len(state["full_text_chunks"]),
+        delta=None
+    )
+```
+
+**Transparency Metrics:**
+- **Node Count**: Total agents involved in the reasoning chain
+- **Refinement Retries**: Shows how many times the system "self-corrected" before presenting an answer
+- **Tool Execution Time**: Breakdown of time spent in each data source
+- **Token Usage**: GPT-4 API calls and token consumption
+
+---
+
+##### 2. 🧭 Trace Analysis (The Execution Path)
+
+A chronological flow of the agent's logic. By surfacing the `visited_nodes`, we provide a clear map of whether the agent followed the intended **"Planning → Search → Synthesis"** route or took an unexpected detour.
+
+```python
+# Execution Path Visualization
+st.subheader("🧭 Agent Execution Trace")
+
+visited_nodes = state.get("visited_nodes", [])
+
+# Create timeline
+for idx, node in enumerate(visited_nodes):
+    with st.expander(f"Step {idx+1}: {node}", expanded=(idx == len(visited_nodes)-1)):
+        st.code(f"Node: {node}", language="text")
+        
+        # Show state changes at this node
+        if node == "intent_agent":
+            st.json({
+                "primary_intent": state["primary_intent"],
+                "system_constraints": state["system_constraints"]
+            })
+        elif node == "planning_agent":
+            st.json({
+                "execution_plan": state["execution_plan"],
+                "active_tools": state["active_tools"]
+            })
+        # ... more nodes
+```
+
+**Visual Flow Diagram:**
+
+```mermaid
+graph LR
+    A[Supervisor] --> B[CleanQuery]
+    B --> C[Intent]
+    C --> D[Planning]
+    D --> E[QueryGen]
+    E --> F[Materials]
+    F --> G[OpenAlex]
+    G --> H[Web]
+    H --> I[Retrieval]
+    I --> J[RAG]
+    J --> K[Synthesis]
+    K --> L[Evaluation]
+    L --> M{Needs Refinement?}
+    M -->|No| N[END]
+    M -->|Yes| A
+    
+    style A fill:#98D8C8
+    style N fill:#9f6
+    style M fill:#f96
+```
+
+---
+
+##### 3. 🧠 Reasoning & Intent Inspection
+
+Direct visibility into the `primary_intent` and `execution_plan`. This allows the user to confirm that the AI correctly interpreted the user's query **before any data was retrieved**.
+
+```python
+st.subheader("🧠 Intent Classification")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.info(f"**Primary Intent:** `{state['primary_intent']}`")
+    
+    st.write("**System Constraints Detected:**")
+    for constraint in state["system_constraints"]:
+        st.markdown(f"- {constraint}")
+
+with col2:
+    st.success("**Execution Plan:**")
+    for idx, step in enumerate(state["execution_plan"], 1):
+        st.markdown(f"{idx}. {step}")
+```
+
+**Compliance Benefit:**
+- Users can verify the AI didn't misinterpret sensitive queries
+- Transparency into how constraints (time period, domain, scope) were applied
+- Early detection of bias in intent classification
+
+---
+
+##### 4. 📚 Source Attribution (Retrieval Tab)
+
+In compliance with **"Right to Explanation"** standards, this tab exposes the `raw_tool_data`. Users can see the exact snippets retrieved from PubMed, ArXiv, or OpenAlex **before the LLM summarized them**, allowing for manual verification of facts.
+
+```python
+st.subheader("📚 Retrieved Sources")
+
+# Group by tool
+tools_used = set([doc["tool_id"] for doc in state["raw_tool_data"]])
+
+for tool in tools_used:
+    with st.expander(f"🔍 {tool.upper()} Results"):
+        tool_docs = [d for d in state["raw_tool_data"] if d["tool_id"] == tool]
+        
+        for idx, doc in enumerate(tool_docs, 1):
+            st.markdown(f"**Source {idx}:**")
+            st.text_area(
+                label="Raw Text",
+                value=doc["text"][:500] + "...",
+                height=100,
+                key=f"{tool}_{idx}_text"
+            )
+            
+            st.json(doc["metadata"])
+            st.markdown("---")
+```
+
+**Features:**
+- **Pre-Summary Transparency**: View exact text before GPT-4 processing
+- **Metadata Inspection**: Authors, publication date, DOI, URLs
+- **Citation Verification**: Match references in report to source documents
+- **Bias Detection**: Identify if certain sources were over-represented
+
+---
+
+##### 5. 🔎 Full State Search
+
+An advanced key-value search tool that allows users to find specific data points (e.g., a specific citation or constraint) within the massive, nested JSON state.
+
+```python
+st.subheader("🔎 State Search")
+
+search_query = st.text_input(
+    "Search for any term in the state:",
+    placeholder="e.g., 'LiFePO4', 'pubmed', 'Band Gap'"
+)
+
+if search_query:
+    results = search_nested_dict(state, search_query)
+    
+    st.write(f"Found **{len(results)}** matches:")
+    
+    for path, value in results:
+        with st.expander(f"📍 {path}"):
+            st.code(str(value), language="json")
+```
+
+**Search Capabilities:**
+- **Nested Key Search**: Find values deep in state hierarchy
+- **Partial Match**: Fuzzy search across all string fields
+- **Field Filtering**: Search only in specific state categories
+- **Export Results**: Download search results as JSON
+
+---
+
+### 🏗️ Technical Architecture of Transparency
+
+```mermaid
+graph TD
+    subgraph Users [User Layer]
+        Researcher[General User]
+        Auditor[Power User / Auditor]
+    end
+
+    subgraph Frontend [UI Layer]
+        Chat[Main Chat UI<br/>Port 8501]
+        Debug[Debug Console<br/>Port 8502]
+    end
+
+    subgraph Backend [API & Logic]
+        FastAPI[FastAPI Router]
+        Graph[LangGraph Engine]
+        XAI_Log[Audit Trail Logger]
+    end
+
+    subgraph Persistence [Data Layer]
+        DB[(SQLite Trace Log<br/>chat_logs.raw_data)]
+    end
+
+    %% Flow
+    Researcher --> Chat
+    Auditor --> Debug
+    Chat --> FastAPI
+    Debug -->|GET /debug/raw-state/| FastAPI
+    FastAPI --> Graph
+    Graph --> XAI_Log
+    XAI_Log --> DB
+    DB -->|Normalized JSON| Debug
+
+    %% Transparency Label
+    classDef transparency fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
+    class Debug,XAI_Log,DB transparency;
+    
+    style Users fill:#e3f2fd
+    style Frontend fill:#f3e5f5
+    style Backend fill:#e8f5e9
+    style Persistence fill:#fff3e0
+```
+
+---
+
+### 🔐 Compliance & Governance Features
+
+| Feature | EU AI Act Article | Implementation | Benefit |
+|---------|-------------------|----------------|---------|
+| **Audit Trail** | Article 12 (Record-keeping) | Full state capture in `raw_data` column | Complete traceability of AI decisions |
+| **Source Attribution** | Article 13 (Transparency) | `raw_tool_data` with URLs and metadata | Users can verify all claims |
+| **Intent Logging** | Article 14 (Human Oversight) | `primary_intent` + `system_constraints` | Detect misinterpretation early |
+| **Refinement Tracking** | Article 15 (Accuracy) | `refinement_retries` + `refinement_reason` | Transparency into self-correction |
+| **Tool Usage Logs** | Article 12.1 (Documentation) | `visited_nodes` + `active_tools` | Audit which data sources were used |
+| **State Normalization** | Article 12.2 (Data Quality) | UTF-8 sanitization + JSON validation | Prevents data corruption |
+
+---
+
+### 📋 Debug Console Use Cases
+
+#### Use Case 1: **Fact-Checking a Research Report**
+
+**Scenario**: A researcher wants to verify a specific claim about LiFePO4's band gap.
+
+**Workflow**:
+1. Open Debug Console
+2. Navigate to **Source Attribution** tab
+3. Search for "band gap" in **Full State Search**
+4. Find the exact chunk from Materials Project API
+5. Compare with value in final report
+6. Verify citation [1] matches the source
+
+**Result**: Full transparency from claim → synthesis → source.
+
+---
+
+#### Use Case 2: **Debugging a Failed Query**
+
+**Scenario**: A query returned "Insufficient data" and the developer needs to understand why.
+
+**Workflow**:
+1. Call `/debug/raw-state/{message_id}` API
+2. Check `raw_tool_data` length → Found 0 results
+3. Inspect `tiered_queries` → Query was too restrictive
+4. Review `visited_nodes` → Confirmed tools executed
+5. Check `refinement_retries` → 0 (no auto-recovery attempted)
+
+**Result**: Identified root cause (bad query generation) without guessing.
+
+---
+
+#### Use Case 3: **Compliance Audit for Bias**
+
+**Scenario**: An auditor needs to verify the system didn't favor certain sources.
+
+**Workflow**:
+1. Open Debug Console
+2. Check **Execution Metrics** → Tool distribution
+3. Review **Source Attribution** → Count by tool_id
+4. Inspect `system_constraints` → Verify no geographic bias
+5. Export full state JSON for external analysis
+
+**Result**: Statistical proof of balanced source selection.
+
+---
+
 ## 📄 License
 <-- [Back](#table)
 
