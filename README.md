@@ -11,10 +11,10 @@
 </div>
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/51bf24e5-8daf-4e4f-b511-10f2e569da53" width="900"
+  <img src="https://github.com/user-attachments/assets/51398956-8dd6-47b0-bd40-7cf36b9a43a0" width="900"
       style="
       border-radius: 18px;
-      border: 1px solid #e5e7eb;
+      border: 5px solid #e5e7eb;
       box-shadow: 0 12px 32px rgba(0,0,0,0.12);"
     />
 
