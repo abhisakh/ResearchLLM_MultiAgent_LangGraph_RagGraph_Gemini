@@ -178,7 +178,7 @@ Isolated workspace for:
 ## ⚙️ Installation & Setup
 #### 1️⃣ Clone the repository
 ```python
-git clone <[https://github.com/abhisakh/ResearchLLM_MultiAgent_LangGraph_RagGraph.git](https://github.com/abhisakh/ResearchLLM_MultiAgent_LangGraph_RagGraph.git)>
+git clone [https://github.com/abhisakh/ResearchLLM_MultiAgent_LangGraph_RagGraph.git](https://github.com/abhisakh/ResearchLLM_MultiAgent_LangGraph_RagGraph.git)
 cd Final_Modular_ResearchLLM
 ```
 
