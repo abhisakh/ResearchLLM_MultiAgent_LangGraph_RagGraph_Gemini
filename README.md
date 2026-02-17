@@ -10,15 +10,19 @@
 
 </div>
 
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/51398956-8dd6-47b0-bd40-7cf36b9a43a0" width="1492"
-      style="
-      border-radius: 28px;
-      border: 5px solid #e5e7eb;
-      box-shadow: 0 12px 32px rgba(0,0,0,0.12);"
-    />
 
-</div>
+<table>
+<tr>
+<td align="center" bgcolor="#f3f4f6">
+
+<img src="https://github.com/user-attachments/assets/51398956-8dd6-47b0-bd40-7cf36b9a43a0" width="1492">
+
+</td>
+</tr>
+</table>
+
+
+# OUT OF SCOPE QUERY
 <img width="1492" height="849" alt="Screenshot 2026-02-17 at 08 58 21" src="https://github.com/user-attachments/assets/07823c9e-8615-4c17-9af7-521a54fd2002" />
 
 
