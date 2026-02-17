@@ -10,6 +10,7 @@
 
 </div>
 
+# In SCOPE QUERY
 
 <table>
 <tr>
@@ -22,9 +23,17 @@
 </table>
 
 
-# OUT OF SCOPE QUERY
-<img width="1492" height="849" alt="Screenshot 2026-02-17 at 08 58 21" src="https://github.com/user-attachments/assets/07823c9e-8615-4c17-9af7-521a54fd2002" />
+# Out of SCOPE QUERY
 
+<table>
+<tr>
+<td align="center" bgcolor="#f3f4f6">
+
+<img src="https://github.com/user-attachments/assets/07823c9e-8615-4c17-9af7-521a54fd2002" width="1492">
+
+</td>
+</tr>
+</table>
 
 
 ---
