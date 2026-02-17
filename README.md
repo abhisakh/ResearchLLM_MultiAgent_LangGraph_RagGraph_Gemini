@@ -19,7 +19,8 @@
     />
 
 </div>
-<img width="1459" height="869" alt="Screenshot 2026-02-10 at 08 17 20" src="https://github.com/user-attachments/assets/d8d8f0d2-11e6-4d66-a604-5d21af3eb721" />
+<img width="1492" height="849" alt="Screenshot 2026-02-17 at 08 58 21" src="https://github.com/user-attachments/assets/07823c9e-8615-4c17-9af7-521a54fd2002" />
+
 
 
 ---
