@@ -11,9 +11,9 @@
 </div>
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/51398956-8dd6-47b0-bd40-7cf36b9a43a0" width="900"
+  <img src="https://github.com/user-attachments/assets/51398956-8dd6-47b0-bd40-7cf36b9a43a0" width="1492"
       style="
-      border-radius: 18px;
+      border-radius: 28px;
       border: 5px solid #e5e7eb;
       box-shadow: 0 12px 32px rgba(0,0,0,0.12);"
     />
