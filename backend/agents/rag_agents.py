@@ -185,7 +185,7 @@ class RAGAgent:
         for c in self.vector_db.text_store:
             doc_id = c.get('doc_id')
             if doc_id: doc_map.setdefault(doc_id, []).append(c)
-        for d in doc_map: doc_map[d].sort(key=lambda x: x.get('chunk_index', 0))
+        for d in doc_map: doc_map[d].sort(key=lambda x: x.get('chunk_id', 0)) #------ chunk_index -> chunk_id corrected
 
         final_chunks, seen_ids = [], set()
         for chunk_dict, score in top_k_results:
