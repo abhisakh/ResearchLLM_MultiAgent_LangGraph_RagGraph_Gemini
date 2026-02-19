@@ -76,6 +76,8 @@
   - [QueryGenerationAgent](#querygenerationagent)
   - [Tool Agents](#-tool-agents-tool_agentspy)
   - [Retrieval & RAG Pipeline](#-retrieval--rag-pipeline)
+    - [Retrieval Agent](#retrieval)
+    - [RAG Agent](#rag)
   - [SynthesisAgent](#-synthesisagent)
   - [EvaluationAgent](#-evaluationagent)
 - [Main Loop Execution & Management](#-main-loop-execution--management)
@@ -2849,7 +2851,10 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 For questions or feedback, please open an issue on GitHub.
 
+<a id="retrieval"></a>
 ## Retrieval Agent
+<-- [Back](#table)
+
 ```mermaid
 flowchart TD
     A[Raw Tool Data / URLs] --> B{PDF Available?}
@@ -2868,8 +2873,10 @@ flowchart TD
     I --> J[LLM-Ready Text Chunks 🤖]
 
 ```
-
+<a id="rag"></a>
 ## RAG Agent
+<-- [Back](#table)
+
 ```mermaid
 flowchart TD
     A[Research State] --> B[Structured Data Extraction 🧠<br/> tool_id == 'materials_search' ]
