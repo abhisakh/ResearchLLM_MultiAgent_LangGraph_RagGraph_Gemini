@@ -1627,12 +1627,11 @@ The Supervisor acts as the system's "Security Officer" by checking intent before
 **Agent ID:** `clean_query_agent`
 
 ### Purpose
-**Purpose:** The CleanQueryAgent is the initial processing layer of the research graph. It functions as a "Denoising Filter," transforming raw user input into a formal, semantically dense search string. It uses a hybrid approach—combining **Regex-based sanitization with LLM-powered expansion**—to ensure technical terms remain anchored while query quality is improved.
+The CleanQueryAgent is the initial processing layer of the research graph. It functions as a "Denoising Filter," transforming raw user input into a formal, semantically dense search string. It uses a hybrid approach—combining **Regex-based sanitization with LLM-powered expansion**—to ensure technical terms remain anchored while query quality is improved.
 
 This agent operates **before all LLM-driven agents** and provides a stable starting point for the research workflow.
 
 ### Responsibilities
-**Key Responsibilities:**
 - **Regex-Driven Sanitization:** Uses specialized regex patterns to strip conversational punctuation (? ! ( ) [ ] " ' *) while explicitly preserving technical markers like dots and dashes used in chemical nomenclature and materials science.
 - **Whitespace Normalization:** Collapses multiple spaces and trims padding to ensure consistent string indexing.
 - **Terminology Preservation:** Protects unique terminology (e.g., "GNRs") and complex formulas (e.g., $CH_{3}NH_{3}PbI_{3}$) from being simplified into generic concepts.
