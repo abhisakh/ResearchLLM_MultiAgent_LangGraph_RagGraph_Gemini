@@ -70,6 +70,7 @@
   - [Refinement Loop](#-refinement-loop)
   - [Design Benefits](#-design-benefits)
 - [Detailed Agent Overview](#detailed-agent-overview)
+  - [Supervisor Agent](#supervisor)
   - [CleanQueryAgent](#cleanqueryagent)
   - [IntentAgent](#intentagent)
   - [PlanningAgent](#planningagent)
@@ -1271,7 +1272,7 @@ system_constraints: Hard-codes "must-have" filters (e.g., TIME_PERIOD: last_5_ye
 
 | Phase | Agent Responsible | Keys Populated / Updated | Population Logic (The "How") |
 | :--- | :--- | :--- | :--- |
-| **1. Initialization** | **Supervisor Agent** | `user_query`, `next`, `visited_nodes` | Captures raw UI input; resets loop counters and initializes the graph path. |
+| **1. Initialization** | **** | `user_query`, `next`, `visited_nodes` | Captures raw UI input; resets loop counters and initializes the graph path. |
 | **2. Normalization** | **CleanQueryAgent** | `semantic_query` | Uses LLM to strip conversational noise and extract core keywords for search. |
 | **3. Strategic Intent** | **IntentAgent** | `primary_intent`, `reasoning`, `system_constraints` | Classifies query type (e.g., Literature Review) and extracts metadata guardrails. |
 | **4. Tactical Planning**| **Planning / QueryGen**| `execution_plan`, `tiered_queries`, `material_elements` | Decomposes intent into steps and generates Strict/Broad queries for specific APIs. |
@@ -1292,7 +1293,7 @@ This project implements a Supervisor-driven, multi-agent research workflow using
 ```mermaid
 flowchart TD
     %% Entry
-    Supervisor[Supervisor Agent<br/>Entry Point]
+    Supervisor[<br/>Entry Point]
 
     %% Planning Phase
     Clean[Clean Query Agent]
@@ -1491,8 +1492,53 @@ The result is a transparent, debuggable, and scalable multi-agent system.
 # Detailed Agent Overview
 <-- [Back](#table)
 
-## CleanQueryAgent
+---
+<a id="supervisor"></a>
+## Supervisor Agent
+<-- [Back](#table)
 
+```mermaid
+graph TD
+    %% Central Hub
+    Super[Supervisor Agent Hub]
+
+    %% Entry Point
+    User((User Query)) --> Super
+
+    %% Spokes
+    Clean[Clean Query Agent]
+    Intent[Intent Agent]
+    Plan[Planning Agent]
+    QGen[Query Gen Agent]
+    Tools[Tool Agents <br/> ArXiv, PubMed, etc.]
+    Ret[Retrieval Agent]
+    RAG[RAG Agent]
+    Syn[Synthesis Agent]
+    Eval[Evaluation Agent]
+
+    %% Logic Flow (The Hub-and-Spoke Pattern)
+    Super <-->|1. Clean| Clean
+    Super <-->|2. Classify| Intent
+    Super <-->|3. Strategy| Plan
+    Super <-->|4. Formulate| QGen
+    Super <-->|5. Search| Tools
+    Super <-->|6. Fetch PDF| Ret
+    Super <-->|7. Vectorize| RAG
+    Super <-->|8. Write| Syn
+    Super <-->|9. Quality Audit| Eval
+
+    %% Decision Point
+    Eval -.->|Needs Refinement| Super
+    Eval -.->|Satisfactory| End([Final Report Output])
+
+    %% Styling
+    style Super fill:#f96,stroke:#333,stroke-width:4px
+    style End fill:#00c853,stroke:#333,stroke-width:2px
+```
+---
+
+## CleanQueryAgent
+<-- [Back](#table)
 **File:** `procedural_agent.py`
 **Agent ID:** `clean_query_agent`
 
@@ -2937,7 +2983,7 @@ flowchart TD
     classDef logic fill:#003566,stroke:#30363d,color:#fff;
     class Search,Expansion,Filter logic;
 ```
-## Supervisor Agent
+## 
 ```mermaid
 flowchart TD
 
@@ -3114,48 +3160,7 @@ graph TD
     style Refine fill:#ffcdd2,stroke:#c62828
 ```
 ---
-## Supervisor Agent
 
-```mermaid
-graph TD
-    %% Central Hub
-    Super[Supervisor Agent Hub]
-
-    %% Entry Point
-    User((User Query)) --> Super
-
-    %% Spokes
-    Clean[Clean Query Agent]
-    Intent[Intent Agent]
-    Plan[Planning Agent]
-    QGen[Query Gen Agent]
-    Tools[Tool Agents <br/> ArXiv, PubMed, etc.]
-    Ret[Retrieval Agent]
-    RAG[RAG Agent]
-    Syn[Synthesis Agent]
-    Eval[Evaluation Agent]
-
-    %% Logic Flow (The Hub-and-Spoke Pattern)
-    Super <-->|1. Clean| Clean
-    Super <-->|2. Classify| Intent
-    Super <-->|3. Strategy| Plan
-    Super <-->|4. Formulate| QGen
-    Super <-->|5. Search| Tools
-    Super <-->|6. Fetch PDF| Ret
-    Super <-->|7. Vectorize| RAG
-    Super <-->|8. Write| Syn
-    Super <-->|9. Quality Audit| Eval
-
-    %% Decision Point
-    Eval -.->|Needs Refinement| Super
-    Eval -.->|Satisfactory| End([Final Report Output])
-
-    %% Styling
-    style Super fill:#f96,stroke:#333,stroke-width:4px
-    style End fill:#00c853,stroke:#333,stroke-width:2px
-```
-
----
 ## Intent Agent
 ```mermaid
 graph TD
