@@ -1221,9 +1221,9 @@ The state is logically grouped into six categories:
 This guide identifies the precise moments each key in the state is "born" (initialized) and "matured" (populated).
 
 ***1. Phase: Initialization (Supervisor)***
+The state is born as a skeleton.
 
-<mark>The state is born as a skeleton.</mark>
-- Key Populated: user_query, visited_nodes, refinement_retries, next.
+<mark>Key Populated: user_query, visited_nodes, refinement_retries, next.</mark>
 - Mechanism: Direct assignment from the UI input.
 - State Impact: Sets the "North Star" for the entire workflow.
 
