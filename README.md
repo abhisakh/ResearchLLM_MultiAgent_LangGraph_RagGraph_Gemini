@@ -1973,6 +1973,17 @@ This design is safe across OpenAI, Claude, Gemini, and other LLMs.
 - Ensures at least one placeholder chunk exists if retrieval fails
 
 ### 🔎 RAGAgent
+<-- [Back](#table)
+
+**The Hybrid Funnel Strategy:** 
+Our RAG pipeline employs a two-stage retrieval process to solve the "Precision vs. Scalability" trade-off. While Cosine Similarity (Bi-Encoder) allows us to quickly scan millions of documents to find high-recall candidates, it often retrieves snippets that are "mathematically close" but semantically irrelevant. By adding Cross-Encoder Reranking on top, we introduce a deep neural judge that analyzes the query and document jointly, correcting these errors with high-precision scoring. Furthermore, because semantic search often returns isolated fragments, we utilize Nearest Neighbor Expansion to "re-stitch" the surrounding context. This ensures that the Synthesis Agent receives a complete, coherent narrative—preserving the document's original flow and providing the LLM with the vital evidentiary "before and after" needed for accurate grounding.
+
+**🏗️ Architectural Distinction: Bi-Encoder vs. Cross-Encoder**
+The primary difference lies in when and how the query and document interact:
+
+Cosine Similarity (Bi-Encoder): Processes the query and document independently. Each is compressed into a single "meaning vector." Because the model never sees the query and document together during encoding, it relies on surface-level semantic overlap. This is fast and scalable (O(M+N)) but can miss nuances like negations or specific constraints.
+
+Cross-Encoder Transformer: Processes the query and document simultaneously as a single input pair. This allows for Full Self-Attention across every token in the query and every token in the document. It can detect if a document mentions a "lack of" a property vs. the property itself—nuances that vector embeddings often wash away. It is computationally expensive (O(M*N)), which is why we only use it to "rerank" the top candidates.
 
 ```mermaid
 flowchart TD
@@ -1982,7 +1993,7 @@ flowchart TD
     PDFCheck{PDF URL Available}
     Download[Download PDF]
     Extract[Extract Text]
-    ChunkPDF[Semantic Chunking PDF]
+    ChunkPDF[Semantic Chunking & Hard-Limit]
 
     Fallback[Abstract Chunking]
 
@@ -1991,8 +2002,9 @@ flowchart TD
     RAG[RAG Agent]
 
     Structured[Structured Data]
-    Index[Vector Index]
-    Search[Vector Search]
+    Index[VectorDBWrapper Indexing]
+    Search[Vector Search: Bi-Encoder]
+    Rerank[Neural Reranking: Cross-Encoder]
     Expand[Neighbor Expansion]
     Filter[Filter and Deduplicate]
     FallbackRAG[RAG Fallback]
@@ -2016,7 +2028,8 @@ flowchart TD
     RAG --> Structured
     RAG --> Index
     Index --> Search
-    Search --> Expand
+    Search --> Rerank
+    Rerank --> Expand
     Expand --> Filter
 
     Filter -->|Keep| Context
@@ -2026,24 +2039,23 @@ flowchart TD
     Context --> Done
 ```
 
-**Purpose:** The RAGAgent filters and compresses retrieved content into a high-signal context window for synthesis, combining vector similarity, neighbor expansion, and keyword gating.
+**Purpose:** The RAGAgent filters and compresses retrieved content into a high-signal context window for synthesis, combining vector similarity, ***neural reranking***, neighbor expansion, and keyword gating.
 
 **Key Responsibilities:**
 
-- Index text chunks into a vector database
-- Perform semantic vector search
-- Expand context via neighboring chunks
-- Preserve structured (non-vector) data
-- Deduplicate and filter noise
-- Assemble the final RAG context
+- Index text chunks into a vector database via VectorDBWrapper
+- Perform two-stage retrieval: Semantic vector search followed by Cross-Encoder reranking
+- Expand context via neighboring chunks using chunk_id mapping
+- Preserve structured (non-vector) data from tools like Materials Project
+- Deduplicate and filter "academic noise" via keyword gating
+- Assemble the final, logically ordered RAG context
 
 **Inputs (from ResearchState):**
 
 | Field              | Type                   | Description                                           |
 | ------------------ | ---------------------- | ----------------------------------------------------- |
-| `semantic_query`   | `str`                  | Query used for vector search                          |
-| `api_search_term`  | `str`                  | Literal term used for keyword gating                  |
-| `full_text_chunks` | `List[Dict[str, Any]]` | Chunked documents                                     |
+| `semantic_query`   | `str`                  | Query used for vector search and neural reranking     |                 | `api_search_term`  | `str`                  | Literal term used for keyword gating                  |
+| `full_text_chunks` | `List[Dict[str, Any]]` | Chunked documents (Subject to 8192 token hard-limit)  |
 | `raw_tool_data`    | `List[Dict[str, Any]]` | Includes structured data (e.g., materials properties) |
 
 **Outputs (written to ResearchState):**
@@ -2056,28 +2068,30 @@ flowchart TD
 ### RAG Processing Stages
 
 1. **Structured Context Preservation**
-   - Keeps non-textual, high-value data (e.g., materials properties)
-   - Bypasses vector filtering
+- Identifies non-textual, high-value data (e.g., tool_id: materials_project)
+- Bypasses vector filtering to ensure hard data facts are preserved
 
-2. **Vector Indexing**
-   - All valid chunks are indexed into the vector database
-   - Index persists across refinement loops
+2. **Vector Indexing(VectorDBWrapper)**
+- Chunks are processed and indexed into a FAISS vector store
+- Token Safety: Enforces a hard-limit on chunk size to prevent 400 Context Length errors in the Embedding API
 
-3. **Semantic Vector Search**
-   - Top-K similarity search (k = 8)
-   - Distance-based thresholding
+3. **Two-Stage Semantic Retrieval**
+  - **Stage 1 (Bi-Encoder):**
+    Top-K similarity search ($k = 30$) to gather a broad candidate pool
+-  **Stage 2 (Cross-Encoder):**
+   Neural reranking of candidates to assign precision relevance scores; only chunks exceeding a specific threshold ($> 0.1$) are retained
 
 4. **Neighbor Expansion**
-   - Expands results to adjacent chunks
-   - Preserves local document context
+- For high-relevance chunks, the agent retrieves immediate predecessors ($n-1$) and successors ($n+1$)
+- Utilizes chunk_id suffixes to ensure document continuity
 
 5. **Filtering & Deduplication**
-   - Keyword gating to remove academic boilerplate
    - Chunk-level deduplication
-   - Hard cap on maximum chunks retained
+   - Keyword Gating: Filters out "academic boilerplate" that lacks the primary search term
+   - Sorting: Re-orders remaining chunks by their original document sequence to maintain logical flow
 
 6. **Fallback Strategy**
-   - If filtering removes everything, raw chunks are used as backup
+   - If neural filtering removes all results, the agent falls back to using top-ranked raw abstracts as a baseline context
 
 ---
 
