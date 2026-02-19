@@ -54,7 +54,7 @@
   - [Key Design Principles](#-key-design-principles)
 - [Backend Architecture](#backend-architecture)
   - [High-Level Component Flow](#-high-level-component-flow)
-  - [Database Schema](#database-schema-chat_historydb)
+  - [Database Schema](#database-schema)
   - [Key Backend Functions](#-key-backend-functions)
   - [API Endpoints Summary](#-api-endpoints-summary)
 - [Advanced Multi-Agent Research Framework](#-advanced-multi-agent-research-framework)
@@ -1080,7 +1080,7 @@ graph TD
 | Telemetry & Debugging   | Tracks full agent traversal paths (visited_nodes)               |
 +-------------------------+-----------------------------------------------------------------+
 ```
-<a id="#database-schema-chat_historydb)"></a>
+<a id="#database-schema)"></a>
 ## 🗄️ Database Schema: chat_history.db
 
 The backend uses SQLAlchemy to manage session persistence. This is critical for building frontends that allow users to return to previous research sessions.
