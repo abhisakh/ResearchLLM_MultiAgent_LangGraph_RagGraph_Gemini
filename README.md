@@ -1101,6 +1101,7 @@ This table records every "turn" in the conversation, including hidden metadata f
 | tool_used  | String   | The specific agent that produced the result (e.g., SynthesisAgent) |
 | raw_data   | Text     | Crucial: Stringified JSON of the final ResearchState               |
 
+
 <a id="key-backend-functions"></a>
 ## 🛠️ Key Backend Functions
 <-- [Back](#table)
