@@ -1080,8 +1080,10 @@ graph TD
 | Telemetry & Debugging   | Tracks full agent traversal paths (visited_nodes)               |
 +-------------------------+-----------------------------------------------------------------+
 ```
-<a id="#chat-database"></a>
+
+<a id="chat-database"></a>
 ## 🗄️ Database Schema: chat_history.db
+<-- [Back](#table)
 
 The backend uses SQLAlchemy to manage session persistence. This is critical for building frontends that allow users to return to previous research sessions.
 
