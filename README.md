@@ -1153,6 +1153,8 @@ The architecture is built on a **Supervisor-Worker pattern**. The Supervisor man
 # 🧠 ResearchState (Shared Workflow State)
 <-- [Back](#table)
 
+<img width="720" height="554" alt="Screenshot 2026-02-17 at 10 17 31" src="https://github.com/user-attachments/assets/ba3d0953-daba-49ec-9de3-85092b0fb498" />
+
 ResearchState is the central shared memory used by all agents in the LangGraph workflow. Each agent reads from and writes to this state to coordinate planning, tool execution, retrieval, synthesis, and evaluation.
 
 It is implemented as a TypedDict to provide structure, clarity, and type safety.
