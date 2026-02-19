@@ -1168,6 +1168,7 @@ The state is logically grouped into six categories:
 | `user_query`     | `str`       | Original user input                            |
 | `semantic_query` | `str`       | Cleaned and normalized query                   |
 | `primary_intent` | `str`       | Classified intent (e.g., material, biomedical) |
+| `reasoning     ` | `str`       | For Intent justification                       |
 | `execution_plan` | `List[str]` | High-level execution plan                      |
 
 #### 2️⃣ Constraints & Query Structure
