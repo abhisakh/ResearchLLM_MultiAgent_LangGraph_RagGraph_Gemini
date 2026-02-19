@@ -1222,37 +1222,31 @@ This guide identifies the precise moments each key in the state is "born" (initi
 
 ***1. Phase: Initialization (Supervisor)***
 The state is born as a skeleton.
-
 <mark>Key Populated: user_query, visited_nodes, refinement_retries, next.</mark>
 - Mechanism: Direct assignment from the UI input.
 - State Impact: Sets the "North Star" for the entire workflow.
 
 ***2. Phase: Normalization (CleanQueryAgent)***
-
 <mark>Key Populated: semantic_query.</mark>
 - Mechanism: LLM Transformation. The agent takes the user_query and strips conversational filler (e.g., "Please tell me about...") to create a dense, keyword-rich string optimized for vector search and API parameters.
 
 ***3. Phase: Intent & Guardrails (IntentAgent)***
-
 <mark>Keys Populated: primary_intent, reasoning, system_constraints</mark>
 - Mechanism: Classification & Extraction. * primary_intent: Categorizes the query (e.g., literature_review).
 system_constraints: Hard-codes "must-have" filters (e.g., TIME_PERIOD: last_5_years).
 
 ***4. Phase: Strategic Planning (Planning & QueryGen Agents)***
-
 <mark>Keys Populated: execution_plan, active_tools, tiered_queries, material_elements.</mark>
 - Mechanism: Combinatorial Logic.
 - The PlanningAgent selects tools based on the primary_intent.
 - The QueryGenerationAgent builds a dictionary of tiered_queries (Strict/Moderate/Broad) and merges elements into material_elements.
 
 ***5. Phase: Ingestion (Tool Agents)***
-
 <mark>Keys Populated: raw_tool_data, references.</mark>
 - Mechanism: Asynchronous Accumulation. Each tool (ArXiv, PubMed, etc.) performs an API call and appends a Dict to the raw_tool_data list.
 - State Impact: This is the largest data jump in the lifecycle; the state grows from a few KB to several MB.
 
 ***6. Phase: Distillation (Retrieval & RAG Agents)***
-
 <mark>Keys Populated: full_text_chunks, rag_complete, filtered_context.</mark>
 - Mechanism: Mathematical Reduction.
 - RetrievalAgent populates full_text_chunks by parsing PDFs into small segments.
@@ -1260,18 +1254,14 @@ system_constraints: Hard-codes "must-have" filters (e.g., TIME_PERIOD: last_5_ye
 - Only these survivors are joined into the filtered_context string.
 
 ***7. Phase: Production (Synthesis Agent)***
-
 <mark>Keys Populated: final_report, report_generated.</mark>
 - Mechanism: Generative Synthesis. The agent reads filtered_context and references to produce a Markdown document.
 
 ***8. Phase: Verification (Evaluation Agent)***
-
 <mark>Keys Populated: needs_refinement, refinement_reason, is_refining, next.</mark>
 - Mechanism: Boolean Quality Audit. * If needs_refinement is True, is_refining is toggled, refinement_retries increments, and next points back to the planning_agent.
-
 -> If False, next points to END.
-
-==The state persists across refinement loops, allowing iterative improvement without data loss.==
+<mark>The state persists across refinement loops, allowing iterative improvement without data loss.</mark>
 
 #### 💡 Lifecycle Summary Table
 
