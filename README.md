@@ -1622,46 +1622,130 @@ The Supervisor acts as the system's "Security Officer" by checking intent before
 
 ## CleanQueryAgent
 <-- [Back](#table)
+
 **File:** `procedural_agent.py`
 **Agent ID:** `clean_query_agent`
 
 ### Purpose
-
-The **CleanQueryAgent** is responsible for **preprocessing the raw user query** and generating a normalized **semantic query**. It ensures the query is clean, consistent, and suitable for downstream LLM-based agents such as `IntentAgent` and `PlanningAgent`.
+**Purpose:** The CleanQueryAgent is the initial processing layer of the research graph. It functions as a "Denoising Filter," transforming raw user input into a formal, semantically dense search string. It uses a hybrid approach—combining **Regex-based sanitization with LLM-powered expansion**—to ensure technical terms remain anchored while query quality is improved.
 
 This agent operates **before all LLM-driven agents** and provides a stable starting point for the research workflow.
 
-### Inputs
-
-- `user_query` (string) - Raw user-provided query from the initial request
-
-### Outputs
-
-- `user_query` (string) - Cleaned version of the original query
-- `semantic_query` (string) - Normalized semantic query used by downstream agents
-
-Both fields are written back to `ResearchState`.
-
 ### Responsibilities
+**Key Responsibilities:**
+- **Regex-Driven Sanitization:** Uses specialized regex patterns to strip conversational punctuation (? ! ( ) [ ] " ' *) while explicitly preserving technical markers like dots and dashes used in chemical nomenclature and materials science.
+- **Whitespace Normalization:** Collapses multiple spaces and trims padding to ensure consistent string indexing.
+- **Terminology Preservation:** Protects unique terminology (e.g., "GNRs") and complex formulas (e.g., $CH_{3}NH_{3}PbI_{3}$) from being simplified into generic concepts.
+- **Semantic Optimization:** Uses a Temperature 0.0 LLM call to formalize the query after the Regex layer has stabilized the text.
 
-- Trim leading/trailing whitespace
-- Collapse multiple spaces into a single space
-- Remove non-semantic punctuation (`? ! ( ) [ ] " ' *`)
-- Normalize separators (e.g., replace `--` with space)
-- Generate a **semantic query** (currently identical to cleaned query, extensible for future NLP logic)
+### 📋 Operational Logic
+```ascii
+================================================================================
+SECTION: CLEAN_QUERY_AGENT OPERATIONAL LOGIC
+================================================================================
+
+================================================================================
+SECTION: CLEAN_QUERY_AGENT OPERATIONAL LOGIC
+================================================================================
+
+1. HYBRID CLEANING PIPELINE (SYNTAX + SEMANTICS)
++----------+-----------------------+-------------------------------------------+
+| Stage    | Logic Type            | Description                               |
++----------+-----------------------+-------------------------------------------+
+| 1        | Regex (Syntax)        | Hard filter: Strips noise (? ! *).        |
+|          |                       | Crucial: Preserves chemical dots/dashes.  |
++----------+-----------------------+-------------------------------------------+
+| 2        | Whitespace Normalize  | Data Integrity: Collapses multiple spaces. |
++----------+-----------------------+-------------------------------------------+
+| 3        | LLM (Semantic Bridge) | Knowledge Expansion: GPT-4o-mini maps     |
+|          |                       | abbreviations (GNR -> Graphene Nanoribbon)|
+|          |                       | and formalizes intent for academic APIs.  |
++----------+-----------------------+-------------------------------------------+
+| 4        | Tech Guardrail        | Determinism: Temp 0.0 + Strict Prompt to  |
+|          |                       | prevent hallucinating niche concepts.     |
++----------+-----------------------+-------------------------------------------+
+| 5        | Routing               | Handover to supervisor_agent Hub.         |
++----------+-----------------------+-------------------------------------------+
+
+2. THE "WHY LLM?" VALIDATION
++-------------------+---------------------------+------------------------------+
+| Feature           | Regex Only (Syntax)       | LLM Enhanced (Semantic)      |
++-------------------+---------------------------+------------------------------+
+| Technical Jargon  | Kept exactly as-is        | Preserved + Expanded         |
+| Abbreviations     | Unchanged (e.g. "PCE")    | Defined (e.g. "Efficiency")  |
+| Formalization     | Conversational filler left| Rewritten for Academic search|
+| Spelling          | No change                 | Context-aware scientific fix |
++-------------------+---------------------------+------------------------------+
+
+3. STATE INTERFACE (I/O)
++------------------+------------+------------+---------------------------------+
+| Key              | Type       | Direction  | Description                     |
++------------------+------------+------------+---------------------------------+
+| user_query       | str        | Read       | The raw, unedited user input.   |
+| semantic_query   | str        | Write      | Formalized research string.     |
+| visited_nodes    | List[str]  | Write      | Task confirmation for the Hub.  |
+| next             | str        | Write      | Always 'supervisor_agent'.      |
++------------------+------------+------------+---------------------------------+
+
+4. REGEX FILTERING EXAMPLES (PRE-LLM)
++------------------------------------+-----------------------------------------+
+| RAW FRAGMENT                       | REGEX CLEANED (Syntactic Anchor)        |
++------------------------------------+-----------------------------------------+
+| "CH3NH3PbI3???"                    | "CH3NH3PbI3" (Keeps formula syntax)     |
+| "Graphene-Nanotubes [2024]*"       | "Graphene-Nanotubes 2024"               |
++------------------------------------+-----------------------------------------+
+```
 
 ### Execution Flow
 
 ```mermaid
-flowchart TD
-    A[Receive ResearchState] --> B[Read user_query]
-    B --> C[Strip whitespace & normalize spaces]
-    C --> D[Remove non-semantic punctuation]
-    D --> E[Generate semantic_query]
-    E --> F[Update ResearchState:<br/>- user_query<br/>- semantic_query]
-    F --> G[Return Updated ResearchState]
+flowchart LR
+    Start[User Query] --> Regex[Regex Sanitizer<br/>Syntax Cleaning]
+    Regex --> LLM[LLM Optimizer<br/>Semantic Expansion]
+    LLM --> Hub[Supervisor Hub]
+    
+    subgraph "CleanQueryAgent Responsibility"
+    Regex
+    LLM
+    end
 ```
 
+### 🧠 Why the LLM is Necessary (The "Semantic Bridge")
+While Regex handles syntax (the characters), the LLM handles semantics (the meaning). Here are the three critical reasons why the LLM is required for high-quality research:
+
+**1. Entity Disambiguation and Expansion**
+A user might type "perovskite solar cells efficiency." * Regex simply leaves it as is.
+
+LLM recognizes that "efficiency" in a research context often refers to "Power Conversion Efficiency (PCE)." It can expand the query to: "Perovskite solar cells Power Conversion Efficiency (PCE) performance metrics," which leads to much more relevant paper hits.
+
+**2. Terminology Standardization**
+Researchers often use abbreviations.
+Regex cannot know that "GNRs" means "Graphene Nanoribbons."
+
+LLM identifies the abbreviation and provides the full scientific name. Searching a database for the full name + abbreviation yields 2x-3x more results than searching for the abbreviation alone.
+
+**3. Formalization for Academic APIs**
+Raw queries are often conversational (e.g., "give me some data about...").
+Regex can strip the punctuation, but the conversational filler remains.
+
+LLM rewrites the query into the "Formal Language of Science," which aligns with the metadata tagging used by academic publishers.
+
+### 📋 Comparison: Regex vs. LLM
+```ascii
++-----------------+-----------------------+---------------------------------+
+| FEATURE         | REGEX LAYER (SYNTAX)  | LLM LAYER (SEMANTICS)           |
++-----------------+-----------------------+---------------------------------+
+| Punctuation     | Strips ? ! * [ ]      | Ignores / Contextualizes        |
++-----------------+-----------------------+---------------------------------+
+| Abbreviations   | Left as-is            | Expanded (e.g. "PCE", "DFT")    |
++-----------------+-----------------------+---------------------------------+
+| Technical Terms | Preserved via patterns| Preserved + Formalized          |
++-----------------+-----------------------+---------------------------------+
+| Spelling        | No correction         | Fixes academic typos            |
++-----------------+-----------------------+---------------------------------+
+| Context         | None                  | Understands "Research Intent"   |
++-----------------+-----------------------+---------------------------------+
+```
 ---
 
 ## IntentAgent
