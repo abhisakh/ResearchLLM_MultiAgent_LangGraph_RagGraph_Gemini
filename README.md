@@ -258,7 +258,7 @@ cd frontend
 streamlit run ui_main.py
 ```
 
-The UI will open automatically in your browser at:
+The UI will open automatically in the browser at:
 [http://localhost:8501](http://localhost:8501/)
 
 ⚠️ Do not run the frontend using python ui_main.py.
@@ -1569,6 +1569,7 @@ The Supervisor uses this priority-based checklist to grant the "Execution Token.
 
 ### 🛡️ 2. State Validation (The Handshake)
 Before the Supervisor grants permission to a "Spoke," it validates that the mandatory data payload from the previous step is present.
+```ascii
 +------------------+-------------------+---------------------------------------------------+
 | Agent Target     | Mandatory Key     | Logic Requirement                                 |
 +------------------+-------------------+---------------------------------------------------+
@@ -1578,9 +1579,11 @@ Before the Supervisor grants permission to a "Spoke," it validates that the mand
 | SynthesisAgent   | filtered_context  | Prevents hallucination by ensuring context signal.|
 | EvaluationAgent  | final_report      | Provides target document for the logic audit.     |
 +------------------+-------------------+---------------------------------------------------+
+```
 
 ### 🔄 3. Refinement Triage (The Loop-Back)
 If the EvaluationAgent flags a failure, the Supervisor parses the feedback to determine how far back the system must "rewind."
+```ascii
 +----------------+-------------------+------------------------+------------------+
 | Triage Result  | Feedback Keyword  | Permission Reset       | Jump-Back Node   |
 +----------------+-------------------+------------------------+------------------+
@@ -1589,9 +1592,11 @@ If the EvaluationAgent flags a failure, the Supervisor parses the feedback to de
 | Re-Distill     | "relevance", "rag"| rag_complete (False)   | RAGAgent         |
 | Re-Draft       | "tone", "format"  | report_gen (False)     | SynthesisAgent   |
 +----------------+-------------------+------------------------+------------------+
+```
 
 ### 📋 4. Supervisor State Interface (Input/Output)
 This table defines the read/write permissions for the Supervisor within the global ResearchState.
+```ascii
 +--------------------+------------+------------+------------------------------------------+
 | Key                | Type       | Direction  | Description                              |
 +--------------------+------------+------------+------------------------------------------+
@@ -1601,9 +1606,10 @@ This table defines the read/write permissions for the Supervisor within the glob
 | refinement_reason  | str        | Read       | Determines jump-back target during triage|
 | refinement_retries | int        | Read/Write | Safety Fuse (Hard Limit: 2).             |
 +--------------------+------------+------------+------------------------------------------+
-
+```
 ### 🛡️ 5. Hub Guardrails: Intent-Based Routing
 The Supervisor acts as the system's "Security Officer" by checking intent before authorizing expensive tool calls.
+```ascii
 +-----------------+---------------------+------------------------------------------+
 | Intent Category | Routing Action      | Result                                   |
 +-----------------+---------------------+------------------------------------------+
@@ -1611,7 +1617,7 @@ The Supervisor acts as the system's "Security Officer" by checking intent before
 | Irrelevant      | Bypass to Synthesis | Polite rejection; 0 API cost for tools.  |
 | Ambiguous       | Route to Planning   | Forced clarification/broader strategy.   |
 +-----------------+---------------------+------------------------------------------+
-
+```
 ---
 
 ## CleanQueryAgent
