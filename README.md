@@ -55,7 +55,7 @@
 - [Backend Architecture](#backend-architecture)
   - [High-Level Component Flow](#-high-level-component-flow)
   - [Database Schema](#chat-database)
-  - [Key Backend Functions](#-key-backend-functions)
+  - [Key Backend Functions](#key-backend-functions)
   - [API Endpoints Summary](#-api-endpoints-summary)
 - [Advanced Multi-Agent Research Framework](#-advanced-multi-agent-research-framework)
   - [System Architecture](#-system-architecture)
@@ -1101,7 +1101,9 @@ This table records every "turn" in the conversation, including hidden metadata f
 | tool_used  | String   | The specific agent that produced the result (e.g., SynthesisAgent) |
 | raw_data   | Text     | Crucial: Stringified JSON of the final ResearchState               |
 
+<a id="key-backend-functions"></a>
 ## 🛠️ Key Backend Functions
+<-- [Back](#table)
 
 ### 1. Startup & Initialization
 
