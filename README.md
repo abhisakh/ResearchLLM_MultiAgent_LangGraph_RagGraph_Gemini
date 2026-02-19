@@ -1216,11 +1216,12 @@ The state is logically grouped into six categories:
 
 ### 🔄 State Lifecycle
 <-- [Back](#table)
+
 #### 🏗️ Research State Lifecycle Population
 This guide identifies the precise moments each key in the state is "born" (initialized) and "matured" (populated).
 
 ***1. Phase: Initialization (Supervisor)***
-The state is born as a skeleton.
+<mark>The state is born as a skeleton.</mark>
 - Key Populated: user_query, visited_nodes, refinement_retries, next.
 - Mechanism: Direct assignment from the UI input.
 - State Impact: Sets the "North Star" for the entire workflow.
@@ -1265,35 +1266,19 @@ system_constraints: Hard-codes "must-have" filters (e.g., TIME_PERIOD: last_5_ye
 ==The state persists across refinement loops, allowing iterative improvement without data loss.==
 
 #### 💡 Lifecycle Summary Table
-+----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
-| Lifecycle Phase      | Agent Responsible     | Keys Populated / Updated       | Population Logic (The "How")                        |
-+----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
-| 1. Initialization    | Supervisor            | user_query, next,              | Raw capture of UI input; resets loop counters and   |
-|                      |                       | refinement_retries             | initializes the visited_nodes path.                 |
-+----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
-| 2. Normalization     | CleanQueryAgent       | semantic_query                 | Uses LLM to strip conversational filler and extract |
-|                      |                       |                                | core academic entities for cleaner search.          |
-+----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
-| 3. Strategic Intent  | IntentAgent           | primary_intent, reasoning,     | Classifies query type and extracts hard metadata    |
-|                      |                       | system_constraints             | constraints (e.g., specific timeframes or topics).  |
-+----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
-| 4. Tactical Planning | PlanningAgent /       | execution_plan, active_tools,  | Decomposes intent into steps; generates tiered      |
-|                      | QueryGenAgent         | tiered_queries, search_term    | (Strict/Broad) queries for specific API endpoints.  |
-+----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
-| 5. Evidence Inflow   | Tool Agents           | raw_tool_data,                 | Asynchronous API calls (ArXiv, PubMed) append       |
-|                      | (ArXiv, PubMed, etc.) | references                     | structured metadata and abstracts to the state list.|
-+----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
-| 6. Distillation      | RetrievalAgent /      | full_text_chunks,              | 1. Scrapes/Chunks PDFs into segments.               |
-|                      | RAGAgent              | filtered_context, rag_complete | 2. Scores segments via Cross-Encoder & Reranking.   |
-|                      |                       |                                | 3. Compresses results into one context string.      |
-+----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
-| 7. Production        | SynthesisAgent        | final_report,                  | Aggregates filtered_context and references into a   |
-|                      |                       | report_generated               | cited Markdown document.                            |
-+----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
-| 8. Verification      | EvaluationAgent       | needs_refinement,              | Audits final_report against semantic_query. Sets    |
-|                      |                       | refinement_reason, next        | 'next' to END or loops back to PlanningAgent.       |
-+----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
----
+
+##### 📋 Research State Lifecycle Population
+
+| Phase | Agent Responsible | Keys Populated / Updated | Population Logic (The "How") |
+| :--- | :--- | :--- | :--- |
+| **1. Initialization** | **Supervisor Agent** | `user_query`, `next`, `visited_nodes` | Captures raw UI input; resets loop counters and initializes the graph path. |
+| **2. Normalization** | **CleanQueryAgent** | `semantic_query` | Uses LLM to strip conversational noise and extract core keywords for search. |
+| **3. Strategic Intent** | **IntentAgent** | `primary_intent`, `reasoning`, `system_constraints` | Classifies query type (e.g., Literature Review) and extracts metadata guardrails. |
+| **4. Tactical Planning**| **Planning / QueryGen**| `execution_plan`, `tiered_queries`, `material_elements` | Decomposes intent into steps and generates Strict/Broad queries for specific APIs. |
+| **5. Evidence Inflow** | **Tool Agents** | `raw_tool_data`, `references` | Asynchronous API calls (ArXiv, PubMed) append structured metadata to the state list. |
+| **6. Distillation** | **Retrieval / RAG** | `full_text_chunks`, `filtered_context` | Scrapes/Chunks PDFs followed by Cross-Encoder reranking to produce a single context string. |
+| **7. Production** | **SynthesisAgent** | `final_report`, `report_generated` | Aggregates `filtered_context` and references into a cited, professional Markdown report. |
+| **8. Verification** | **EvaluationAgent** | `needs_refinement`, `refinement_reason`, `next` | Audits the report quality; determines if the graph terminates (END) or loops back to Planning. |
 
 # 🧠 LangGraph Architecture Overview
 <-- [Back](#table)
