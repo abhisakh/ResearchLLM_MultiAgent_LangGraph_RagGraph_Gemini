@@ -1494,47 +1494,121 @@ The result is a transparent, debuggable, and scalable multi-agent system.
 
 ---
 <a id="supervisor"></a>
-## Supervisor Agent
+## 🎮 SupervisorAgent (Procedural Router)
 <-- [Back](#table)
+
+The SupervisorAgent is the finalized Hub-and-Spoke Orchestrator of the Research Graph. It does not perform research itself; instead, it acts as the Central Authority that manages the lifecycle of the ResearchState, enforces guardrails, and dictates the order of execution for all specialized agents.
+
+### 🏛️ The "Central Hub" Architecture
+The diagram below illustrates the updated flow. Note the bidirectional communication—every agent must report back to the Hub to update the state before the Hub authorizes the next transition.
 
 ```mermaid
 graph TD
     %% Central Hub
     Super[Supervisor Agent Hub]
 
-    %% Entry Point
+    %% Entry & Exit
     User((User Query)) --> Super
+    Super -->|Output| End([Final Report Output])
 
-    %% Spokes
+    %% Specialized Spokes
     Clean[Clean Query Agent]
     Intent[Intent Agent]
     Plan[Planning Agent]
     QGen[Query Gen Agent]
-    Tools[Tool Agents <br/> ArXiv, PubMed, etc.]
+    Tools{{Tool Spokes <br/> ArXiv, PubMed, etc.}}
     Ret[Retrieval Agent]
     RAG[RAG Agent]
     Syn[Synthesis Agent]
     Eval[Evaluation Agent]
 
-    %% Logic Flow (The Hub-and-Spoke Pattern)
-    Super <-->|1. Clean| Clean
-    Super <-->|2. Classify| Intent
-    Super <-->|3. Strategy| Plan
-    Super <-->|4. Formulate| QGen
-    Super <-->|5. Search| Tools
-    Super <-->|6. Fetch PDF| Ret
-    Super <-->|7. Vectorize| RAG
-    Super <-->|8. Write| Syn
-    Super <-->|9. Quality Audit| Eval
+    %% Guardrail logic
+    Intent -- "Irrelevant" --> Super
+    
+    %% The Permission-Based Cycle
+    Super <==>|1. Normalize| Clean
+    Super <==>|2. Categorize| Intent
+    Super <==>|3. Map Roadmap| Plan
+    Super <==>|4. Prompt Engineering| QGen
+    Super <==>|5. Distributed Search| Tools
+    Super <==>|6. PDF Processing| Ret
+    Super <==>|7. Neural Reranking| RAG
+    Super <==>|8. Report Drafting| Syn
+    Super <==>|9. Logic Audit| Eval
 
-    %% Decision Point
-    Eval -.->|Needs Refinement| Super
-    Eval -.->|Satisfactory| End([Final Report Output])
+    %% Refinement Loop
+    Eval -.->|needs_refinement=True| Super
 
     %% Styling
-    style Super fill:#f96,stroke:#333,stroke-width:4px
-    style End fill:#00c853,stroke:#333,stroke-width:2px
+    style Super fill:#f96,stroke:#333,stroke-width:4px,color:#000
+    style Tools fill:#e1f5fe,stroke:#01579b
+    style RAG fill:#f3e5f5,stroke:#7b1fa2
+    style End fill:#00c853,stroke:#333,stroke-width:2px,color:#fff
+    style Intent fill:#fff9c4,stroke:#fbc02d
 ```
+### 📋 1. Permission Sequence (The Checklist)
+
+The Supervisor uses this priority-based checklist to grant the "Execution Token." It ensures the research flow moves logically from high-recall discovery to high-precision synthesis.
++----------+--------------------------+---------------------+-----------------------------------+
+| Priority | State Condition          | Authorized Agent    | Strategic Goal                    |
++----------+--------------------------+---------------------+-----------------------------------+
+| 1        | semantic_query is empty  | CleanQueryAgent     | Normalize raw input for search.   |
+| 2        | primary_intent is empty  | IntentAgent         | Classify scope and guardrails.    |
+| 3        | execution_plan is empty  | PlanningAgent       | Map out a research roadmap.       |
+| 4        | tiered_queries is empty  | QueryGenAgent       | Formulate API search strings.     |
+| 5        | Tool in active_tools     | Tool Spokes         | Execute distributed searches.     |
+| 6        | Data exists, chunks empty| RetrievalAgent      | PDF extraction and segmentation.  |
+| 7        | Chunks exist, RAG inc.   | RAGAgent            | Neural reranking/distillation.    |
+| 8        | report_generated False   | SynthesisAgent      | Finalize cited Markdown report.   |
+| 9        | Evaluation NOT visited   | EvaluationAgent     | Cross-verify against intent.      |
+| 10       | All requirements met     | END                 | Terminate the graph.              |
++----------+--------------------------+---------------------+-----------------------------------+
+
+### 🛡️ 2. State Validation (The Handshake)
+Before the Supervisor grants permission to a "Spoke," it validates that the mandatory data payload from the previous step is present.
++------------------+-------------------+---------------------------------------------------+
+| Agent Target     | Mandatory Key     | Logic Requirement                                 |
++------------------+-------------------+---------------------------------------------------+
+| RetrievalAgent   | raw_tool_data     | Prevents empty scraping if search failed.         |
+| RAGAgent         | full_text_chunks  | Ensures neural reranker has content to score.     |
+| RAGAgent         | semantic_query    | Provides baseline for Cross-Encoder comparison.   |
+| SynthesisAgent   | filtered_context  | Prevents hallucination by ensuring context signal.|
+| EvaluationAgent  | final_report      | Provides target document for the logic audit.     |
++------------------+-------------------+---------------------------------------------------+
+
+### 🔄 3. Refinement Triage (The Loop-Back)
+If the EvaluationAgent flags a failure, the Supervisor parses the feedback to determine how far back the system must "rewind."
++----------------+-------------------+------------------------+------------------+
+| Triage Result  | Feedback Keyword  | Permission Reset       | Jump-Back Node   |
++----------------+-------------------+------------------------+------------------+
+| Broaden Search | "missing", "data" | active_tools + plan    | PlanningAgent    |
+| Re-Extract     | "pdf", "parsing"  | full_text_chunks       | RetrievalAgent   |
+| Re-Distill     | "relevance", "rag"| rag_complete (False)   | RAGAgent         |
+| Re-Draft       | "tone", "format"  | report_gen (False)     | SynthesisAgent   |
++----------------+-------------------+------------------------+------------------+
+
+### 📋 4. Supervisor State Interface (Input/Output)
+This table defines the read/write permissions for the Supervisor within the global ResearchState.
++--------------------+------------+------------+------------------------------------------+
+| Key                | Type       | Direction  | Description                              |
++--------------------+------------+------------+------------------------------------------+
+| visited_nodes      | List[str]  | Read/Write | Logbook to prevent unauthorized repeats. |
+| next               | str        | Write      | The Permission Token for the next node.  |
+| primary_intent     | str        | Read       | Triggers the "Irrelevant" guardrail.     |
+| refinement_reason  | str        | Read       | Determines jump-back target during triage|
+| refinement_retries | int        | Read/Write | Safety Fuse (Hard Limit: 2).             |
++--------------------+------------+------------+------------------------------------------+
+
+### 🛡️ 5. Hub Guardrails: Intent-Based Routing
+The Supervisor acts as the system's "Security Officer" by checking intent before authorizing expensive tool calls.
++-----------------+---------------------+------------------------------------------+
+| Intent Category | Routing Action      | Result                                   |
++-----------------+---------------------+------------------------------------------+
+| Research/Data   | Standard Checklist  | Full Tool + RAG pipeline execution.      |
+| Irrelevant      | Bypass to Synthesis | Polite rejection; 0 API cost for tools.  |
+| Ambiguous       | Route to Planning   | Forced clarification/broader strategy.   |
++-----------------+---------------------+------------------------------------------+
+
 ---
 
 ## CleanQueryAgent
