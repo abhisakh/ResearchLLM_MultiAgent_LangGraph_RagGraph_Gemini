@@ -1549,6 +1549,8 @@ graph TD
 ### 📋 1. Permission Sequence (The Checklist)
 
 The Supervisor uses this priority-based checklist to grant the "Execution Token." It ensures the research flow moves logically from high-recall discovery to high-precision synthesis.
+
+```ascii
 +----------+--------------------------+---------------------+-----------------------------------+
 | Priority | State Condition          | Authorized Agent    | Strategic Goal                    |
 +----------+--------------------------+---------------------+-----------------------------------+
@@ -1563,6 +1565,7 @@ The Supervisor uses this priority-based checklist to grant the "Execution Token.
 | 9        | Evaluation NOT visited   | EvaluationAgent     | Cross-verify against intent.      |
 | 10       | All requirements met     | END                 | Terminate the graph.              |
 +----------+--------------------------+---------------------+-----------------------------------+
+```
 
 ### 🛡️ 2. State Validation (The Handshake)
 Before the Supervisor grants permission to a "Spoke," it validates that the mandatory data payload from the previous step is present.
