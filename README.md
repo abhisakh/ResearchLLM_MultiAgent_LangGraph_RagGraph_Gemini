@@ -1160,7 +1160,7 @@ ResearchState is the central shared memory used by all agents in the LangGraph w
 It is implemented as a TypedDict to provide structure, clarity, and type safety.
 
 ### 📹 State Categories
-
+<-- [Back](#table)
 The state is logically grouped into six categories:
 
 #### 1️⃣ User Input & Planning
@@ -1215,16 +1215,84 @@ The state is logically grouped into six categories:
 | `next`        | `str`  | Routing key used by the Supervisor. It acts like a compass           |
 
 ### 🔄 State Lifecycle
+<-- [Back](#table)
+#### 🏗️ Research State Lifecycle Population
+This guide identifies the precise moments each key in the state is "born" (initialized) and "matured" (populated).
 
-1. Supervisor initializes state
-2. Planning agents progressively enrich it
-3. Tool agents append raw data
-4. RAG agents filter and compress context
-5. Synthesis writes the final report
-6. Evaluation decides termination or refinement
+***1. Phase: Initialization (Supervisor)***
+The state is born as a skeleton.
+- Key Populated: user_query, visited_nodes, refinement_retries, next.
+- Mechanism: Direct assignment from the UI input.
+- State Impact: Sets the "North Star" for the entire workflow.
 
-The state persists across refinement loops, allowing iterative improvement without data loss.
+***2. Phase: Normalization (CleanQueryAgent)***
+Key Populated: semantic_query.
+- Mechanism: LLM Transformation. The agent takes the user_query and strips conversational filler (e.g., "Please tell me about...") to create a dense, keyword-rich string optimized for vector search and API parameters.
 
+***3. Phase: Intent & Guardrails (IntentAgent)***
+==Keys Populated: primary_intent, reasoning, system_constraints==
+- Mechanism: Classification & Extraction. * primary_intent: Categorizes the query (e.g., literature_review).
+system_constraints: Hard-codes "must-have" filters (e.g., TIME_PERIOD: last_5_years).
+
+***4. Phase: Strategic Planning (Planning & QueryGen Agents)***
+==Keys Populated: execution_plan, active_tools, tiered_queries, material_elements.==
+- Mechanism: Combinatorial Logic.
+- The PlanningAgent selects tools based on the primary_intent.
+- The QueryGenerationAgent builds a dictionary of tiered_queries (Strict/Moderate/Broad) and merges elements into material_elements.
+
+***5. Phase: Ingestion (Tool Agents)***
+==Keys Populated: raw_tool_data, references.==
+- Mechanism: Asynchronous Accumulation. Each tool (ArXiv, PubMed, etc.) performs an API call and appends a Dict to the raw_tool_data list.
+- State Impact: This is the largest data jump in the lifecycle; the state grows from a few KB to several MB.
+
+***6. Phase: Distillation (Retrieval & RAG Agents)***
+==Keys Populated: full_text_chunks, rag_complete, filtered_context.==
+- Mechanism: Mathematical Reduction.
+- RetrievalAgent populates full_text_chunks by parsing PDFs into small segments.
+- RAGAgent runs Cosine Similarity + Cross-Encoder Reranking to select the "Survivors."
+- Only these survivors are joined into the filtered_context string.
+
+***7. Phase: Production (Synthesis Agent)***
+==Keys Populated: final_report, report_generated.==
+- Mechanism: Generative Synthesis. The agent reads filtered_context and references to produce a Markdown document.
+
+***8. Phase: Verification (Evaluation Agent)***
+==Keys Populated: needs_refinement, refinement_reason, is_refining, next.==
+- Mechanism: Boolean Quality Audit. * If needs_refinement is True, is_refining is toggled, refinement_retries increments, and next points back to the planning_agent.
+
+-> If False, next points to END.
+
+==The state persists across refinement loops, allowing iterative improvement without data loss.==
+
+#### 💡 Lifecycle Summary Table
++----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
+| Lifecycle Phase      | Agent Responsible     | Keys Populated / Updated       | Population Logic (The "How")                        |
++----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
+| 1. Initialization    | Supervisor            | user_query, next,              | Raw capture of UI input; resets loop counters and   |
+|                      |                       | refinement_retries             | initializes the visited_nodes path.                 |
++----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
+| 2. Normalization     | CleanQueryAgent       | semantic_query                 | Uses LLM to strip conversational filler and extract |
+|                      |                       |                                | core academic entities for cleaner search.          |
++----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
+| 3. Strategic Intent  | IntentAgent           | primary_intent, reasoning,     | Classifies query type and extracts hard metadata    |
+|                      |                       | system_constraints             | constraints (e.g., specific timeframes or topics).  |
++----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
+| 4. Tactical Planning | PlanningAgent /       | execution_plan, active_tools,  | Decomposes intent into steps; generates tiered      |
+|                      | QueryGenAgent         | tiered_queries, search_term    | (Strict/Broad) queries for specific API endpoints.  |
++----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
+| 5. Evidence Inflow   | Tool Agents           | raw_tool_data,                 | Asynchronous API calls (ArXiv, PubMed) append       |
+|                      | (ArXiv, PubMed, etc.) | references                     | structured metadata and abstracts to the state list.|
++----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
+| 6. Distillation      | RetrievalAgent /      | full_text_chunks,              | 1. Scrapes/Chunks PDFs into segments.               |
+|                      | RAGAgent              | filtered_context, rag_complete | 2. Scores segments via Cross-Encoder & Reranking.   |
+|                      |                       |                                | 3. Compresses results into one context string.      |
++----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
+| 7. Production        | SynthesisAgent        | final_report,                  | Aggregates filtered_context and references into a   |
+|                      |                       | report_generated               | cited Markdown document.                            |
++----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
+| 8. Verification      | EvaluationAgent       | needs_refinement,              | Audits final_report against semantic_query. Sets    |
+|                      |                       | refinement_reason, next        | 'next' to END or loops back to PlanningAgent.       |
++----------------------+-----------------------+--------------------------------+-----------------------------------------------------+
 ---
 
 # 🧠 LangGraph Architecture Overview
