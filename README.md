@@ -39,6 +39,10 @@
 ---
 <a id="table"></a>
 ## 📖 Table of Contents
+- [Introduction](#introduction)
+  - [Bridging the Gap Between AI and Scientific Rigor](#bridging)
+  - [Project Highlights](#project)
+  - [Architecture & Technical Core](#core)
 - [Architecture Overview](#architecture-overview)
 - [Installation and Setup](#installation)
 - [Frontend Interface](#-frontend-interface-streamlit-ui)
@@ -90,7 +94,34 @@
   - [Backend Feature: The Audit Endpoint](#backend-Feature)
   - [Frontend Feature: The Observability Console](#frontend-Feature)
   - [Debug Console Use Cases](#debug-console)
-    
+
+
+---
+
+# Introduction
+<a id ="bridging"></a>
+## 🧬 Bridging the Gap Between AI and Scientific Rigor
+<-- [Back](#table)
+One of the most time-consuming challenges for a researcher is navigating the vast ocean of fragmented information across thousands of journals and databases. ResearchLLM is an open-source, Multi-Agent RAG system built on LangGraph designed to automate literature synthesis without compromising on scientific integrity.
+
+While standard Google searches yield unverified web results and general LLMs provide probabilistic "best guesses" from training data, ResearchLLM generates insights exclusively from the verified text of peer-reviewed PDFs. It moves the needle from "Information Retrieval" to "Evidence Synthesis."
+
+<a id ="project"></a>
+## 🚀 Project Highlights
+<-- [Back](#table)
+- <mark>Grounded in Reality:</mark> Powered entirely by published, peer-reviewed scientific literature. It does not rely on general web search or internal LLM training data.
+- <mark>Evidence-Based:</mark> Every claim references specific chunks from downloaded academic papers.
+- </mark>Zero-Hallucination Policy:</mark> An Evaluation Agent rejects any output lacking proper scientific evidence.
+- </mark>Verifiable & Traceable:</mark> All statements are verifiably traceable to their original peer-reviewed sources.
+
+<a id ="core"></a>
+## ⚙️ Architecture & Technical Core
+<-- [Back](#table)
+- <mark>Real-time Retrieval:</mark> Automatically fetches full-text PDFs from academic databases including ArXiv, ChemRxiv, Semantic Scholar, and OpenAlex.
+- <mark>High-Precision RAG:</mark> Performs semantic chunking and deep vector searches on actual published papers, enhanced by a Cross-Encoder Reranker for maximum mathematical relevance.
+- <mark>Deterministic Synthesis:</mark> Uses GPT-4 strictly as a reasoning processor to synthesize provided context, never as a source of knowledge.
+- <mark>Multi-Agent Orchestration:</mark> Decomposes complex research into specialized roles—Intent, Query Generation, RAG, and Evaluation—coordinated through a structured, controllable LangGraph workflow.
+
 ---
 # Architecture Overview
 
