@@ -102,6 +102,7 @@
 <a id ="bridging"></a>
 ## 🧬 Bridging the Gap Between AI and Scientific Rigor
 <-- [Back](#table)
+
 One of the most time-consuming challenges for a researcher is navigating the vast ocean of fragmented information across thousands of journals and databases. ResearchLLM is an open-source, Multi-Agent RAG system built on LangGraph designed to automate literature synthesis without compromising on scientific integrity.
 
 While standard Google searches yield unverified web results and general LLMs provide probabilistic "best guesses" from training data, ResearchLLM generates insights exclusively from the verified text of peer-reviewed PDFs. It moves the needle from "Information Retrieval" to "Evidence Synthesis."
