@@ -128,13 +128,13 @@ All components are implemented in Python, while execution is handled by appropri
 │   ├── chat_history.db
 │   ├── core
 │   │   ├── __init__.py
-│   │   ├── research_state.py
-│   │   ├── utilities.py
-│   │   └── vector_db.py
+│   │   ├── research_state.py     -----------------------> Shared central memory for LangGraph(ResearchState)
+│   │   ├── utilities.py          -----------------------> Intialization of the full code including the API keys
+│   │   └── vector_db.py          -----------------------> Chunk embedding in FAISS (1536 x no. of chunks)
 │   ├── graph
 │   │   ├── __init__.py
-│   │   └── research_graph.py
-│   ├── main.py
+│   │   └── research_graph.py     -----------------------> LangGraph setup
+│   ├── main.py                   -----------------------> LangGraph, ResearchState and Vectordatabase initialization
 │   ├── vector_data.pkl
 │   └── vector_index.faiss
 ├── frontend
