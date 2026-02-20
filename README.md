@@ -117,13 +117,13 @@ All components are implemented in Python, while execution is handled by appropri
 ├── backend
 │   ├── agents
 │   │   ├── __init__.py
-│   │   ├── evaluation_agent.py
-│   │   ├── planning_agents.py
-│   │   ├── procedural_agents.py
-│   │   ├── rag_agents.py
-│   │   ├── supervisor_agent.py
-│   │   ├── synthesis_agent.py
-│   │   └── tool_agents.py
+│   │   ├── evaluation_agent.py  -----------------------> EvaluationAgent
+│   │   ├── planning_agents.py   -----------------------> IntentAgent + PlanningAgent + CleanQueryAgent 
+│   │   ├── procedural_agents.py -----------------------> CleanQueryAgent
+│   │   ├── rag_agents.py        -----------------------> RetrievalAgent + RagAgent
+│   │   ├── supervisor_agent.py  -----------------------> SupervisorAgent
+│   │   ├── synthesis_agent.py   -----------------------> SynthesisAgent
+│   │   └── tool_agents.py       -----------------------> ArxivTool, ChemArxivTool, PubmedTool, SemanticScholerTool,              |                                                         OpenAlexTool, MaterialSearchTool, GoogleSearchTool
 │   ├── backend.py  -----------------------------> MAIN BACKEND FILE
 │   ├── chat_history.db
 │   ├── core
