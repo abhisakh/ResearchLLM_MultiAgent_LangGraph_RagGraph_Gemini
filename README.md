@@ -163,7 +163,7 @@ All components are implemented in Python, while execution is handled by appropri
 │   │   ├── rag_agents.py        -----------------------> RetrievalAgent + RagAgent
 │   │   ├── supervisor_agent.py  -----------------------> SupervisorAgent
 │   │   ├── synthesis_agent.py   -----------------------> SynthesisAgent
-│   │   └── tool_agents.py       -----------------------> ArxivTool, ChemArxivTool, PubmedTool, SemanticScholerTool,              |                                                         OpenAlexTool, MaterialSearchTool, GoogleSearchTool
+│   │   └── tool_agents.py       -----------------------> ArxivTool, ChemArxivTool, PubmedTool, SemanticScholerTool,                                                                                  |   │                                                       OpenAlexTool, MaterialSearchTool, GoogleSearchTool
 │   ├── backend.py  -----------------------------> MAIN BACKEND FILE
 │   ├── chat_history.db
 │   ├── core
