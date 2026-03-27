@@ -49,7 +49,9 @@
 - [LLMOps & Modern CI/CD Engineering](#ci-cd-engineering)
   - [The Automation Core](#automation)
   - [Strategic Quality Gates](#gates)
-  - [The Automation Core](#automation)
+  - [Verifiable Audit Artifacts](#verify)
+  - [Why this is "Modern" CI/CD?](#modern")
+  - [Where to find the "Proof" (The Audit Log)](#audit)
 - [Frontend Interface](#-frontend-interface-streamlit-ui)
   - [UI Architecture & Design Philosophy](#ui-architecture--design-philosophy)
   - [Layout System](#-layout-system)
@@ -351,7 +353,7 @@ Python defines what the system does, while Uvicorn and Streamlit define how and 
 This framework treats "AI Reasoning" as a testable code asset. We use a Headless Audit Pipeline to ensure the multi-agent system remains grounded, citation-accurate, and performs as expected before any code is merged.
 
 <a id="automation"></a>
-***1. The Automation Core*** (.github/workflows/llmops_ci.yml)
+### ****1. The Automation Core**** (.github/workflows/llmops_ci.yml)
 The system utilizes GitHub Actions to spin up an isolated Python 3.12 environment (ensuring compatibility with scientific libraries like mp-api). On every push, it executes a full research cycle without a GUI.
 ```python
 # The Heart of the Quality Gate
@@ -362,7 +364,7 @@ The system utilizes GitHub Actions to spin up an isolated Python 3.12 environmen
   run: python -m pytest -s -W ignore tests/test_ai_rigor.py | tee research_audit.log
 ```
 <a id="gates"></a>
-***2. Strategic Quality Gates*** (test_ai_rigor.py)
+### ****2. Strategic Quality Gates**** (test_ai_rigor.py)
 Our testing suite doesn't just check for "200 OK" status codes; it audits the integrity of the AI's thoughts:
 
 - ***Gate 1: Grounding Check:*** Asserts that references exist in the state. If the AI claims a fact but provides no source, the build fails.
@@ -373,7 +375,8 @@ Our testing suite doesn't just check for "200 OK" status codes; it audits the in
 
 - ***Gate 4: Utilization Ratio:*** Monitors the percentage of raw search results successfully synthesized into the final report.
 
-***3. Verifiable Audit Artifacts***
+<a id="verify"></a>
+### ****3. Verifiable Audit Artifacts****
 In a modern development flow, logs are "Black Box Recorders."
 
 - ***The Log:*** Every CI/CD run generates a research_audit.log containing the full ANSI-colored trace of agent decisions.
@@ -382,7 +385,8 @@ In a modern development flow, logs are "Black Box Recorders."
 
 - ***The Benefit:*** A recruiter or engineer can download the ai-reasoning-trace from any historical build to see exactly what the AI was "thinking" during that specific version of the code.
 
-***4. Why this is "Modern" CI/CD?***
+<a id="modern"></a>
+### ****4. Why this is "Modern" CI/CD?****
 - ***Headless Reasoning:*** The test suite invokes the full LangGraph state machine without a UI. It forces the agents to perform a real research task (e.g., Thermal stability of CsPbI3) to prove they can still "think."
 
 - ***Quality Gates:*** The pipeline specifically audits:
@@ -395,7 +399,8 @@ In a modern development flow, logs are "Black Box Recorders."
 
 - ***Secret Masking:*** Uses GitHub's encrypted vault to inject API keys, ensuring zero exposure of sensitive credentials.
 
-***5. Where to find the "Proof" (The Audit Log)***
+<a id="audit"></a>
+### ****5. Where to find the "Proof" (The Audit Log)****
   1. A developer can verify the AI's latest "Thinking Trace" without running a single line of code:
 
   2. Navigate to the Actions tab in this repository.
