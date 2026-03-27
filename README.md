@@ -11,7 +11,7 @@
 **Autonomous AI agent for scientific literature discovery with automated reasoning audits.**
 </div>
 
-# In SCOPE QUERY
+## In SCOPE QUERY
 
 <table>
 <tr>
@@ -24,7 +24,7 @@
 </table>
 
 
-# Out of SCOPE QUERY
+## Out of SCOPE QUERY
 
 <table>
 <tr>
