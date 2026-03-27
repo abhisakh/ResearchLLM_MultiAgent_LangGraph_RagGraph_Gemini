@@ -10,7 +10,7 @@ langgraph-checkpoint-sqlite
 faiss-cpu                # For vector storage and similarity search (alternative to Chroma)
 numpy                    # Required by faiss-cpu
 pypdf                    # For PDF parsing (used by RetrievalAgent)
-sentence-transformers.   # Cross encoder reranking
+sentence-transformers   # Cross encoder reranking
 bs4
 
 # --- Tool Agents (API & Web Search) ---
@@ -37,3 +37,6 @@ graphviz                 # For visualizing the LangGraph workflow
 # --- Database (Optional - Based on SQLAlchemy/Databases) ---
 sqlalchemy               # ORM for persistent data (if needed)
 databases                # Async DB support (if needed for FastAPI)
+# ------ Pytest ----------------------
+pytest
+pytest-asyncio
