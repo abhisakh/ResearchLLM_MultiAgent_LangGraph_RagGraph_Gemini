@@ -153,44 +153,44 @@ All components are implemented in Python, while execution is handled by appropri
 .
 ├── LICENSE
 ├── README.md
-├── __init__.py
+├── pytest.ini                  # Pytest configuration for automated CI/CD
+├── requirements.txt            # Project dependencies
+├── sample_output.log           # Static snapshot of a full Research Cycle
+├── .github/workflows/          # CI/CD Infrastructure (GitHub Actions)
+│   └── llmops_ci.yml           # Headless AI Audit Pipeline
 ├── backend
-│   ├── agents
+│   ├── __init__.py             # Python Package Marker
+│   ├── main.py                 # Graph & VectorDB initialization logic
+│   ├── backend.py              # Entry point for backend services
+│   ├── chat_history.db         # Persistent SQLite session storage
+│   ├── vector_data.pkl         # Local RAG metadata storage
+│   ├── vector_index.faiss      # Local FAISS vector index
+│   ├── agents/                 # Multi-Agent Logic
 │   │   ├── __init__.py
-│   │   ├── evaluation_agent.py  -----------------------> EvaluationAgent
-│   │   ├── planning_agents.py   -----------------------> IntentAgent + PlanningAgent + CleanQueryAgent 
-│   │   ├── procedural_agents.py -----------------------> CleanQueryAgent
-│   │   ├── rag_agents.py        -----------------------> RetrievalAgent + RagAgent
-│   │   ├── supervisor_agent.py  -----------------------> SupervisorAgent
-│   │   ├── synthesis_agent.py   -----------------------> SynthesisAgent
-│   │   └── tool_agents.py       -----------------------> ArxivTool, ChemArxivTool, PubmedTool, SemanticScholerTool,                                                                                  |   │                                                       OpenAlexTool, MaterialSearchTool, GoogleSearchTool
-│   ├── backend.py  -----------------------------> MAIN BACKEND FILE
-│   ├── chat_history.db
-│   ├── core
+│   │   ├── supervisor_agent.py # Central orchestrator & router
+│   │   ├── planning_agents.py  # Intent classification & strategy
+│   │   ├── procedural_agents.py # Query cleaning & data normalization
+│   │   ├── tool_agents.py      # ArXiv, PubMed, Materials Project searchers
+│   │   ├── rag_agents.py       # Retrieval & RAG reranking logic
+│   │   ├── synthesis_agent.py  # Final report generation & citation mapping
+│   │   └── evaluation_agent.py # Quality audit & self-correction loop
+│   ├── core/                   # Shared System Logic
 │   │   ├── __init__.py
-│   │   ├── research_state.py     -----------------------> Shared central memory for LangGraph(ResearchState)
-│   │   ├── utilities.py          -----------------------> Intialization of the full code including the API keys
-│   │   └── vector_db.py          -----------------------> Chunk embedding in FAISS (1536 x no. of chunks)
-│   ├── graph
-│   │   ├── __init__.py
-│   │   └── research_graph.py     -----------------------> LangGraph setup
-│   ├── main.py                   -----------------------> LangGraph, ResearchState and Vectordatabase initialization
-│   ├── vector_data.pkl
-│   └── vector_index.faiss
-├── frontend
-│   ├── ai.jpg
-│   ├── genai.jpg
-│   ├── pages
-│   │   ├── 02_Debug_State.py
-│   │   └── 03_Graph_View.py
-│   └── ui_main.py  -----------------------------> MAIN FRONTEND FILE
-├── requirements.txt
-└── testing_block
-    ├── chat_history_old.db
-    ├── full_diagram.html
-    ├── old.py
-    ├── rag_tool.txt
-    └── test_model.py
+│   │   ├── research_state.py   # Central LangGraph memory (ResearchState)
+│   │   ├── utilities.py        # API initialization & embedding functions
+│   │   └── vector_db.py        # Vector embedding & retrieval logic
+│   └── graph/                  # Workflow Orchestration
+│       ├── __init__.py
+│       └── research_graph.py   # LangGraph State Machine configuration
+├── frontend/                   # UI Layer (Streamlit)
+│   ├── ui_main.py              # Main dashboard entry point
+│   ├── ai.jpg | genai.jpg      # UI assets
+│   └── pages/                  # Specialized visualization pages
+│       ├── 02_Debug_State.py   # Real-time state inspection
+│       └── 03_Graph_View.py    # Mermaid graph visualization
+├── tests/                      # LLMOps Quality Gate
+│   └── test_ai_rigor.py        # Headless audit of AI reasoning
+└── testing_block/              # Legacy scripts & development artifacts
 
 ```
 ---
