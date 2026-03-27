@@ -1,13 +1,14 @@
 <div align="center">
 
-  # 🔬 Advanced Multi-Agent Research Framework(GEN-AI)
-  ## (🧠 Declarative Research Agent)
-  **Autonomous AI agent for scientific literature discovery**
+# 🔬 Advanced Multi-Agent Research Framework (GenAI)
+## 🧠 Declarative Research Agent & LLMOps Pipeline
 
-  ![Status](https://img.shields.io/badge/status-active-success)
-  ![License](https://img.shields.io/badge/license-MIT-blue)
-  ![Build](https://img.shields.io/badge/build-passing-brightgreen)
+[![LLMOps CI/CD Quality Gate](https://github.com/abhisakh/ResearchLLM_MultiAgent_LangGraph_RagGraph/actions/workflows/llmops_ci.yml/badge.svg)](https://github.com/abhisakh/ResearchLLM_MultiAgent_LangGraph_RagGraph/actions)
+![Python Version](https://img.shields.io/badge/python-3.12-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Agent Framework](https://img.shields.io/badge/Orchestration-LangGraph-orange.svg)
 
+**Autonomous AI agent for scientific literature discovery with automated reasoning audits.**
 </div>
 
 # In SCOPE QUERY
