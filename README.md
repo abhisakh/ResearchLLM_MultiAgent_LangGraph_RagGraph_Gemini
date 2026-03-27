@@ -46,6 +46,7 @@
 - [Architecture Overview](#architecture-overview)
   - [Tech Stack](#tech)
 - [Installation and Setup](#installation)
+- [LLMOps & Modern CI/CD Engineering](#CI/CD Engineering)
 - [Frontend Interface](#-frontend-interface-streamlit-ui)
   - [UI Architecture & Design Philosophy](#ui-architecture--design-philosophy)
   - [Layout System](#-layout-system)
@@ -340,7 +341,7 @@ Responsible for:
 Python defines what the system does, while Uvicorn and Streamlit define how and when that Python code runs.
 
 ---
-
+<a id="CI/CD Engineering"></a>
 # 🛡️ LLMOps & Modern CI/CD Engineering
 <-- [Back](#table)
 
@@ -381,22 +382,22 @@ In a modern development flow, logs are "Black Box Recorders."
 
 - ***Quality Gates:*** The pipeline specifically audits:
 
--- **RAG Utilization:*** Does the AI actually use the retrieved scientific data?
+- - **RAG Utilization:*** Does the AI actually use the retrieved scientific data?
 
--- ***Citation Integrity:*** Is every claim mapped to a real [Number] in the references?
+- - ***Citation Integrity:*** Is every claim mapped to a real [Number] in the references?
 
--- ***Self-Correction:*** Does the EvaluationAgent successfully trigger a refinement loop if the first draft is poor?
+- - ***Self-Correction:*** Does the EvaluationAgent successfully trigger a refinement loop if the first draft is poor?
 
 - ***Secret Masking:*** Uses GitHub's encrypted vault to inject API keys, ensuring zero exposure of sensitive credentials.
 
 ***5. Where to find the "Proof" (The Audit Log)***
-1. A recruiter or developer can verify the AI's latest "Thinking Trace" without running a single line of code:
+  1. A developer can verify the AI's latest "Thinking Trace" without running a single line of code:
 
-2. Navigate to the Actions tab in this repository.
+  2. Navigate to the Actions tab in this repository.
 
-3. Select the latest LLMOps Quality Gate run.
+  3. Select the latest LLMOps Quality Gate run.
 
-4. Scroll to Artifacts and download ai-reasoning-trace.
+  4. Scroll to Artifacts and download ai-reasoning-trace.
 
 Inside, you will find research_audit.log, containing the full ANSI-colored log of the Supervisor, Tool Agents, and the Final Synthesis Report.
 
