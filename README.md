@@ -157,7 +157,7 @@ All components are implemented in Python, while execution is handled by appropri
 ├── requirements.txt            # Project dependencies
 ├── sample_output.log           # Static snapshot of a full Research Cycle
 ├── .github/workflows/          # CI/CD Infrastructure (GitHub Actions)
-│   └── llmops_ci.yml           # Headless AI Audit Pipeline
+│   └── llmops_ci.yml           --------------------------------------------> # Headless AI Audit Pipeline
 ├── backend
 │   ├── __init__.py             # Python Package Marker
 │   ├── main.py                 # Graph & VectorDB initialization logic
@@ -189,7 +189,7 @@ All components are implemented in Python, while execution is handled by appropri
 │       ├── 02_Debug_State.py   # Real-time state inspection
 │       └── 03_Graph_View.py    # Mermaid graph visualization
 ├── tests/                      # LLMOps Quality Gate
-│   └── test_ai_rigor.py        # Headless audit of AI reasoning
+│   └── test_ai_rigor.py        --------------------------------------------> # Headless audit of AI reasoning
 └── testing_block/              # Legacy scripts & development artifacts
 
 ```
