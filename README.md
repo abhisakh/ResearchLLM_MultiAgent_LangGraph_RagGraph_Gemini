@@ -341,6 +341,67 @@ Python defines what the system does, while Uvicorn and Streamlit define how and 
 
 ---
 
+# 🛡️ LLMOps & Modern CI/CD Engineering
+<-- [Back](#table)
+
+This framework treats "AI Reasoning" as a testable code asset. We use a Headless Audit Pipeline to ensure the multi-agent system remains grounded, citation-accurate, and performs as expected before any code is merged.
+
+***1. The Automation Core*** (.github/workflows/llmops_ci.yml)
+The system utilizes GitHub Actions to spin up an isolated Python 3.12 environment (ensuring compatibility with scientific libraries like mp-api). On every push, it executes a full research cycle without a GUI.
+```python
+# The Heart of the Quality Gate
+- name: Run Headless AI Audit
+  env:
+    GPT_5_API_KEY: ${{ secrets.GPT_5_API_KEY }}
+    MP_API_KEY: ${{ secrets.MP_API_KEY }}
+  run: python -m pytest -s -W ignore tests/test_ai_rigor.py | tee research_audit.log
+```
+***2. Strategic Quality Gates*** (test_ai_rigor.py)
+Our testing suite doesn't just check for "200 OK" status codes; it audits the integrity of the AI's thoughts:
+
+- ***Gate 1: Grounding Check:*** Asserts that references exist in the state. If the AI claims a fact but provides no source, the build fails.
+
+- ***Gate 2: Anti-Hallucination Audit:*** Uses Regex to map every [Number] citation in the report to a verified entry in the reference list. If the AI cites [5] but only 4 sources exist, the build fails.
+
+- ***Gate 3: Traceability:*** Verifies the visited_nodes path. It ensures the query actually passed through the RAG Agent and Evaluation Agent, rather than "taking a shortcut" to a lower-quality answer.
+
+- ***Gate 4: Utilization Ratio:*** Monitors the percentage of raw search results successfully synthesized into the final report.
+
+***3. Verifiable Audit Artifacts***
+In a modern development flow, logs are "Black Box Recorders."
+
+- ***The Log:*** Every CI/CD run generates a research_audit.log containing the full ANSI-colored trace of agent decisions.
+
+- ***The Artifact:*** This log is saved as a GitHub Action Artifact.
+
+- ***The Benefit:*** A recruiter or engineer can download the ai-reasoning-trace from any historical build to see exactly what the AI was "thinking" during that specific version of the code.
+
+***4. Why this is "Modern" CI/CD?***
+- ***Headless Reasoning:*** The test suite invokes the full LangGraph state machine without a UI. It forces the agents to perform a real research task (e.g., Thermal stability of CsPbI3) to prove they can still "think."
+
+- ***Quality Gates:*** The pipeline specifically audits:
+
+-- **RAG Utilization:*** Does the AI actually use the retrieved scientific data?
+
+-- ***Citation Integrity:*** Is every claim mapped to a real [Number] in the references?
+
+-- ***Self-Correction:*** Does the EvaluationAgent successfully trigger a refinement loop if the first draft is poor?
+
+- ***Secret Masking:*** Uses GitHub's encrypted vault to inject API keys, ensuring zero exposure of sensitive credentials.
+
+***5. Where to find the "Proof" (The Audit Log)***
+1. A recruiter or developer can verify the AI's latest "Thinking Trace" without running a single line of code:
+
+2. Navigate to the Actions tab in this repository.
+
+3. Select the latest LLMOps Quality Gate run.
+
+4. Scroll to Artifacts and download ai-reasoning-trace.
+
+Inside, you will find research_audit.log, containing the full ANSI-colored log of the Supervisor, Tool Agents, and the Final Synthesis Report.
+
+---
+
 # 🎨 Frontend Interface (Streamlit UI)
 <-- [Back](#table)
 
