@@ -46,7 +46,7 @@
 - [Architecture Overview](#architecture-overview)
   - [Tech Stack](#tech)
 - [Installation and Setup](#installation)
-- [LLMOps & Modern CI/CD Engineering](#CI/CD Engineering)
+- [LLMOps & Modern CI/CD Engineering](#ci-cd-engineering)
 - [Frontend Interface](#-frontend-interface-streamlit-ui)
   - [UI Architecture & Design Philosophy](#ui-architecture--design-philosophy)
   - [Layout System](#-layout-system)
