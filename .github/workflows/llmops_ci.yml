@@ -1,0 +1,44 @@
+name: LLMOps CI/CD Quality Gate
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  research-validation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio
+
+      - name: Run Headless AI Audit
+        env:
+          # Match your utilities.py: os.getenv("GPT_5_API_KEY") and os.getenv("MP_API_KEY")
+          GPT_5_API_KEY: ${{ secrets.GPT_5_API_KEY }}
+          MP_API_KEY: ${{ secrets.MP_API_KEY }}
+          # Fallback for tool-specific emails
+          ENTREZ_EMAIL: "researcher@example.com"
+        # Run and pipe to the audit log
+        run: python -m pytest -s -W ignore tests/test_ai_rigor.py | tee research_audit.log
+
+      - name: Upload AI Research Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-reasoning-trace-${{ github.run_id }}
+          path: research_audit.log
+          retention-days: 7
