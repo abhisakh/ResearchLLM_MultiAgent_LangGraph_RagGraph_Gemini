@@ -43,7 +43,7 @@ if OPENAI_API_KEY:
     except Exception:
         print(f"{C_RED} >> [FATAL] Failed to initialize OpenAI client despite finding key.{C_RESET}")
 else:
-    print(f"{C_RED} >> [FATAL] GPT_API_KEY not found. LLM/Tool Agents will fail.{C_RESET}")
+    print(f"{C_RED} >> [FATAL] GPT_5_API_KEY not found. LLM/Tool Agents will fail.{C_RESET}")
 
 # --- Shared Utility Function ---
 
