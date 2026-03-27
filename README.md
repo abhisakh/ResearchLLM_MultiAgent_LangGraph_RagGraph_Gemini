@@ -47,6 +47,9 @@
   - [Tech Stack](#tech)
 - [Installation and Setup](#installation)
 - [LLMOps & Modern CI/CD Engineering](#ci-cd-engineering)
+  - [The Automation Core](#automation)
+  - [Strategic Quality Gates](#gates)
+  - [The Automation Core](#automation)
 - [Frontend Interface](#-frontend-interface-streamlit-ui)
   - [UI Architecture & Design Philosophy](#ui-architecture--design-philosophy)
   - [Layout System](#-layout-system)
@@ -341,12 +344,13 @@ Responsible for:
 Python defines what the system does, while Uvicorn and Streamlit define how and when that Python code runs.
 
 ---
-<a id="CI/CD Engineering"></a>
+<a id="ci-cd-engineering"></a>
 # 🛡️ LLMOps & Modern CI/CD Engineering
 <-- [Back](#table)
 
 This framework treats "AI Reasoning" as a testable code asset. We use a Headless Audit Pipeline to ensure the multi-agent system remains grounded, citation-accurate, and performs as expected before any code is merged.
 
+<a id="automation"></a>
 ***1. The Automation Core*** (.github/workflows/llmops_ci.yml)
 The system utilizes GitHub Actions to spin up an isolated Python 3.12 environment (ensuring compatibility with scientific libraries like mp-api). On every push, it executes a full research cycle without a GUI.
 ```python
@@ -357,6 +361,7 @@ The system utilizes GitHub Actions to spin up an isolated Python 3.12 environmen
     MP_API_KEY: ${{ secrets.MP_API_KEY }}
   run: python -m pytest -s -W ignore tests/test_ai_rigor.py | tee research_audit.log
 ```
+<a id="gates"></a>
 ***2. Strategic Quality Gates*** (test_ai_rigor.py)
 Our testing suite doesn't just check for "200 OK" status codes; it audits the integrity of the AI's thoughts:
 
