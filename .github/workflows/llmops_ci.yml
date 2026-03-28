@@ -42,3 +42,7 @@ jobs:
           name: ai-reasoning-trace-${{ github.run_id }}
           path: research_audit.log
           retention-days: 7
+
+      - name: Build Docker Image
+        run: |
+          docker build -t research-agent:latest .

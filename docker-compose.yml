@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  research-agent:
+    build: .
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    volumes:
+      - ./backend/chat_history.db:/app/backend/chat_history.db
+      - ./vector_index.faiss:/app/vector_index.faiss
+      - ./vector_data.pkl:/app/vector_data.pkl
+    restart: always
