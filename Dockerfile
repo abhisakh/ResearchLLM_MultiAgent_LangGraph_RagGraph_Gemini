@@ -16,7 +16,10 @@ WORKDIR /app
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Increase timeout and point to the CPU-only repository for heavy ML libs
+RUN pip install --no-cache-dir --default-timeout=1000 \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    -r requirements.txt
 
 # Copy the rest of the application code
 COPY . .
