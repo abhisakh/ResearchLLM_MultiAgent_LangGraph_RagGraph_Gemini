@@ -53,6 +53,10 @@
   - [Verifiable Audit Artifacts](#verify)
   - [Why this is "Modern" CI/CD?](#modern")
   - [Where to find the "Proof" (The Audit Log)](#audit)
+- [High-Stakes Deployment: The Docker Architecture](#docker)
+  - [What: Multi-Service Containerization](#containerization)
+  - [How: Orchestration & Injection](#orchestration)
+  - [Why: The "Production-Ready" Advantage](#production)
 - [Frontend Interface](#-frontend-interface-streamlit-ui)
   - [UI Architecture & Design Philosophy](#ui-architecture--design-philosophy)
   - [Layout System](#-layout-system)
@@ -250,11 +254,11 @@ cd Final_Modular_ResearchLLM
 ***macOS / Linux***
 ```python
 python3 -m venv .venv
-source .venv/bin/activate   
+source .venv/bin/activate
 ```
 ***#(Windows)***
 ```python
-.venv\Scripts\activate 
+.venv\Scripts\activate
 ```
 ## 📦 Installing Dependencies
 All required Python packages are listed in requirements.txt.
@@ -267,14 +271,14 @@ This ensures consistent dependency versions across development and deployment en
 ## Create a .env file
 Inside the root directory creat a '.env' and provide the following informations
 ```python
-MP_API_KEY='.................' 
+MP_API_KEY='.................'
 GPT_API_KEY='................'
 S2_API_KEY='.................'
 ```
 - KEY for [Material-Projects](https://next-gen.materialsproject.org/api)
 - KEY for [Open-AI](https://openai.com/api/)
 - KEY for [Schemantic-scholer](https://www.semanticscholar.org/product/api)
-  
+
 ## 🚀 Running the Application
 This project consists of two independently managed components: a backend API and a frontend UI.
 
@@ -411,6 +415,47 @@ In a modern development flow, logs are "Black Box Recorders."
   4. Scroll to Artifacts and download ai-reasoning-trace.
 
 Inside, you will find research_audit.log, containing the full ANSI-colored log of the Supervisor, Tool Agents, and the Final Synthesis Report.
+
+---
+
+# 🚀 Enterprise Deployment (Docker)
+<a id="docker"></a>
+## 🐳 High-Stakes Deployment: The Docker Architecture
+<-- [Back](#table)
+
+To meet the demands of enterprise-grade reliability and "Trusted by Design" standards, this framework is fully containerized. This ensures that the Intelligence Layer remains stable across any cloud infrastructure (AWS, Azure, or Private Cloud).
+<a id="containerization"></a>
+### 1. What: Multi-Service Containerization*
+The system is decomposed into two distinct, communicating services:
+
+- ***The Logic Engine (Backend):*** A FastAPI service running the LangGraph orchestration, RAG pipelines, and agentic state management.
+
+- ***The Command Center (Frontend):*** A Streamlit-based UI that provides real-time telemetry and logic visualization.
+
+<a id="orchestration"></a>
+### 2. How: Orchestration & Injection
+We utilize Docker Compose to manage service discovery and environment security.
+
+***Step 1: Environment Injection***
+Secrets (LLM API Keys) and system configurations are never hardcoded. They are injected at runtime via .env to follow 12-Factor App security principles.
+
+***Step 2: Launching the Stack***
+```python
+
+docker-compose up --build
+
+```
+
+***Step 3: Internal Networking***
+The frontend communicates with the backend via a dedicated internal Docker bridge. This simulates a real-world microservices architecture where the "Brain" (Backend) can be scaled independently of the "Interface" (Frontend).
+
+<a id="production"></a>
+### 3. Why: The "Production-Ready" Advantage
+Environment Parity: Eliminates "It works on my machine." The code runs identically on a developer's Mac, a Linux CI/CD runner, and an AWS Production instance.
+
+***Agentic Continuity (Persistence):*** By using Docker Volumes, the AI's memory (chat_history.db) and the Vector Knowledge Base (vector_index.faiss) persist even if a container is restarted or updated.
+
+***Cloud-Native Readiness:*** This setup is the direct precursor to Kubernetes (K8s). It proves the system is ready for high-availability clusters where thousands of real interactions occur simultaneously.
 
 ---
 
@@ -1637,7 +1682,7 @@ graph TD
 
     %% Guardrail logic
     Intent -- "Irrelevant" --> Super
-    
+
     %% The Permission-Based Cycle
     Super <==>|1. Normalize| Clean
     Super <==>|2. Categorize| Intent
@@ -1815,7 +1860,7 @@ flowchart LR
     Start[User Query] --> Regex[Regex Sanitizer<br/>Syntax Cleaning]
     Regex --> LLM[LLM Optimizer<br/>Semantic Expansion]
     LLM --> Hub[Supervisor Hub]
-    
+
     subgraph "CleanQueryAgent Responsibility"
     Regex
     LLM
@@ -2302,7 +2347,7 @@ This design is safe across OpenAI, Claude, Gemini, and other LLMs.
 ### 🔎 RAGAgent
 <-- [Back](#table)
 
-**The Hybrid Funnel Strategy:** 
+**The Hybrid Funnel Strategy:**
 Our RAG pipeline employs a two-stage retrieval process to solve the "Precision vs. Scalability" trade-off. While Cosine Similarity (Bi-Encoder) allows us to quickly scan millions of documents to find high-recall candidates, it often retrieves snippets that are "mathematically close" but semantically irrelevant. By adding Cross-Encoder Reranking on top, we introduce a deep neural judge that analyzes the query and document jointly, correcting these errors with high-precision scoring. Furthermore, because semantic search often returns isolated fragments, we utilize Nearest Neighbor Expansion to "re-stitch" the surrounding context. This ensures that the Synthesis Agent receives a complete, coherent narrative—preserving the document's original flow and providing the LLM with the vital evidentiary "before and after" needed for accurate grounding.
 
 **🏗️ Architectural Distinction: Bi-Encoder vs. Cross-Encoder**
@@ -2915,7 +2960,7 @@ visited_nodes = state.get("visited_nodes", [])
 for idx, node in enumerate(visited_nodes):
     with st.expander(f"Step {idx+1}: {node}", expanded=(idx == len(visited_nodes)-1)):
         st.code(f"Node: {node}", language="text")
-        
+
         # Show state changes at this node
         if node == "intent_agent":
             st.json({
@@ -2948,7 +2993,7 @@ graph LR
     L --> M{Needs Refinement?}
     M -->|No| N[END]
     M -->|Yes| A
-    
+
     style A fill:#98D8C8
     style N fill:#9f6
     style M fill:#f96
@@ -2967,7 +3012,7 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.info(f"**Primary Intent:** `{state['primary_intent']}`")
-    
+
     st.write("**System Constraints Detected:**")
     for constraint in state["system_constraints"]:
         st.markdown(f"- {constraint}")
@@ -2998,7 +3043,7 @@ tools_used = set([doc["tool_id"] for doc in state["raw_tool_data"]])
 for tool in tools_used:
     with st.expander(f"🔍 {tool.upper()} Results"):
         tool_docs = [d for d in state["raw_tool_data"] if d["tool_id"] == tool]
-        
+
         for idx, doc in enumerate(tool_docs, 1):
             st.markdown(f"**Source {idx}:**")
             st.text_area(
@@ -3007,7 +3052,7 @@ for tool in tools_used:
                 height=100,
                 key=f"{tool}_{idx}_text"
             )
-            
+
             st.json(doc["metadata"])
             st.markdown("---")
 ```
@@ -3034,9 +3079,9 @@ search_query = st.text_input(
 
 if search_query:
     results = search_nested_dict(state, search_query)
-    
+
     st.write(f"Found **{len(results)}** matches:")
-    
+
     for path, value in results:
         with st.expander(f"📍 {path}"):
             st.code(str(value), language="json")
@@ -3087,7 +3132,7 @@ graph TD
     %% Transparency Label
     classDef transparency fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
     class Debug,XAI_Log,DB transparency;
-    
+
     style Users fill:#e3f2fd
     style Frontend fill:#f3e5f5
     style Backend fill:#e8f5e9
@@ -3262,7 +3307,7 @@ flowchart TD
     classDef logic fill:#003566,stroke:#30363d,color:#fff;
     class Search,Expansion,Filter logic;
 ```
-## 
+##
 ```mermaid
 flowchart TD
 
@@ -3371,7 +3416,7 @@ flowchart TD
 ```mermaid
 graph TD
     Start([Start Execute]) --> Guard{Check Intent}
-    
+
     %% Intent Branch
     Guard -->|Irrelevant| Reject[Generate Polite Rejection]
     Reject --> Hub([Return to Supervisor Hub])
@@ -3379,7 +3424,7 @@ graph TD
     %% Main Path
     Guard -->|Scientific| ExtractMat[Extract Material Data <br/><i>_extract_material_data</i>]
     ExtractMat --> MapRefs[Map Metadata to Links <br/><i>_extract_references</i>]
-    
+
     subgraph PromptConstruction [LLM Synthesis Phase]
         MapRefs --> BuildPrompt[Format Research Prompt <br/><i>_format_prompt</i>]
         BuildPrompt --> LLM[Call LLM <br/><i>gpt-4o-mini</i>]
@@ -3392,7 +3437,7 @@ graph TD
 
     LinkVerify --> Success[Set report_generated = True]
     Success --> Hub
-    
+
     %% Error Handling
     LLM -.->|API Error| Err[Graceful Error Handling]
     Err --> Hub
@@ -3408,7 +3453,7 @@ graph TD
 ```mermaid
 graph TD
     Start([Start Execute]) --> Load[Load Final Report & Plan]
-    
+
     subgraph AuditPhase [Quality Audit]
         Load --> Criteria{Check Criteria}
         Criteria --> Q1[All planned tools used?]
@@ -3445,7 +3490,7 @@ graph TD
 graph TD
     Start([Start Execute]) --> Input[Receive Semantic Query]
     Input --> LLM[LLM Classification <br/><i>gpt-4o-mini</i>]
-    
+
     subgraph Classification [Intent Categories]
         LLM --> Gen[General Research]
         LLM --> Mat[Material Property Search]
@@ -3460,7 +3505,7 @@ graph TD
 
     SetValid --> Route[Route to Planning Agent]
     SetInvalid --> Guard[Route to Synthesis for Rejection]
-    
+
     Route & Guard --> Hub([Return to Supervisor Hub])
 
     %% Styling
@@ -3475,7 +3520,7 @@ graph TD
 ```mermaid
 graph TD
     Start([Start Execute]) --> Load[Load Query & Intent]
-    
+
     subgraph Analysis [Strategic Analysis]
         Load --> Decon[Deconstruct Query into Sub-topics]
         Decon --> ToolMatch[Map Topics to Best-Fit Tool Agents]
@@ -3506,7 +3551,7 @@ graph TD
 ```mermaid
 graph TD
     Start([Start Execute]) --> Input[Load Execution Plan & Query]
-    
+
     subgraph Synthesis [Query Engineering]
         Input --> Context[Analyze Scientific Context]
         Context --> KeyTerm[Extract Technical Keywords]
@@ -3536,7 +3581,7 @@ graph TD
 ```mermaid
 graph TD
     Start([Start Execute]) --> Input[Receive Raw User Input]
-    
+
     subgraph PreProcessing [Normalization]
         Input --> Strip[Remove Greetings & Filler <br/><i>Hello, Can you please...</i>]
         Strip --> Fix[Correct Typos & Spelling]
@@ -3567,7 +3612,7 @@ graph TD
 graph TD
     %% Client and Interface
     User((User/Frontend)) -->|POST /research-chat| API[FastAPI Endpoint]
-    
+
     subgraph Startup [Initialization]
         API -.->|Startup Event| VDB[VectorDBWrapper]
         API -.->|Startup Event| GraphInit[ResearchGraph & LangGraph]
@@ -3638,7 +3683,7 @@ graph TD
     Client((Frontend)) -->|Request session_id| API[GET /chat-history]
     API --> OpenDB[Open SessionLocal]
     OpenDB --> Query[Query ChatLog Table]
-    
+
     subgraph Processing [Data Normalization]
         Query --> ParseJSON{Is raw_data/visited_nodes JSON?}
         ParseJSON -->|Yes| Clean[_safe_json_parse]
@@ -3648,7 +3693,7 @@ graph TD
     Clean & Raw --> Entry[Construct ChatEntry List]
     Entry --> Return[Return List-ChatEntry-]
     Return --> Client
-    
+
     style API fill:#00c853,color:#fff
     style Processing fill:#f5f5f5,stroke:#333
 ```
@@ -3688,7 +3733,7 @@ graph TD
     User((User)) --> API[GET /list-sessions]
     API --> DB[(SQLite DB)]
     DB --> Distinct[Query Distinct session_id]
-    
+
     subgraph Loop [For each Session]
         Distinct --> Latest[Find latest message by timestamp]
         Latest --> Meta[Extract snippet & last_ts]
