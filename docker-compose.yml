@@ -1,14 +1,38 @@
 #version: '3.8'
+
 services:
-  research-agent:
+  # The Research Agent Engine (FastAPI)
+  backend:
     build: .
-    ports:
-      - "8501:8501"
+    container_name: research_backend_local
+    # FIX: PYTHONPATH allows backend.py to find 'core' and 'agents' modules
     environment:
-      - API_BASE_URL=http://localhost:8000 # Or public IP for mobile testing
+      - PYTHONPATH=/app:/app/backend
+    # We override the Dockerfile CMD to start the API
+    command: uvicorn backend.backend:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persistent SQLite and Vector storage
+      - ./backend/chat_history.db:/app/backend/chat_history.db
+      - ./backend/vector_index.faiss:/app/backend/vector_index.faiss
+      - ./backend/vector_data.pkl:/app/backend/vector_data.pkl
     env_file:
       - .env
+
+  # The Research Agent UI (Streamlit)
+  frontend:
+    build: .
+    container_name: research_frontend_local
+    depends_on:
+      - backend
+    environment:
+      # Internal Docker networking to talk to the backend service
+      - API_BASE_URL=http://backend:8000
+    ports:
+      - "8501:8501"
     volumes:
+      # Mapping the DB here ensures the UI can see the same history
       - ./backend/chat_history.db:/app/backend/chat_history.db
-      - ./vector_index.faiss:/app/vector_index.faiss
-      - ./vector_data.pkl:/app/vector_data.pkl
+    env_file:
+      - .env

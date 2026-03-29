@@ -39,7 +39,7 @@ app = FastAPI(title="Research Agent API with SQLite Logging")
 # ------------------------------------------------------------------------------
 print(f" {C_ACTION}>> [INIT] Loading necessary modules and configuration.{C_RESET}")
 load_dotenv()
-OPENAI_API_KEY = os.getenv("GPT_API_KEY") or os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = os.getenv("GPT_5_API_KEY") or os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise ValueError(f"{C_RED} >> [FATAL] Missing OPENAI_API_KEY or GPT_API_KEY in environment{C_RESET}")
 print(f" {C_GREEN}>> [INIT] Environment variables loaded successfully.{C_RESET}")

@@ -444,7 +444,7 @@ class MaterialsAgent(BaseToolAgent):
             stability_status = "Stable" if result['is_stable'] else f"Unstable (E/hull: {result['energy_above_hull']} eV)"
 
             band_gap_val = result['band_gap']
-            band_gap_str = f"${band_gap_val}\ \text{{eV}}$" if band_gap_val is not None else "Metallic/Unknown"
+            band_gap_str = fr"${band_gap_val}\ \text{{eV}}$" if band_gap_val is not None else "Metallic/Unknown"
 
             energy_above_hull_val = result['energy_above_hull']
             energy_above_hull_str = f"${energy_above_hull_val}\ \text{{eV}}$" if energy_above_hull_val is not None else "N/A"
