@@ -881,10 +881,12 @@ with col_middle:
             with cA:
                 if st.button("🕸 Graph", key=f"g_{msg['id']}", use_container_width=True):
                     st.session_state['active_view_path'] = st.session_state['turn_paths'][msg["id"]]
+                    st.session_state['debug_message_id'] = msg["id"] # Added fix
                     st.switch_page("pages/03_Graph_View.py")
             with cB:
                 if st.button("🧠 Debug", key=f"d_{msg['id']}", use_container_width=True):
                     st.session_state['active_view_path'] = st.session_state['turn_paths'][msg["id"]]
+                    st.session_state['debug_message_id'] = msg["id"] # Added fix
                     st.switch_page("pages/02_Debug_State.py")
 
     if prompt := st.chat_input("Input coordinates..."):
