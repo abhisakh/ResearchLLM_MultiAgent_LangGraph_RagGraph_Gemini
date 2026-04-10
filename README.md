@@ -2,7 +2,7 @@
 
 # 🔬 Advanced Multi-Agent Research Framework (GenAI)
 ## 🧠 Declarative Research Agent & LLMOps Pipeline
-
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)
 [![LLMOps CI/CD Quality Gate](https://github.com/abhisakh/ResearchLLM_MultiAgent_LangGraph_RagGraph/actions/workflows/llmops_ci.yml/badge.svg)](https://github.com/abhisakh/ResearchLLM_MultiAgent_LangGraph_RagGraph/actions)
 ![Python Version](https://img.shields.io/badge/python-3.12-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
@@ -92,7 +92,7 @@
   - [PlanningAgent](#planningagent)
   - [QueryGenerationAgent](#querygenerationagent)
   - [Tool Agents](#-tool-agents-tool_agentspy)
-  - [Retrieval & RAG Pipeline](#-retrieval--rag-pipeline)
+  - [**Retrieval & RAG** Pipeline](#-retrieval--rag-pipeline)
     - [Retrieval Agent](#retrieval)
     - [RAG Agent](#rag)
   - [SynthesisAgent](#-synthesisagent)
