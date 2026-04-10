@@ -2,11 +2,11 @@
 
 # 🔬 Advanced Multi-Agent Research Framework (GenAI)
 ## 🧠 Declarative Research Agent & LLMOps Pipeline
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-[![CI/CD](https://img.shields.io/github/actions/workflow/status/abhisakh/ResearchLLM_MultiAgent_LangGraph_RagGraph/llmops_ci.yml?style=for-the-badge&label=CI%2FCD&logo=githubactions&logoColor=white)](https://github.com/abhisakh/ResearchLLM_MultiAgent_LangGraph_RagGraph/actions)
-![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-2ea44f?style=for-the-badge&logo=open-source-initiative&logoColor=white)
-![LangGraph](https://img.shields.io/badge/LangGraph-Orchestration-F59E0B?style=for-the-badge)
+![Docker](https://img.shields.io/badge/-Docker-2496ED?style=flat-square&logo=docker)
+[![CI](https://img.shields.io/github/actions/workflow/status/abhisakh/ResearchLLM_MultiAgent_LangGraph_RagGraph/llmops_ci.yml?style=flat-square&logo=githubactions)](https://github.com/abhisakh/ResearchLLM_MultiAgent_LangGraph_RagGraph/actions)
+![Python](https://img.shields.io/badge/-Python-3776AB?style=flat-square&logo=python)
+![MIT](https://img.shields.io/badge/-MIT-2ea44f?style=flat-square)
+![LangGraph](https://img.shields.io/badge/-LangGraph-F59E0B?style=flat-square)
 
 **Autonomous AI agent for scientific literature discovery with automated reasoning audits.**
 </div>
