@@ -7,6 +7,7 @@
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-2ea44f?style=for-the-badge&logo=open-source-initiative&logoColor=white)
 ![LangGraph](https://img.shields.io/badge/LangGraph-Orchestration-F59E0B?style=for-the-badge)
+![Explainable AI](https://img.shields.io/badge/Explainable%20AI-XAI-6B7280?style=for-the-badge&logo=googleanalytics&logoColor=white)
 
 **Autonomous AI agent for scientific literature discovery with automated reasoning audits.**
 </div>
