@@ -782,7 +782,7 @@ st.markdown(f"""
 
     /* TYPOGRAPHY & CHAT */
     [data-testid="stChatMessage"] p {{ font-size: 1.1rem !important; line-height: 1.6; font-family: 'Inter'; color: #E6EDF3; }}
-    [data-testid="stMarkdownContainer"] h3 {{ font-size: 1.5rem !important; color: #98D8C8; letter-spacing: 1.5px; border-left: 5px solid #98D8C8; padding-left: 15px; text-transform: uppercase; }}
+    [data-testid="stMarkdownContainer"] h3 {{ font-size:1.5rem !important; color: #98D8C8; letter-spacing: 1.5px; border-left: 5px solid #98D8C8; padding-left: 15px; text-transform: uppercase; }}
 
     /* STATUS INDICATORS */
     .status-pulse {{ width: 10px; height: 10px; background: #98D8C8; border-radius: 50%; animation: pulse-ring 1.5s infinite; }}
