@@ -4,7 +4,12 @@ import requests
 #API_BASE_URL = "http://localhost:8000"
 import os
 
-API_BASE_URL = os.getenv("API_BASE_URL", "http://backend:8000")
+ENV = os.getenv("ENV", "local")
+
+if ENV == "docker":
+    API_BASE_URL = os.getenv("API_BASE_URL", "http://backend:8000")
+else:
+    API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 st.set_page_config(
     page_title="Agent Graph View",

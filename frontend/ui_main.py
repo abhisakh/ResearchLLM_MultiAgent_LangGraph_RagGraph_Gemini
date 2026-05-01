@@ -728,6 +728,38 @@ logo_right_path = os.path.join(current_dir, 'genai.jpg')
 logo_left_html = f"data:image/jpg;base64,{get_base64_of_bin_file(logo_left_path)}"
 logo_right_html = f"data:image/jpg;base64,{get_base64_of_bin_file(logo_right_path)}"
 
+#------------------------------------------------------------------------------
+# STYLE FOR H1, H2, H3 WHICH are parsed directly as chat messege by Agent
+#------------------------------------------------------------------------------
+st.markdown("""
+<style>
+[data-testid="stChatMessage"] h2 {
+    font-size: 26px !important;
+    color: #4ECDC4 !important;
+    }
+    [data-testid="stChatMessage"] ol {
+    padding-left: 10px;
+    }
+
+    [data-testid="stChatMessage"] li {
+        font-size: 1.05rem;
+        color: #E6EDF3;
+    }
+
+    [data-testid="stChatMessage"] ol li::marker {
+        color: #4ECDC4;
+        font-size: 1.1rem;
+    }
+    [data-testid="stChatMessage"] p {
+        text-align: justify;
+    }
+
+    [data-testid="stChatMessage"] li {
+        text-align: left;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # -----------------------------------------------------------------------------
 # 3. MASTER CSS (Responsive Grid & Sticky Positions)
 # -----------------------------------------------------------------------------
@@ -760,24 +792,26 @@ st.markdown(f"""
                     color: #FFFFFF !important;
                     margin: 0; }}
 
-    /* STICKY COLUMN SYSTEM - Adjusted for 200px header */
-    [data-testid="stHorizontalBlock"] {{ margin-top: 220px !important; }}
+        /* STICKY COLUMN SYSTEM - MATCH HEADER HEIGHT */
+        [data-testid="stHorizontalBlock"] {{
+            margin-top: 200px !important;
+        }}
 
-    [data-testid="column"]:nth-child(1) > div,
-    [data-testid="column"]:nth-child(3) > div {{
-        position: sticky !important;
-        top: 220px !important;
-        max-height: calc(100vh - 240px);
-        overflow-y: auto;
-    }}
+        [data-testid="column"]:nth-child(1) > div,
+        [data-testid="column"]:nth-child(3) > div {{
+            position: sticky !important;
+            top: 200px !important;
+            max-height: calc(100vh - 220px);
+            overflow-y: auto;
+        }}
 
     /* MIDDLE COLUMN SCROLLING */
     [data-testid="column"]:nth-child(2) {{
-        height: calc(100vh - 230px) !important;
+        height: calc(100vh - 210px) !important;
         overflow-y: auto !important;
         border-left: 1px solid #30363d;
         border-right: 1px solid #30363d;
-        padding: 0 20px 100px 20px !important;
+        padding: 0 20px 10px 20px !important;
     }}
 
     /* TYPOGRAPHY & CHAT */
