@@ -47,8 +47,13 @@ print(f" {C_GREEN}>> [INIT] Environment variables loaded successfully.{C_RESET}"
 # ------------------------------------------------------------------------------
 # SECTION 2: DATABASE SETUP (SQLite)
 # ------------------------------------------------------------------------------
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+DATABASE_URL = f"sqlite:///{BASE_DIR / 'chat_history.db'}"
+
 #DATABASE_URL = "sqlite:///./chat_history.db?check_same_thread=False&timeout=20"
-DATABASE_URL = "sqlite:////app/backend/chat_history.db?check_same_thread=False&timeout=20"
+#DATABASE_URL = "sqlite:////app/backend/chat_history.db?check_same_thread=False&timeout=20"
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
