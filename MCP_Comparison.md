@@ -365,4 +365,131 @@ The result is a system that is **MCP in philosophy, LangGraph in implementation,
 
 ---
 
+<a id="how-this-system-is-different-from-mcp"></a>
+## 🆚 How This System Is Fundamentally Different From MCP
+
+This section exists to remove any remaining ambiguity. The previous sections established where this framework and MCP share the same philosophy. This section draws the precise boundary between them.
+
+---
+
+### The One Fundamental Difference
+
+> **MCP is a communication protocol. My system is an intelligent research pipeline.**
+
+They solve different layers of the same problem.
+
+---
+
+### The Analogy That Makes It Crystal Clear
+
+Think of it like a **phone call vs. a conversation:**
+
+- **MCP** defines *how the call is made* — the network, the signal format, the handshake. It doesn't care what is said.
+- **My system** defines *what happens before, during, and after the conversation* — preparation, reasoning, verification, and self-correction.
+
+MCP is the **infrastructure layer**. My system is the **intelligence layer.**
+
+---
+
+### Difference 1 — 🧠 Pre-Tool Intelligence — My System Has It, MCP Doesn't
+
+In standard MCP, the LLM picks a tool and calls it. That's it. One step.
+
+In my system, before a single tool is ever called, a dedicated pipeline runs first:
+
+```
+MCP:       User Query ──────────────────────────────────────► Tool Call
+
+My System: User Query → CleanQuery → Intent → Planning
+                      → QueryGen ──────────────────────────► Tool Call
+```
+
+By the time my system calls a tool, it already knows:
+- Exactly what the user *really* meant after cleaning and intent classification
+- Which tools are *strategically* worth calling for this specific query
+- What *custom, tiered query* each tool should receive, written in its own API syntax
+
+MCP has none of this. The tool gets whatever the user originally typed.
+
+---
+
+### Difference 2 — 🔬 Post-Retrieval Processing — My System Has It, MCP Doesn't
+
+Standard MCP takes the tool's raw output and hands it directly to the LLM. Done.
+
+My system inserts an entire neural processing pipeline between the tool output and the LLM:
+
+```
+MCP:       Tool Output ──────────────────────────────────────────────► LLM
+
+My System: Tool Output → Retrieval → FAISS Search → Cross-Encoder
+                       Reranking → Neighbor Expansion → Keyword
+                       Gating → Compressed High-Signal Context ──────► LLM
+```
+
+The LLM in my system never sees raw, noisy tool output. It only receives **semantically filtered, reranked, context-expanded, deduplicated evidence** — extracted from the full text of peer-reviewed papers.
+
+---
+
+### Difference 3 — ✅ Output Validation & Self-Correction — My System Has It, MCP Doesn't
+
+Standard MCP has no opinion about whether the final answer is any good. That is left entirely to the LLM's own judgment.
+
+My system has a dedicated **EvaluationAgent** that autonomously audits every output before it is delivered:
+
+```
+MCP:       LLM Answer ──────────────────────────────────────► User
+                       (no verification)
+
+My System: LLM Answer ──► EvaluationAgent
+                               │
+                   ┌───────────┴───────────┐
+                   │                       │
+            ✅ Grounded?            ❌ Not grounded?
+            Citations verified?     Supervisor notified
+            Tools fully used?       Full cycle reruns
+                   │                       │
+            Deliver to User         Try again autonomously
+```
+
+MCP cannot self-correct. My system never delivers an answer it hasn't verified.
+
+---
+
+### Complete Difference Summary
+
+| Dimension | Standard MCP | My System |
+|---|---|---|
+| **What it is** | A wire communication protocol | An intelligent research pipeline |
+| **Tool selection** | LLM one-shot decision | 3-stage reasoning: Intent → Plan → QueryGen |
+| **Query per tool** | Same raw user query passed as-is | Custom tiered query per tool's API syntax |
+| **After tool runs** | Raw output handed directly to LLM | Neural reranking → context compression → LLM |
+| **Output quality check** | None | EvaluationAgent audits grounding + citations |
+| **If output is poor** | Human must manually retry | My system autonomously reruns the full cycle |
+| **Hallucination control** | LLM's own judgment | Enforced — no ungrounded claim passes |
+| **Communication** | JSON-RPC over HTTP/SSE wire protocol | In-memory ResearchState via LangGraph |
+| **Adding a new tool** | Drop in a new server, zero code change | New `BaseToolAgent` subclass + graph wiring |
+
+---
+
+### The One Thing Standard MCP Has That My System Does Not
+
+**Network-level plug-and-play.** In true MCP, a new tool server can be dropped anywhere on the network — a different machine, a different language, a different team — and the client discovers and uses it automatically with zero code change.
+
+In my system, adding a new tool means writing a new `BaseToolAgent` subclass and wiring it into the LangGraph graph. The abstraction is clean and well-structured, but a code change is required. This is a deliberate trade-off in favour of in-process speed, simpler debugging, and tighter state control — all appropriate for a single-deployment scientific research system.
+
+---
+
+### Final Clarification
+
+These two things are not alternatives to each other. They answer different questions entirely:
+
+> **Standard MCP asks:** *"How should an AI communicate with a tool?"*
+>
+> **My system asks:** *"How should an AI think before calling a tool, process what the tool returns, verify the answer it generates, and correct itself if that answer is not good enough?"*
+
+My system could adopt MCP as its underlying communication layer — replacing in-memory `ResearchState` passing with JSON-RPC wire calls — without changing a single agent's logic. The `BaseToolAgent` abstraction is already the right interface contract for that migration. The intelligence pipeline built on top of it would remain entirely intact.
+
+---
+
 *For the full system architecture, agent breakdown, and LLMOps pipeline, see the sections above in this README.*
