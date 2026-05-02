@@ -12,6 +12,20 @@
 **Autonomous AI agent for scientific literature discovery with automated reasoning audits.**
 </div>
 
+---
+
+## 🔌 How This System Relates to MCP (Model Context Protocol)
+
+> **Curious how this framework connects to the Model Context Protocol standard?**
+
+This system was independently built around the same foundational philosophy that motivated MCP — a **single orchestration layer connecting an LLM to multiple heterogeneous tools**, eliminating the M×N integration problem. The Supervisor Agent acts as a universal interface, dynamically routing each query to only the tools it needs — ArXiv, PubMed, OpenAlex, Materials Project, SemanticScholar, ChemRxiv, and the Web — through a standardized `BaseToolAgent` contract.
+
+But it goes further than standard MCP: a **multi-stage pre-tool reasoning pipeline** (CleanQuery → Intent → Planning → QueryGen) ensures every tool receives an intelligently crafted, tool-specific query. A **post-retrieval neural pipeline** (FAISS search + Cross-Encoder reranking + neighbor expansion) filters raw results into a high-signal context. And an **autonomous EvaluationAgent** enforces grounding and citation integrity — triggering a full self-correction loop if the output doesn't meet scientific standards.
+
+📄 **[Read the full MCP vs. This System deep-dive → `MCP_Comparison.md`](./MCP_Comparison.md)**
+
+---
+
 ## In SCOPE QUERY
 
 <table>
