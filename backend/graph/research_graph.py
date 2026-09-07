@@ -1,18 +1,18 @@
 from langgraph.graph import StateGraph, END
 from typing import Optional
 
-from core.research_state import ResearchState
-from core.vector_db import VectorDBWrapper
-from core.utilities import C_CYAN, C_RESET, C_MAGENTA
+from backend.core.research_state import ResearchState
+from backend.core.vector_db import VectorDBWrapper
+from backend.core.utilities import C_CYAN, C_RESET, C_MAGENTA
 
 # --- 1. Import Agents ---
-from agents.procedural_agents import CleanQueryAgent
-from agents.planning_agents import IntentAgent, PlanningAgent, QueryGenerationAgent
-from agents.tool_agents import PubMedAgent, ArxivAgent, OpenAlexAgent, MaterialsAgent, WebAgent, SemanticScholarAgent, ChemRxivAgent
-from agents.rag_agents import RetrievalAgent, RAGAgent
-from agents.synthesis_agent import SynthesisAgent
-from agents.evaluation_agent import EvaluationAgent
-from agents.supervisor_agent import SupervisorAgent # <-- NEW
+from backend.agents.procedural_agents import CleanQueryAgent
+from backend.agents.planning_agents import IntentAgent, PlanningAgent, QueryGenerationAgent
+from backend.agents.tool_agents import PubMedAgent, ArxivAgent, OpenAlexAgent, MaterialsAgent, WebAgent, SemanticScholarAgent, ChemRxivAgent
+from backend.agents.rag_agents import RetrievalAgent, RAGAgent
+from backend.agents.synthesis_agent import SynthesisAgent
+from backend.agents.evaluation_agent import EvaluationAgent
+from backend.agents.supervisor_agent import SupervisorAgent # <-- NEW
 
 # --- 2. Define Conditional Edges (Routers) ---
 # (Routings defined previously remain the same)

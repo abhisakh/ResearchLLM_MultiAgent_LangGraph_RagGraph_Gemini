@@ -1,0 +1,27 @@
+{
+    "user_query": "Can we use g-raphene?! 10.00% doping of Ni in ZnO--what's the bandgap?",
+    "semantic_query": "Bandgap of g-raphene 10.00% Ni-doped ZnO",
+    "primary_intent": "",
+    "reasoning": "",
+    "execution_plan": [],
+    "material_elements": [],
+    "system_constraints": [],
+    "api_search_term": "",
+    "tiered_queries": {},
+    "active_tools": [],
+    "raw_tool_data": [],
+    "full_text_chunks": [],
+    "rag_complete": false,
+    "filtered_context": "",
+    "references": [],
+    "final_report": "",
+    "report_generated": false,
+    "needs_refinement": false,
+    "refinement_reason": "",
+    "is_refining": false,
+    "refinement_retries": 0,
+    "next": "supervisor_agent",
+    "visited_nodes": [
+        "clean_query_agent"
+    ]
+}

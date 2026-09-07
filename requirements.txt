@@ -40,3 +40,6 @@ databases                # Async DB support (if needed for FastAPI)
 # ------ Pytest ----------------------
 pytest
 pytest-asyncio
+# ------------ Gemini ----------------------
+google-genai
+gemin

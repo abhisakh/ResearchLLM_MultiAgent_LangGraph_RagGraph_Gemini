@@ -15,8 +15,8 @@ from urllib3.util import Retry
 
 
 # Relative imports from the modular structure
-from core.research_state import ResearchState
-from core.utilities import (
+from backend.core.research_state import ResearchState
+from backend.core.utilities import (
     C_ACTION, C_RED, C_BLUE, C_YELLOW, C_GREEN, C_RESET,
     LLM_MODEL, client, MP_API_KEY
 )
@@ -447,7 +447,7 @@ class MaterialsAgent(BaseToolAgent):
             band_gap_str = fr"${band_gap_val}\ \text{{eV}}$" if band_gap_val is not None else "Metallic/Unknown"
 
             energy_above_hull_val = result['energy_above_hull']
-            energy_above_hull_str = f"${energy_above_hull_val}\ \text{{eV}}$" if energy_above_hull_val is not None else "N/A"
+            energy_above_hull_str = rf"${energy_above_hull_val}\ \text{{eV}}$" if energy_above_hull_val is not None else "N/A"
 
             text_content = (
                 f"Material: {result['formula']} ({result['material_id']}). "
@@ -758,19 +758,21 @@ class SemanticScholarAgent(BaseToolAgent):
 
         return state
 
-#===========================================================================================================================
-#                                     TESING BLOCK
-#=============================== CODE DEBUG BLOCK (Requires update for system_constraints) ===============================
+# ===========================================================================================================================
+#                                     TESTING BLOCK
+# =============================== CODE DEBUG BLOCK (Updated for system_constraints & State Export) ===============================
 if __name__ == "__main__":
-    from core.research_state import ResearchState
-    from core.utilities import C_CYAN, C_RESET, C_GREEN, C_YELLOW, C_RED, C_MAGENTA
     import os
+    import json
+    from pathlib import Path
+    from backend.core.research_state import ResearchState
+    from backend.core.utilities import (
+        C_CYAN, C_RESET, C_GREEN, C_YELLOW, C_RED, C_MAGENTA, ENTREZ_EMAIL
+    )
 
     # --- SETUP & INITIAL CHECKS ---
-    print(f"\n{C_CYAN}*** STARTING TOOL AGENT ISOLATED TESTS (USING PROVIDED STATE) ***{C_RESET}")
+    print(f"\n{C_CYAN}*** STARTING TOOL AGENT ISOLATED TESTS (USING INPUT FILE) ***{C_RESET}")
 
-    # CRITICAL: Check for API Keys before running any external call
-    # (Assuming C_RED, C_RESET, etc., are defined globally or imported)
     has_mp_key = bool(os.getenv("MP_API_KEY"))
     has_entrez_email = (ENTREZ_EMAIL != "your.pubmed.email@example.com")
 
@@ -779,211 +781,34 @@ if __name__ == "__main__":
     if not has_entrez_email:
         print(f"{C_RED}[SETUP FAIL] ENTREZ_EMAIL is a placeholder. PubMedAgent test may be blocked.{C_RESET}")
 
+    # Determine project root and paths
+    current_file_path = Path(__file__).resolve()
+    backend_dir = current_file_path.parent if current_file_path.parent.name == "backend" else current_file_path.parent.parent
+    parent_dir = backend_dir
 
-    # 1. Initialize Mock Test State with the provided Planning Agent output
-    # NOTE: The mock state has been updated with the final output from QueryGenerationAgent.
+    input_file = parent_dir / "level_1_planning_output.json"
 
-    mock_state: ResearchState = {
-    "user_query": "A detailed review on the synthesis and bandgap stability of lead-free CsSnI3 perovskite solar cells using computational and experimental data published in the last decade.",
-    "semantic_query": "A detailed review on the synthesis and bandgap stability of lead-free CsSnI3 perovskite solar cells using computational and experimental data published in the last decade.",
-    "primary_intent": "literature_review",
-    "reasoning": "",
-    "execution_plan": [
-        "Step 1: Define the specific parameters for the literature review, focusing on synthesis and bandgap stability of CsSnI3 perovskite solar cells, and set the time frame to the last decade.",
-        "Step 2: Use the 'materials' tool to gather data on the material properties and synthesis methods of CsSnI3 perovskite solar cells.",
-        "Step 3: Utilize the 'chemrxiv' tool to find preprints related to experimental and computational studies on CsSnI3 solar cells.",
-        "Step 4: Search 'arxiv' for relevant articles in Physics and Materials Science that discuss computational models and experimental results for CsSnI3.",
-        "Step 5: Compile findings from 'semanticscholar' and 'openalex' to ensure a comprehensive review of peer-reviewed literature and citations related to the topic."
-    ],
-    "material_elements": [
-        "topic: synthesis and bandgap stability of lead-free CsSnI3 perovskite solar cells",
-        "time frame: last_decade",
-        "specific requirements: using computational and experimental data",
-        "CsSnI3",
-        "Cs",
-        "Sn",
-        "I"
-    ],
-    "system_constraints": [
-        "topic: synthesis and bandgap stability of lead-free CsSnI3 perovskite solar cells",
-        "time frame: last_decade",
-        "specific requirements: using computational and experimental data"
-    ],
-    "api_search_term": "CsSnI3",
-    "tiered_queries": {
-        "materials": {
-            "simple": "CsSnI3 AND synthesis AND bandgap AND stability"
-        },
-        "arxiv": {
-            "strict": "CsSnI3 AND synthesis AND bandgap AND stability AND lead-free",
-            "moderate": "CsSnI3 OR lead-free AND perovskite AND solar cells AND computational AND experimental",
-            "broad": "perovskite solar cells AND synthesis AND stability AND computational AND experimental"
-        },
-        "openalex": {
-            "simple": "CsSnI3 AND lead-free AND perovskite AND solar cells"
-        },
-        "chemrxiv": {
-            "simple": "CsSnI3 AND synthesis AND bandgap AND stability"
-        },
-        "pubmed": {
-            "strict": "CsSnI3 AND synthesis AND bandgap AND stability AND lead-free",
-            "moderate": "CsSnI3 OR lead-free AND perovskite AND solar cells AND computational AND experimental",
-            "broad": "perovskite solar cells AND synthesis AND stability AND computational AND experimental"
-        },
-        "semanticscholar": {
-            "strict": "CsSnI3 AND synthesis AND bandgap stability AND lead-free",
-            "moderate": "CsSnI3 OR lead-free AND perovskite AND solar cells AND computational AND experimental"
-        }
-    },
-    "active_tools": [
-        "materials",
-        "arxiv",
-        "openalex",
-        "chemrxiv",
-        "pubmed",
-        "semanticscholar"
-    ],
-    "raw_tool_data": [],
-    "full_text_chunks": [],
-    "rag_complete": False,
-    "filtered_context": "",
-    "references": [],
-    "final_report": "",
-    "report_generated": False,
-    "needs_refinement": False,
-    "refinement_reason": "",
-    "is_refining": False,
-    "refinement_retries": 0,
-    "next": "",
-    "visited_nodes": [
-        "intent_agent",
-        "planning_agent",
-        "query_gen_agent"
-    ]
-}
+    if not input_file.exists():
+        print(f"{C_RED}[TEST ERROR] Input file 'level_1_planning_output.json' not found in path: {input_file}{C_RESET}")
+        exit(1)
 
-    # {
-    # "user_query": "A detailed review on the synthesis and bandgap stability of lead-free cesium-tin halide perovskite solar cells using computational and experimental data published in the last decade.",
-    # "semantic_query": "A detailed review on the synthesis and bandgap stability of lead-free cesium-tin halide perovskite solar cells using computational and experimental data published in the last decade.",
-    # "primary_intent": "literature_review",
-    # "system_constraints": [
-    #     "TOPIC: synthesis and bandgap stability of lead-free cesium-tin halide perovskite solar cells",
-    #     "TIME_PERIOD: last_decade",
-    #     "SPECIFIC_REQUIREMENTS: computational and experimental data"
-    # ],
-    # "execution_plan": [
-    #     "Step 1: Use the 'materials' tool to gather recent studies on the synthesis of lead-free cesium-tin halide perovskite solar cells, focusing on experimental data from the last decade.",
-    #     "Step 2: Utilize the 'materials' tool to collect information on the bandgap stability of cesium-tin halide perovskite solar cells, emphasizing computational data published in the last decade.",
-    #     "Step 3: Access the 'pubmed' tool to find relevant literature that discusses both synthesis and bandgap stability of cesium-tin halide perovskite solar cells, ensuring the studies are from the last decade.",
-    #     "Step 4: Use the 'arxiv' tool to identify preprints and research articles that provide insights into the computational and experimental aspects of cesium-tin halide perovskite solar cells, focusing on the specified topic and time period.",
-    #     "Step 5: Compile and synthesize the findings from the gathered data to create a comprehensive literature review on the synthesis and bandgap stability of lead-free cesium-tin halide perovskite solar cells."
-    # ],
-    # "material_elements": [
-    #     "TOPIC: synthesis and bandgap stability of lead-free cesium-tin halide perovskite solar cells",
-    #     "TIME_PERIOD: last_decade",
-    #     "SPECIFIC_REQUIREMENTS: computational and experimental data",
-    #     "CsSnI3",
-    #     "Cs",
-    #     "Sn",
-    #     "I"
-    # ],
-    # "api_search_term": "CsSnI3",
-    # "tiered_queries": {
-    #     "pubmed": {
-    #         "strict": "synthesis AND bandgap stability AND lead-free cesium-tin halide perovskite solar cells AND computational AND experimental data",
-    #         "moderate": "lead-free cesium-tin halide perovskite solar cells AND synthesis AND bandgap stability",
-    #         "broad": "cesium-tin halide perovskite solar cells AND synthesis AND stability"
-    #     },
-    #     "arxiv": {
-    #         "strict": "synthesis AND bandgap stability AND lead-free cesium-tin halide perovskite solar cells",
-    #         "moderate": "lead-free cesium-tin halide perovskite solar cells AND computational AND experimental",
-    #         "broad": "cesium-tin halide perovskite solar cells AND synthesis AND stability"
-    #     }
-    # },
-    # "active_tools": [
-    #     "materials",
-    #     "pubmed",
-    #     "arxiv"
-    # ],
-    # "raw_tool_data": [],
-    # "full_text_chunks": [],
-    # "rag_complete": False,
-    # "filtered_context": "",
-    # "references": [],
-    # "final_report": "",
-    # "report_generated": False,
-    # "needs_refinement": False,
-    # "refinement_reason": "",
-    # "is_refining": False,
-    # "refinement_retries": 0,
-    # "next": None
-    # }
-
-#     mock_state: ResearchState ={
-#     "user_query": "Provide me a brief review on the advance materials which we use for building quantum computer.",
-#     "semantic_query": "Provide me a brief review on the advance materials which we use for building quantum computer.",
-#     "primary_intent": "literature_review",
-#     "system_constraints": [
-#         "TOPIC: advanced materials for quantum computers",
-#         "TIME_PERIOD: not specified"
-#     ],
-#     "execution_plan": [
-#         "Step 1: Use 'arxiv' to search for recent papers on advanced materials used in quantum computing.",
-#         "Step 2: Use 'pubmed' to find any relevant studies or reviews that discuss the properties and applications of these materials.",
-#         "Step 3: Compile findings from both 'arxiv' and 'pubmed' to create a comprehensive overview of the advanced materials.",
-#         "Step 4: Summarize key points, including types of materials, their properties, and their roles in quantum computing.",
-#         "Step 5: Review the compiled information for coherence and completeness before finalizing the literature review."
-#     ],
-#     "material_elements": [
-#         "TOPIC: advanced materials for quantum computers",
-#         "TIME_PERIOD: not specified"
-#     ],
-#     "api_search_term": "Provide me a brief review on the advance materials which we use for building quantum computer.",
-#     "tiered_queries": {
-#         "arxiv": {
-#             "strict": "advanced materials quantum computers",
-#             "moderate": "advanced materials for quantum computing",
-#             "broad": "materials science quantum computers"
-#         },
-#         "pubmed": {
-#             "strict": "advanced materials quantum computers",
-#             "moderate": "advanced materials for quantum computing",
-#             "broad": "materials science quantum computers"
-#         }
-#     },
-#     "active_tools": [
-#         "arxiv",
-#         "pubmed"
-#     ],
-#     "raw_tool_data": [],
-#     "full_text_chunks": [],
-#     "rag_complete": False,
-#     "filtered_context": "",
-#     "references": [],
-#     "final_report": "",
-#     "report_generated": False,
-#     "needs_refinement": False,
-#     "refinement_reason": "",
-#     "is_refining": False,
-#     "refinement_retries": 0,
-#     "next": None
-# }
+    print(f"{C_YELLOW}[TEST SETUP] Loading state from input file: {input_file}{C_RESET}")
+    with open(input_file, "r", encoding="utf-8") as f:
+        mock_state: ResearchState = json.load(f)
 
     # Helper function to check state and print results
-    def run_agent_test(agent_instance: BaseToolAgent, state: ResearchState) -> None:
+    def run_agent_test(agent_instance: Any, state: ResearchState) -> None:
         agent_id = agent_instance.id
         tool_key = agent_instance._get_tool_key()
 
         print(f"\n{C_MAGENTA}--- TESTING {agent_id.upper()} ({tool_key}) ---{C_RESET}")
 
-        # Check if the tool is expected to run based on the provided state
         if tool_key not in state.get('active_tools', []):
             print(f"{C_YELLOW}[{agent_id.upper()}] SKIPPING (Not in active_tools list: {state.get('active_tools')}).{C_RESET}")
             return
 
         initial_data_count = len(state.get('raw_tool_data', []))
 
-        # Execute the agent
         try:
             new_state = agent_instance.execute(state)
         except Exception as e:
@@ -995,8 +820,6 @@ if __name__ == "__main__":
 
         if new_items > 0:
             print(f"{C_GREEN}[{agent_id.upper()} SUCCESS] Added {new_items} items to raw_tool_data.{C_RESET}")
-
-            # Print a snippet of the first retrieved item
             first_item = new_state['raw_tool_data'][initial_data_count]
             print(f"{C_YELLOW}[{agent_id.upper()} SNIPPET] Source: {first_item.get('source_type')}")
             print(f"  Text: {first_item.get('text', '')[:100]}...{C_RESET}")
@@ -1005,53 +828,21 @@ if __name__ == "__main__":
 
         print("-" * 40)
 
-
     # --- EXECUTE TESTS ---
-
-    # 1. Materials Agent (Active: YES, uses the reliable 'api_search_term': CsSnI3)
+    # 1. Materials Agent
     run_agent_test(MaterialsAgent(), mock_state)
 
-    print(f"\n{C_GREEN}============= RESEARCH STATE after MaterialsAgent ==========================={C_RESET}")
-    for i, (key, value) in enumerate(mock_state.items()):
-        print(f"{C_CYAN}{i}: {key}{C_RESET}")
-        print(value)
-        print(f"{C_YELLOW}{'-' * 40}{C_RESET}")
-
-    # 2. PubMed Agent (Active: YES)
+    # 2. PubMed Agent
     run_agent_test(PubMedAgent(), mock_state)
 
-    print(f"\n{C_GREEN}============= RESEARCH STATE after PubMedAgent ==========================={C_RESET}")
-    for i, (key, value) in enumerate(mock_state.items()):
-        print(f"{C_CYAN}{i}: {key}{C_RESET}")
-        print(value)
-        print(f"{C_YELLOW}{'-' * 40}{C_RESET}")
-
-    # 3. ArXiv Agent (Active: YES, correctly handles date filtering using 'system_constraints')
+    # 3. ArXiv Agent
     run_agent_test(ArxivAgent(), mock_state)
 
-    print(f"\n{C_GREEN}============= RESEARCH STATE after ArxivAgent ==========================={C_RESET}")
-    for i, (key, value) in enumerate(mock_state.items()):
-        print(f"{C_CYAN}{i}: {key}{C_RESET}")
-        print(value)
-        print(f"{C_YELLOW}{'-' * 40}{C_RESET}")
-
-    # 4. Web Agent (Active: NO - Should be skipped by _should_run guardrail)
+    # 4. Web Agent
     run_agent_test(WebAgent(), mock_state)
 
-    print(f"\n{C_GREEN}============= RESEARCH STATE after WebAgent ==========================={C_RESET}")
-    for i, (key, value) in enumerate(mock_state.items()):
-        print(f"{C_CYAN}{i}: {key}{C_RESET}")
-        print(value)
-        print(f"{C_YELLOW}{'-' * 40}{C_RESET}")
-
-    # 5. OpenAlex Agent (Active: NO - Should be skipped by _should_run guardrail)
+    # 5. OpenAlex Agent
     run_agent_test(OpenAlexAgent(), mock_state)
-
-    print(f"\n{C_GREEN}============= RESEARCH STATE after OpenAlex Agent ==========================={C_RESET}")
-    for i, (key, value) in enumerate(mock_state.items()):
-        print(f"{C_CYAN}{i}: {key}{C_RESET}")
-        print(value)
-        print(f"{C_YELLOW}{'-' * 40}{C_RESET}")
 
     # --- FINAL SUMMARY ---
     total_data = len(mock_state.get('raw_tool_data', []))
@@ -1060,11 +851,14 @@ if __name__ == "__main__":
     print(f"{C_GREEN}[FINAL STATE] Total Raw Data Items Collected: {total_data}{C_RESET}")
     print(f"{C_GREEN}[FINAL STATE] Total References Collected: {total_references}{C_RESET}")
 
-    # print(f"\n{C_GREEN}============= UPDATED RESEARCH STATE ==========================={C_RESET}")
-    # #print(json.dumps(mock_state, indent=4))
-    # for i, (key, value) in enumerate(mock_state.items()):
-    #     print(f"{C_CYAN}{i}: {key}{C_RESET}")
-    #     print(value)
-    #     print(f"{C_YELLOW}{'-' * 40}{C_RESET}")
+    # --- SAVE STATE TO PARENT DIRECTORY AS level_2_tool_output.json ---
+    def save_state_to_parent(state_data: dict, filename: str = "level_2_tool_output.json") -> Path:
+        output_file = parent_dir / filename
 
-    print(json.dumps(mock_state, indent=4))
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(state_data, f, indent=4, default=str)
+
+        print(f"\n{C_GREEN}[EXPORT SUCCESS] Saved state output to: {output_file}{C_RESET}")
+        return output_file
+
+    save_state_to_parent(dict(mock_state), filename="level_2_tool_output.json")

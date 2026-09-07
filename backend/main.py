@@ -1,10 +1,10 @@
 import time
 from datetime import datetime
 from typing import Optional
-from core.research_state import ResearchState
-from core.vector_db import VectorDBWrapper
-from graph.research_graph import ResearchGraph
-from core.utilities import (
+from backend.core.research_state import ResearchState
+from backend.core.vector_db import VectorDBWrapper
+from backend.graph.research_graph import ResearchGraph
+from backend.core.utilities import (
     C_CYAN, C_RESET, C_ACTION, C_GREEN,
     C_RED, C_MAGENTA, C_YELLOW
 )
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     research_system = initialize_research_session()
 
     # Example Query
-    user_input = "Identify the thermal stability of CsPbI3 perovskites and any recent doping strategies."
+    user_input = "What are the latest advancements in Machine learning?"
 
     # Execute
     final_results = run_research_query(research_system, user_input)
