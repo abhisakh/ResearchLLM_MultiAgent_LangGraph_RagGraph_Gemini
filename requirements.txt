@@ -19,7 +19,7 @@ mp_api                   # Materials Project Agent
 pymatgen                 # For handling and processing material formulas (used by Materials/Planning Agents)
 ddgs                     # DuckDuckGo Search (Used by WebAgent)
 duckduckgo-search        # DuckDuckGo Search (Backup/alternative for WebAgent)
-Bio                      # Biopython (Potentially used by PubMed/Procedural Agents)
+biopython                # Biopython (Potentially used by PubMed/Procedural Agents - note lowercase package name)
 
 # --- Backend & API ---
 fastapi                  # Web framework for the backend service (if using a separate API)
@@ -37,9 +37,11 @@ graphviz                 # For visualizing the LangGraph workflow
 # --- Database (Optional - Based on SQLAlchemy/Databases) ---
 sqlalchemy               # ORM for persistent data (if needed)
 databases                # Async DB support (if needed for FastAPI)
+
 # ------ Pytest ----------------------
 pytest
 pytest-asyncio
-# ------------ Gemini ----------------------
-google-genai
-gemin
+
+# ------------ Gemini / Google GenAI ----------------------
+google-genai             # Official Google GenAI SDK
+langchain-google-genai   # LangChain integration package for Gemini models
