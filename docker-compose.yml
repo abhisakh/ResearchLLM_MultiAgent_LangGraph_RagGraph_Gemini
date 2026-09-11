@@ -29,6 +29,7 @@ services:
     environment:
       # Internal Docker networking to talk to the backend service
       - API_BASE_URL=http://backend:8000
+    command: streamlit run frontend/ui_main.py --server.port 8501 --server.address 0.0.0.0
     ports:
       - "8501:8501"
     volumes:
