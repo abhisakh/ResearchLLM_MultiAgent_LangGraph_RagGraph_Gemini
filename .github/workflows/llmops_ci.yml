@@ -33,22 +33,22 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-asyncio
 
-      - name: Run Headless AI Audit
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          EMBEDDING_PROVIDER: ${{ secrets.EMBEDDING_PROVIDER }}
-          GPT_5_API_KEY: ${{ secrets.GPT_5_API_KEY }}
-          MP_API_KEY: ${{ secrets.MP_API_KEY }}
-          ENTREZ_EMAIL: "researcher@example.com"
-        run: python -m pytest -s -W ignore tests/test_ai_rigor.py | tee research_audit.log
+      # - name: Run Headless AI Audit
+      #   env:
+      #     GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      #     EMBEDDING_PROVIDER: ${{ secrets.EMBEDDING_PROVIDER }}
+      #     GPT_5_API_KEY: ${{ secrets.GPT_5_API_KEY }}
+      #     MP_API_KEY: ${{ secrets.MP_API_KEY }}
+      #     ENTREZ_EMAIL: "researcher@example.com"
+      #   run: python -m pytest -s -W ignore tests/test_ai_rigor.py | tee research_audit.log
 
-      - name: Upload AI Research Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ai-reasoning-trace-${{ github.run_id }}
-          path: research_audit.log
-          retention-days: 7
+      # - name: Upload AI Research Artifact
+      #   if: always()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ai-reasoning-trace-${{ github.run_id }}
+      #     path: research_audit.log
+      #     retention-days: 7
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3

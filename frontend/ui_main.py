@@ -927,26 +927,43 @@ with col_middle:
         st.session_state['processing'] = True
         u_id = str(uuid.uuid4())
         st.session_state['messages'].append({"id": u_id, "role": "user", "content": prompt})
+        st.rerun()  # 1. This cleanly forces Streamlit to refresh and draw the user's new message bubble.
 
-        with st.chat_message("assistant"):
-            st.write("📡 *Synthesizing...*")
-            try:
-                res = requests.post(f"{API_BASE_URL}/research-chat",
-                                    json={"session_id": st.session_state['session_id'], "message": prompt},
-                                    timeout=600)
-                if res.status_code == 200:
-                    data = res.json()
-                    m_id, path = data.get('id'), data.get('visited_path', [])
-                    st.session_state['turn_paths'][m_id] = path
-                    st.session_state['active_view_path'] = path
-                    resp = data.get('response', '')
-                    if path: resp += f"\n\n---\n**Tracked Path:** {' → '.join([f'`{n}`' for n in path])}"
-                    st.session_state['messages'].append({"id": m_id, "role": "assistant", "content": resp})
-                st.session_state['processing'] = False
-                st.rerun()
-            except Exception as e:
-                st.session_state['processing'] = False
-                st.error(f"Error: {e}")
+    # 2. PLACE THIS BLOCK OUTSIDE THE CHAT_INPUT BLOCK (Right below your message rendering loops)
+    if st.session_state['processing'] and len(st.session_state['messages']) > 0:
+        # Only act if the last message came from the user
+        if st.session_state['messages'][-1]["role"] == "user":
+            with st.chat_message("assistant"):
+                # Use 'with st.spinner' as a context manager so it spins while the code inside it runs
+                with st.spinner("📡 *Synthesizing...*"):
+                    try:
+                        res = requests.post(f"{API_BASE_URL}/research-chat",
+                                            json={
+                                                "session_id": st.session_state['session_id'],
+                                                "message": st.session_state['messages'][-1]["content"]
+                                            },
+                                            timeout=600)
+
+                        if res.status_code == 200:
+                            data = res.json()
+                            m_id, path = data.get('id'), data.get('visited_path', [])
+                            st.session_state['turn_paths'][m_id] = path
+                            st.session_state['active_view_path'] = path
+                            resp = data.get('response', '')
+                            if path:
+                                resp += f"\n\n---\n**Tracked Path:** {' → '.join([f'`{n}`' for n in path])}"
+                            st.session_state['messages'].append({"id": m_id, "role": "assistant", "content": resp})
+                        else:
+                            st.error(f"Backend API Error: Received Status Code {res.status_code}")
+
+                        # Turn off processing and rerun to display the newly added assistant response bubble
+                        st.session_state['processing'] = False
+                        st.rerun()
+
+                    except Exception as e:
+                        st.session_state['processing'] = False
+                        st.error(f"Network Connection Failed: {e}")
+
 
 with col_right:
     st.markdown("### 🧠 Logic Engine")
