@@ -29,7 +29,8 @@ COPY . .
 EXPOSE 8000
 EXPOSE 8501
 
-# Default command runs the UI, but we override this in docker-compose for the backend
-#CMD ["streamlit", "run", "frontend/ui_main.py", "--server.port=8501", "--server.address=0.0.0.0"]
-RUN chmod +x start.sh
-CMD ["./start.sh"]
+# FIX: Ensure absolute paths are given explicit execution permissions
+RUN chmod +x /app/start.sh
+
+# FIX: Force execution using an absolute path shell call
+CMD ["/bin/bash", "/app/start.sh"]
