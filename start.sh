@@ -11,4 +11,6 @@ while ! python3 -c "import socket; s = socket.socket(); s.connect(('127.0.0.1', 
 done
 echo "✅ Backend is up! Starting Streamlit frontend..."
 
-streamlit run frontend/ui_main.py --server.port $PORT --server.address 0.0.0.0
+# Force Streamlit to listen strictly on port 8501 to match Google's traffic probe
+streamlit run frontend/ui_main.py --server.port 8501 --server.address 0.0.0.0
+
