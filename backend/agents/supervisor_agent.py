@@ -1,5 +1,6 @@
 import os
 import json
+import time  # <--- Added for rate-limit throttling
 from pathlib import Path
 from typing import Dict, Any, List
 
@@ -17,6 +18,7 @@ class SupervisorAgent:
     """
 
     MAX_REFINEMENT_ATTEMPTS = 2
+    MAX_CONCUTIVE_RETRIES = 5  # <--- Guardrail threshold to step down aggressiveness
 
     # Keyword sets for automated refinement triage
     DATA_KEYWORDS = ["missing", "data", "search", "papers", "pubmed", "arxiv", "found", "sources", "literature"]
@@ -57,8 +59,33 @@ class SupervisorAgent:
             return self._handle_refinement(state)
 
         # 4. Standard Orchestration: Sequential Flow Checklist
-        state["next"] = self.select_next_agent(state)
+        next_destination = self.select_next_agent(state)
 
+        # --- NEW CONCURRENCY RATE LIMIT MITIGATION ---
+        # Track if the workflow is stuck trying to invoke the same agent repeatedly
+        consecutive_tracker = state.get("consecutive_node_counts", {})
+        current_count = consecutive_tracker.get(next_destination, 0) + 1
+        consecutive_tracker[next_destination] = current_count
+        state["consecutive_node_counts"] = consecutive_tracker
+
+        # If an agent loop is detected (like query_gen_agent hitting 429 over and over)
+        if current_count > 1:
+            # Exponentially back off: 2s, 4s, 8s, 16s, etc.
+            backoff_sleep = min(2 ** current_count, 45)
+            print(f"{C_YELLOW}[{self.id.upper()} THROTTLE] Detected loop on '{next_destination}' (Hit count: {current_count}). Free quota cooling down. Sleeping for {backoff_sleep}s...{C_RESET}")
+            time.sleep(backoff_sleep)
+
+            # If it's hammered the free tier too many times consecutively, gracefully pivot
+            if current_count >= self.MAX_CONCUTIVE_RETRIES and next_destination == "query_gen_agent":
+                print(f"{C_RED}[{self.id.upper()} BREAK] Rate limit loop unbroken. Injecting blank queries object to escape cycle.{C_RESET}")
+                state["tiered_queries"] = {"fallback": ["General system search overview"]}
+                next_destination = self.select_next_agent(state)
+        else:
+            # Clear historical counters for other nodes if we successfully progressed elsewhere
+            state["consecutive_node_counts"] = {next_destination: 1}
+        # ----------------------------------------------
+
+        state["next"] = next_destination
         print(f"{C_CYAN}[{self.id.upper()} HUB] Next Destination: **{state['next']}**{C_RESET}")
         return state
 
@@ -146,6 +173,157 @@ class SupervisorAgent:
             state["next"] = "synthesis_agent"
 
         return state
+
+
+#======================== BEFORE THE BACKHOFF =========================
+# import os
+# import json
+# from pathlib import Path
+# from typing import Dict, Any, List
+
+# from backend.core.research_state import ResearchState
+# from backend.core.utilities import C_ACTION, C_RESET, C_BLUE, C_YELLOW, C_MAGENTA, C_RED, C_CYAN, C_GREEN
+
+# # ==================================================================================================
+# # SECTION 1: SUPERVISOR AGENT (PROCEDURAL ROUTER)
+# # ==================================================================================================
+# class SupervisorAgent:
+#     """
+#     Finalized Hub-and-Spoke Orchestrator.
+#     Controls the flow between specialized agents, handles guardrails for
+#     irrelevant queries, and manages the iterative refinement loop.
+#     """
+
+#     MAX_REFINEMENT_ATTEMPTS = 2
+
+#     # Keyword sets for automated refinement triage
+#     DATA_KEYWORDS = ["missing", "data", "search", "papers", "pubmed", "arxiv", "found", "sources", "literature"]
+#     PDF_KEYWORDS = ["pdf", "extraction", "parsing", "read"]
+#     CONTEXT_KEYWORDS = ["relevance", "context", "snippets", "rag"]
+
+#     def __init__(self, agent_id: str = "supervisor_agent"):
+#         self.id = agent_id
+#         # Mapping active_tools to their specific graph node IDs
+#         self.tool_node_map = {
+#             "semanticscholar": "semanticscholar_search",
+#             "chemrxiv": "chemrxiv_search",
+#             "pubmed": "pubmed_search",
+#             "arxiv": "arxiv_search",
+#             "openalex": "openalex_search",
+#             "materials": "materials_search",
+#             "web": "web_search"
+#         }
+
+#     def execute(self, state: ResearchState) -> ResearchState:
+#         # 1. Breadcrumb Tracking
+#         state.setdefault("visited_nodes", []).append(self.id)
+
+#         print(f"\n{C_CYAN}[{self.id.upper()} HUB] Analyzing state for next dispatch...{C_RESET}")
+
+#         # 2. Guardrail: Out-of-Scope Handling
+#         # If IntentAgent flagged 'irrelevant', bypass research and go to Synthesis for rejection
+#         if state.get("primary_intent") == "irrelevant":
+#             if state.get("report_generated"):
+#                 state["next"] = "END"
+#                 return state
+#             print(f"{C_RED}[{self.id.upper()} GUARDRAIL] Irrelevant query detected. Routing to Synthesis Agent.{C_RESET}")
+#             state["next"] = "synthesis_agent"
+#             return state
+
+#         # 3. Refinement Gate: Handle loops from EvaluationAgent
+#         if state.get("needs_refinement", False):
+#             return self._handle_refinement(state)
+
+#         # 4. Standard Orchestration: Sequential Flow Checklist
+#         state["next"] = self.select_next_agent(state)
+
+#         print(f"{C_CYAN}[{self.id.upper()} HUB] Next Destination: **{state['next']}**{C_RESET}")
+#         return state
+
+#     def select_next_agent(self, state: ResearchState) -> str:
+#         """Determines the next logical node based on state completeness."""
+#         visited = state.get("visited_nodes", [])
+
+#         # --- A. Setup Phase ---
+#         if not state.get("semantic_query"): return "clean_query_agent"
+#         if not state.get("primary_intent"): return "intent_agent"
+#         if not state.get("execution_plan"): return "planning_agent"
+#         if not state.get("tiered_queries"): return "query_gen_agent"
+
+#         # --- B. Tool Execution Phase (The Star Spokes) ---
+#         active_tools = state.get("active_tools", [])
+#         for tool in active_tools:
+#             node_name = self.tool_node_map.get(tool)
+#             if node_name and node_name not in visited:
+#                 if tool in state.get("tiered_queries", {}):
+#                     return node_name
+
+#         # --- C. Processing & Finalization Phase ---
+#         if state.get("raw_tool_data") and not state.get("full_text_chunks"):
+#             return "retrieval_agent"
+#         if state.get("full_text_chunks") and not state.get("rag_complete"):
+#             return "rag_agent"
+
+#         if not state.get("report_generated"): return "synthesis_agent"
+
+#         if state.get("report_generated") and not state.get("needs_refinement"):
+#             if "evaluation_agent" not in visited:
+#                 return "evaluation_agent"
+#             else:
+#                 return "END"
+
+#         return "END"
+
+#     def _handle_refinement(self, state: ResearchState) -> ResearchState:
+#         """Logic to reset state and pivot strategy based on evaluator feedback."""
+#         retries = state.get("refinement_retries", 0)
+
+#         if retries >= self.MAX_REFINEMENT_ATTEMPTS:
+#             print(f"{C_RED}[{self.id.upper()}] Max refinement attempts reached. Terminating.{C_RESET}")
+#             state["next"] = "END"
+#             return state
+
+#         state["refinement_retries"] = retries + 1
+#         reason = state.get("refinement_reason", "").lower()
+
+#         print(f"{C_MAGENTA}[{self.id.upper()} REFINEMENT] Cycle {state['refinement_retries']}: {reason[:100]}...{C_RESET}")
+
+#         is_data_issue = any(k in reason for k in self.DATA_KEYWORDS)
+#         is_pdf_issue = any(k in reason for k in self.PDF_KEYWORDS)
+#         is_context_issue = any(k in reason for k in self.CONTEXT_KEYWORDS)
+
+#         state.update({
+#             "is_refining": True,
+#             "needs_refinement": False,
+#             "report_generated": False,
+#             "rag_complete": False,
+#             "filtered_context": ""
+#         })
+
+#         if is_data_issue:
+#             active_tools = state.get("active_tools", [])
+
+#             # Dynamically ensure missing preprint/database tools mentioned in reason are added
+#             target_tools = ["openalex", "semanticscholar"]
+#             if "arxiv" in reason or "preprint" in reason:
+#                 target_tools.append("arxiv")
+#             if "chemrxiv" in reason:
+#                 target_tools.append("chemrxiv")
+
+#             for t in target_tools:
+#                 if t not in active_tools:
+#                     active_tools.append(t)
+
+#             state["active_tools"] = active_tools
+#             state["next"] = "planning_agent"
+#         elif is_pdf_issue:
+#             state["next"] = "retrieval_agent"
+#         elif is_context_issue:
+#             state["next"] = "rag_agent"
+#         else:
+#             state["next"] = "synthesis_agent"
+
+#         return state
 
 # =====================================================
 # TESTING BLOCK USING INPUT FILE: level_6_evaluation_output.json
