@@ -51,10 +51,36 @@ client = genai.Client()
 # ------------------------------------------------------------------------------
 # SECTION 2: DATABASE SETUP (SQLite)
 # ------------------------------------------------------------------------------
-BASE_DIR = Path(__file__).resolve().parent
-DATABASE_URL = f"sqlite:///{BASE_DIR / 'chat_history.db'}"
+# BASE_DIR = Path(__file__).resolve().parent
+# DATABASE_URL = f"sqlite:///{BASE_DIR / 'chat_history.db'}"
 
-engine = create_engine(DATABASE_URL)
+# engine = create_engine(DATABASE_URL)
+# SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Base = declarative_base()
+#----------------- AFTER GOOGLE CLOUD DATABASE INTEGRATION -----------------
+# 1. Locate the local fallback path
+BASE_DIR = Path(__file__).resolve().parent
+
+# 2. Smart Environment Routing Logic
+# Google Cloud Run always automatically injects the 'K_SERVICE' environment variable.
+if os.getenv("K_SERVICE"):
+    print("[DB CONFIG] Cloud Run environment detected. Routing to Persistent Storage...")
+
+    # Define the persistent directory we will mount inside the Cloud Run container
+    MOUNT_DIR = Path("/mnt/db")
+
+    # Create the directory safely if the system container initializes it slowly
+    os.makedirs(MOUNT_DIR, exist_ok=True)
+    DATABASE_URL = f"sqlite:///{MOUNT_DIR / 'chat_history.db'}"
+else:
+    print("[DB CONFIG] Local Laptop or GitHub Actions pipeline detected. Routing to Local SQLite...")
+    DATABASE_URL = f"sqlite:///{BASE_DIR / 'chat_history.db'}"
+
+# 3. Standard SQLAlchemy Initialization
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
