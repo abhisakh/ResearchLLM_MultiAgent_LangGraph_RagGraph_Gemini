@@ -19,6 +19,10 @@ jobs:
         with:
           python-version: '3.12'
 
+      # FIX 1: Set up Docker Buildx (Required for advanced registry layer caching)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Cache Pip Dependencies
         uses: actions/cache@v4
         with:
@@ -70,9 +74,12 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
+      # FIX 2: Added advanced GitHub Actions cache configuration
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/research-agent:latest
+          cache-from: type=gha                  # Look for cached container layers in GitHub Actions
+          cache-to: type=gha,mode=max           # Export all compiled layers (including requirements) back to cache
