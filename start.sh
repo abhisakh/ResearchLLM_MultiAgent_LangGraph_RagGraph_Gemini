@@ -13,4 +13,3 @@ echo "✅ Backend is up! Starting Streamlit frontend..."
 
 # Force Streamlit to listen strictly on port 8501 to match Google's traffic probe
 streamlit run frontend/ui_main.py --server.port 8501 --server.address 0.0.0.0
-
