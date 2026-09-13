@@ -5,7 +5,7 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch:              # <--- Keeps manual trigger open for easy browser testing
+  workflow_dispatch:
 
 jobs:
   research-validation:
