@@ -47,10 +47,10 @@ But it goes further than standard MCP: a **multi-stage pre-tool reasoning pipeli
 
 <img src="https://github.com/user-attachments/assets/07823c9e-8615-4c17-9af7-521a54fd2002" width="1492">
 
+<img width="1492" height="834" alt="Screenshot 2026-02-16 at 18 47 32" src="https://github.com/user-attachments/assets/1818b107-53ca-451e-99dc-8ddc94ff8984" />
 </td>
 </tr>
 </table>
-
 
 ---
 <a id="table"></a>
