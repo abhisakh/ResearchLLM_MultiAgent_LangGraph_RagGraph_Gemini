@@ -14,7 +14,7 @@
 
 ---
 
-## 🔌 How This System Relates to MCP (Model Context Protocol)
+## How This System Relates to MCP (Model Context Protocol)
 
 > **Curious how this framework connects to the Model Context Protocol standard?**
 
@@ -127,7 +127,7 @@ But it goes further than standard MCP: a **multi-stage pre-tool reasoning pipeli
 
 # Introduction
 <a id ="bridging"></a>
-## 🧬 Bridging the Gap Between AI and Scientific Rigor
+## Bridging the Gap Between AI and Scientific Rigor
 <-- [Back](#table)
 
 One of the most time-consuming challenges for a researcher is navigating the vast ocean of fragmented information across thousands of journals and databases. ResearchLLM is an open-source, Multi-Agent RAG system built on LangGraph designed to automate literature synthesis without compromising on scientific integrity.
@@ -135,7 +135,7 @@ One of the most time-consuming challenges for a researcher is navigating the vas
 While standard Google searches yield unverified web results and general LLMs provide probabilistic "best guesses" from training data, ResearchLLM generates insights exclusively from the verified text of peer-reviewed PDFs. It moves the needle from "Information Retrieval" to "Evidence Synthesis."
 
 <a id ="project"></a>
-## 🚀 Project Highlights
+## Project Highlights
 <-- [Back](#table)
 - <mark>Grounded in Reality:</mark> Powered entirely by published, peer-reviewed scientific literature. It does not rely on general web search or internal LLM training data.
 - <mark>Evidence-Based:</mark> Every claim references specific chunks from downloaded academic papers.
@@ -143,7 +143,7 @@ While standard Google searches yield unverified web results and general LLMs pro
 - </mark>Verifiable & Traceable:</mark> All statements are verifiably traceable to their original peer-reviewed sources.
 
 <a id ="core"></a>
-## ⚙️ Architecture & Technical Core
+## Architecture & Technical Core
 <-- [Back](#table)
 - <mark>Real-time Retrieval:</mark> Automatically fetches full-text PDFs from academic databases including ArXiv, ChemRxiv, Semantic Scholar, and OpenAlex.
 - <mark>High-Precision RAG:</mark> Performs semantic chunking and deep vector searches on actual published papers, enhanced by a Cross-Encoder Reranker for maximum mathematical relevance.
@@ -171,7 +171,7 @@ This system consists of three major layers:
 # Installation and Setup
 <-- [Back](#table)
 
-## 📁 File and Folder Structure
+## File and Folder Structure
 
 The project follows a modular and layered directory structure designed to clearly separate backend intelligence, frontend presentation, and experimental artifacts.
 All components are implemented in Python, while execution is handled by appropriate runtimes depending on responsibility.
@@ -240,13 +240,13 @@ Contains the ***FastAPI-based backend*** responsible for agent orchestration, re
 - vector_index.faiss / vector_data.pkl — persisted vector embeddings
 
 ---
-### 🔹 frontend/ — User Interface Layer
+### frontend/ — User Interface Layer
 Contains the Streamlit-based frontend for interacting with the research system.
 - ui_main.py — Main Streamlit application (run via streamlit run)
 - Image assets — UI branding and visual elements
 ---
 
-### 🔹 testing_block/ — Experiments & Legacy Artifacts
+### testing_block/ — Experiments & Legacy Artifacts
 Isolated workspace for:
 - Experimental scripts
 - Legacy agent and graph implementations
@@ -258,14 +258,14 @@ Isolated workspace for:
 
 ---
 
-## ⚙️ Installation & Setup
-#### 1️⃣ Clone the repository
+## Installation & Setup
+#### 1. Clone the repository
 ```python
 git clone https://github.com/abhisakh/ResearchLLM_MultiAgent_LangGraph_RagGraph.git
 cd Final_Modular_ResearchLLM
 ```
 
-#### 2️⃣ Create and activate a virtual environment at the root directory
+#### 2. Create and activate a virtual environment at the root directory
 ***macOS / Linux***
 ```python
 python3 -m venv .venv
@@ -275,7 +275,7 @@ source .venv/bin/activate
 ```python
 .venv\Scripts\activate
 ```
-## 📦 Installing Dependencies
+## Installing Dependencies
 All required Python packages are listed in requirements.txt.
 Install them using:
 
@@ -294,10 +294,10 @@ S2_API_KEY='.................'
 - KEY for [Open-AI](https://openai.com/api/)
 - KEY for [Schemantic-scholer](https://www.semanticscholar.org/product/api)
 
-## 🚀 Running the Application
+## Running the Application
 This project consists of two independently managed components: a backend API and a frontend UI.
 
-### 🔹 Backend (FastAPI + Uvicorn)
+### Backend (FastAPI + Uvicorn)
 The backend exposes the research system, agent orchestration, vector database, and LLM logic via a FastAPI application.
 Run the backend using:
 ```python
@@ -311,10 +311,10 @@ The API will be available at:
 Swagger documentation:
 [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
-⚠️ Do not run the backend using python backend.py.
+NOTE: Do not run the backend using python backend.py.
 FastAPI requires an ASGI server (Uvicorn) to manage its lifecycle.
 
-### 🔹 Frontend (Streamlit UI)
+### Frontend (Streamlit UI)
 
 The frontend provides an interactive user interface for the research system.
 
@@ -327,14 +327,14 @@ streamlit run ui_main.py
 The UI will open automatically in the browser at:
 [http://localhost:8501](http://localhost:8501/)
 
-⚠️ Do not run the frontend using python ui_main.py.
+Do not run the frontend using python ui_main.py.
 Streamlit requires its own runtime to manage sessions and UI state.
 
-## 🧠 Design Rationale: Python, Uvicorn, and Streamlit
+## Design Rationale: Python, Uvicorn, and Streamlit
 
 Although the entire project is written in Python, different components are executed using specialized runtimes to ensure correctness, scalability, and clarity of responsibility.
 
-### 🔹 Python (Core Language)
+### Python (Core Language)
 
 - Used to implement:
   - LLM agents
@@ -344,7 +344,7 @@ Although the entire project is written in Python, different components are execu
 
 - Python provides the shared foundation across backend and frontend.
 
-### 🔹 Uvicorn (Backend Runtime)
+### Uvicorn (Backend Runtime)
 
 Acts as an ASGI server for FastAPI
 Responsible for:
@@ -353,7 +353,7 @@ Responsible for:
 - Executing startup and shutdown events
 - Enables scalable and asynchronous backend execution.
 
-### 🔹 Streamlit (Frontend Runtime)
+### Streamlit (Frontend Runtime)
 
 Provides a managed UI runtime
 Responsible for:
@@ -367,7 +367,7 @@ Python defines what the system does, while Uvicorn and Streamlit define how and 
 
 ---
 <a id="ci-cd-engineering"></a>
-# 🛡️ LLMOps & Modern CI/CD Engineering
+# LLMOps & Modern CI/CD Engineering
 <-- [Back](#table)
 
 This framework treats "AI Reasoning" as a testable code asset. We use a Headless Audit Pipeline to ensure the multi-agent system remains grounded, citation-accurate, and performs as expected before any code is merged.
@@ -433,9 +433,9 @@ Inside, you will find research_audit.log, containing the full ANSI-colored log o
 
 ---
 
-# 🚀 Enterprise Deployment (Docker)
+# Enterprise Deployment (Docker)
 <a id="docker"></a>
-## 🐳 High-Stakes Deployment: The Docker Architecture
+## High-Stakes Deployment: The Docker Architecture
 <-- [Back](#table)
 
 To meet the demands of enterprise-grade reliability and "Trusted by Design" standards, this framework is fully containerized. This ensures that the Intelligence Layer remains stable across any cloud infrastructure (AWS, Azure, or Private Cloud).
@@ -474,7 +474,7 @@ Environment Parity: Eliminates "It works on my machine." The code runs identical
 
 ---
 
-# 🎨 Frontend Interface (Streamlit UI)
+# Frontend Interface (Streamlit UI)
 <-- [Back](#table)
 
 **File:** `main_ui.py`
@@ -482,7 +482,7 @@ Environment Parity: Eliminates "It works on my machine." The code runs identical
 The frontend is a production-grade Streamlit application designed with a **fixed-position architecture** and **military-grade visual hierarchy**. It provides real-time interaction with the multi-agent research system while maintaining complete visual stability across all user interactions.
 
 <a id="ui-architecture--design-philosophy"></a>
-## 🏗️ UI Architecture & Design Philosophy
+## UI Architecture & Design Philosophy
 
 ### Core Design Principles
 
@@ -509,7 +509,7 @@ The frontend is a production-grade Streamlit application designed with a **fixed
 └─────────┴───────────────────────────────────┴───────────┘
 ```
 
-## 📐 Layout System
+## Layout System
 
 ### 1. Fixed Header (25% Viewport Height)
 
@@ -580,7 +580,7 @@ The system uses aggressive CSS targeting to override Streamlit's default behavio
 }
 ```
 
-## 🧩 Component Breakdown
+## Component Breakdown
 
 ### Left Sidebar: Mission Operations
 
@@ -699,7 +699,7 @@ The system uses aggressive CSS targeting to override Streamlit's default behavio
    - Shows raw Mermaid syntax
    - Useful for debugging routing logic
 
-## 🔄 State Management
+## State Management
 
 ### Session State Schema
 
@@ -818,7 +818,7 @@ data = res.json()
 }
 ```
 
-## 🎨 Styling System
+## Styling System
 
 ### Design Tokens
 
@@ -908,7 +908,7 @@ header[data-testid="stHeader"],
 
 **Design Choice:** High-contrast cyan-on-dark creates clear call-to-action
 
-## 🛠️ Utility Functions
+## Utility Functions
 
 ### 1. Base64 Image Encoder
 
@@ -950,7 +950,7 @@ def safe_json_format(data):
 - Pretty-prints with 2-space indentation
 - Gracefully degrades to `str()` on failure
 
-## 🔄 User Interaction Flow
+## User Interaction Flow
 
 ### Standard Research Query Flow
 
@@ -1003,7 +1003,7 @@ sequenceDiagram
     UI->>UI: Render restored conversation
 ```
 
-## 🎯 Key Frontend Features
+## Key Frontend Features
 
 ### 1. Real-time Status Updates
 
@@ -1074,7 +1074,7 @@ primaryColor = "#98D8C8"
 streamlit run main_ui.py --server.address=0.0.0.0
 ```
 
-## 🔧 Customization Guide
+## Customization Guide
 
 ### Changing Colors
 
@@ -1115,7 +1115,7 @@ with col_left:
 
 ---
 <a id="the-request-journey-frontend-to-backend"></a>
-# 🛰️ The Request Journey: Frontend to Backend
+# The Request Journey: Frontend to Backend
 <-- [Back](#table)
 
 The system operates using a **Decoupled Architecture**, where the user interface and the processing engine communicate over a network via the FastAPI Gateway.
@@ -1134,7 +1134,7 @@ Upon receiving the request, the FastAPI Backend performs the following operation
 - **Vector Database Purge:** It triggers `db_wrapper.reset_db()` to ensure semantic memory is fresh for the new query
 - **ResearchState Assembly:** It creates a Python dictionary matching the ResearchState schema. At this exact moment, the `user_query` from the frontend is injected into the state, and all other fields (like `execution_plan` and `system_constraints`) are initialized as empty placeholders
 
-## 📄 Data Flow & Database Trigger Points
+## Data Flow & Database Trigger Points
 
 The system follows a **"Log-before-Respond"** pattern to ensure data integrity. The database is triggered at three distinct points in the lifecycle:
 
@@ -1183,7 +1183,7 @@ sequenceDiagram
     API->>UI: Return Final Report JSON
 ```
 
-## 🔑 Key Design Principles
+## Key Design Principles
 
 - **Memory vs. Persistence:** The ResearchState is short-term memory (volatile); it only exists while the agents are working. The `chat_logs` table is long-term memory (persistent); it stores the result of that work
 - **Synchronous Response:** The data is stored in the database before the user sees it in the frontend. This ensures that even if the network connection drops during the response transmission, a record of the research remains
@@ -1191,14 +1191,14 @@ sequenceDiagram
 
 ---
 <a id ="backend-architecture"></a>
-# 🗃️ Backend Architecture
+# Backend Architecture
 <-- [Back](#table)
 
 The backend is implemented as a FastAPI-based execution orchestrator (**backend.py**) that serves as the authoritative control plane for the entire research system. It acts as a strict boundary layer between the asynchronous web interface and the deterministic, state-driven LangGraph research engine.
 
 Unlike traditional chatbot backends, this module does not contain business or reasoning logic. Instead, it guarantees correct execution, concurrency isolation, state integrity, persistence, and observability for autonomous multi-agent workflows.
 
-## 🧬 High-Level Component Flow
+## High-Level Component Flow
 
 The following Mermaid diagram illustrates the request-response lifecycle, showing how the FastAPI endpoint interacts with the ThreadPool, the Vector Database, and the SQLite history log.
 
@@ -1236,7 +1236,7 @@ graph TD
     style VDB fill:#6f9,stroke:#333
 ```
 
-## 🧬 High-Level Backend Responsibilities
+## High-Level Backend Responsibilities
 ```python
 +-------------------------+-----------------------------------------------------------------+
 | Responsibility          | Description                                                     |
@@ -1258,7 +1258,7 @@ graph TD
 ```
 
 <a id="chat-database"></a>
-## 🗄️ Database Schema: chat_history.db
+## Database Schema: chat_history.db
 <-- [Back](#table)
 
 The backend uses SQLAlchemy to manage session persistence. This is critical for building frontends that allow users to return to previous research sessions.
@@ -1279,7 +1279,7 @@ This table records every "turn" in the conversation, including hidden metadata f
 
 
 <a id="key-backend-functions"></a>
-## 🛠️ Key Backend Functions
+## Key Backend Functions
 <-- [Back](#table)
 
 ### 1. Startup & Initialization
@@ -1298,7 +1298,7 @@ Because the agent scrapes web data (which can contain non-standard UTF-8 charact
 
 Since LangGraph's `.invoke()` is a synchronous, CPU-bound task in our current setup, the backend uses a `ThreadPoolExecutor` with `max_workers=2`. This prevents a single long-running research query from "hanging" the entire API for other health-check or history requests.
 
-## 🚦 API Endpoints Summary
+## API Endpoints Summary
 
 - **POST /research-chat:** The primary execution engine. It takes a message, generates a `session_id`, and triggers the full graph
 - **GET /chat-history/{session_id}:** Retrieves all logs for a specific research task, allowing for a "Slack-like" message history view
@@ -1307,16 +1307,16 @@ Since LangGraph's `.invoke()` is a synchronous, CPU-bound task in our current se
 
 ---
 
-# 🔬 Advanced Multi-Agent Research Framework
+# Advanced Multi-Agent Research Framework
 <-- [Back](#table)
 
 This framework implements a state-driven, autonomous research pipeline using LangGraph. It coordinates specialized agents to perform deep-dive scientific literature reviews, material property analysis, and factual synthesis with an integrated evaluation-refinement loop.
 
-## 🗺️ System Architecture
+## System Architecture
 
 The architecture is built on a **Supervisor-Worker pattern**. The Supervisor manages the lifecycle of a request, while specialized agents handle specific phases of the research.
 
-## 📄 High-Level Execution Flow
+## High-Level Execution Flow
 
 1. **Planning Phase:** The query is cleaned, intent is classified, and a dynamic execution plan is generated
 2. **Tool Orchestration:** Active tools (PubMed, ArXiv, etc.) are executed sequentially
@@ -1326,7 +1326,7 @@ The architecture is built on a **Supervisor-Worker pattern**. The Supervisor man
 
 ---
 
-# 🧠 ResearchState (Shared Workflow State)
+# ResearchState (Shared Workflow State)
 <-- [Back](#table)
 
 <img width="720" height="554" alt="Screenshot 2026-02-17 at 10 17 31" src="https://github.com/user-attachments/assets/ba3d0953-daba-49ec-9de3-85092b0fb498" />
@@ -1335,11 +1335,11 @@ ResearchState is the central shared memory used by all agents in the LangGraph w
 
 It is implemented as a TypedDict to provide structure, clarity, and type safety.
 
-### 📹 State Categories
+### State Categories
 <-- [Back](#table)
 The state is logically grouped into six categories:
 
-#### 1️⃣ User Input & Planning
+#### 1. User Input & Planning
 
 | Field            | Type        | Description                                    |
 | ---------------- | ----------- | ---------------------------------------------- |
@@ -1349,7 +1349,7 @@ The state is logically grouped into six categories:
 | `reasoning     ` | `str`       | For Intent justification                       |
 | `execution_plan` | `List[str]` | High-level execution plan                      |
 
-#### 2️⃣ Constraints & Query Structure
+#### 2. Constraints & Query Structure
 
 | Field                | Type                        | Description                                         |
 | -------------------- | --------------------------- | --------------------------------------------------- |
@@ -1359,14 +1359,14 @@ The state is logically grouped into six categories:
 | `tiered_queries`     | `Dict[str, Dict[str, str]]` | Strict / moderate / broad tool queries              |
 | `active_tools`       | `List[str]`                 | Tools selected for execution                        |
 
-#### 3️⃣ Tool Execution & Retrieval
+#### 3. Tool Execution & Retrieval
 
 | Field           | Type                   | Description                           |
 | --------------- | ---------------------- | ------------------------------------- |
 | `raw_tool_data` | `List[Dict[str, Any]]` | Aggregated raw outputs from all tools |
 | `references`    | `List[str]`            | Collected citations                   |
 
-#### 4️⃣ RAG Pipeline
+#### 4. RAG Pipeline
 
 | Field              | Type                   | Description                         |
 | ------------------ | ---------------------- | ----------------------------------- |
@@ -1374,7 +1374,7 @@ The state is logically grouped into six categories:
 | `filtered_context` | `str`                  | Context passed to synthesis         |
 | `rag_complete`     | `Optional[bool]`       | Indicates RAG completion            |
 
-#### 5️⃣ Synthesis & Evaluation
+#### 5. Synthesis & Evaluation
 
 | Field               | Type   | Description               |
 | ------------------- | ------ | ------------------------- |
@@ -1383,17 +1383,17 @@ The state is logically grouped into six categories:
 | `needs_refinement`  | `bool` | Evaluation decision flag  |
 | `refinement_reason` | `str`  | Reason for refinement     |
 
-#### 6️⃣ Control & Routing
+#### 6. Control & Routing
 
 | Field         | Type   | Description                                                          |
 | ------------- | ------ | -------------------------------------------------------------------- |
 | `is_refining` | `bool` | Indicates refinement loop                                            |
 | `next`        | `str`  | Routing key used by the Supervisor. It acts like a compass           |
 
-### 🔄 State Lifecycle
+### State Lifecycle
 <-- [Back](#table)
 
-#### 🏗️ Research State Lifecycle Population
+#### Research State Lifecycle Population
 This guide identifies the precise moments each key in the state is "born" (initialized) and "matured" (populated).
 
 ***1. Phase: Initialization (Supervisor)***
@@ -1439,9 +1439,9 @@ system_constraints: Hard-codes "must-have" filters (e.g., TIME_PERIOD: last_5_ye
 -> If False, next points to END.
 <mark>The state persists across refinement loops, allowing iterative improvement without data loss.</mark>
 
-#### 💡 Lifecycle Summary Table
+####  Lifecycle Summary Table
 
-##### 📋 Research State Lifecycle Population
+##### Research State Lifecycle Population
 
 | Phase | Agent Responsible | Keys Populated / Updated | Population Logic (The "How") |
 | :--- | :--- | :--- | :--- |
@@ -1454,14 +1454,14 @@ system_constraints: Hard-codes "must-have" filters (e.g., TIME_PERIOD: last_5_ye
 | **7. Production** | **SynthesisAgent** | `final_report`, `report_generated` | Aggregates `filtered_context` and references into a cited, professional Markdown report. |
 | **8. Verification** | **EvaluationAgent** | `needs_refinement`, `refinement_reason`, `next` | Audits the report quality; determines if the graph terminates (END) or loops back to Planning. |
 
-# 🧠 LangGraph Architecture Overview
+# LangGraph Architecture Overview
 <-- [Back](#table)
 
 **graph.py**
 
 This project implements a Supervisor-driven, multi-agent research workflow using LangGraph. The system is designed as a state machine that coordinates planning, tool execution, retrieval-augmented generation (RAG), synthesis, and evaluation with optional refinement loops.
 
-### 📊 High-Level Execution Flow
+### High-Level Execution Flow
 
 ```mermaid
 flowchart TD
@@ -1529,7 +1529,7 @@ flowchart TD
     Evaluation -->|acceptable| End
 ```
 
-### 🧩 Core Concept
+###  Core Concept
 
 #### 1. Shared State (ResearchState)
 
@@ -1613,7 +1613,7 @@ Determines whether the workflow should:
 - Loop back to the Supervisor for refinement
 - Decision is based on `state["needs_refinement"]`
 
-## 🔄 Tool Execution Loop Example
+## Tool Execution Loop Example
 
 ```python
 If:
@@ -1629,7 +1629,7 @@ Execution order will be:
 Only selected tools are executed, in a controlled order.
 ```
 
-## 🧪 Refinement Loop
+##  Refinement Loop
 
 After synthesis:
 
@@ -1640,7 +1640,7 @@ After synthesis:
 
 This allows iterative improvement without restarting the entire workflow.
 
-## ✅ Design Benefits
+## Design Benefits
 
 - Supervisor-controlled orchestration
 - Deterministic tool execution
@@ -1649,7 +1649,7 @@ This allows iterative improvement without restarting the entire workflow.
 - Easy to extend with new tools or agents
 - Production-ready architecture
 
-### 🧠 Summary
+### Summary
 
 **This LangGraph architecture models research as a controlled, state-driven process, combining:**
 
@@ -1667,12 +1667,12 @@ The result is a transparent, debuggable, and scalable multi-agent system.
 
 ---
 <a id="supervisor"></a>
-## 🎮 SupervisorAgent (Procedural Router)
+## SupervisorAgent (Procedural Router)
 <-- [Back](#table)
 
 The SupervisorAgent is the finalized Hub-and-Spoke Orchestrator of the Research Graph. It does not perform research itself; instead, it acts as the Central Authority that manages the lifecycle of the ResearchState, enforces guardrails, and dictates the order of execution for all specialized agents.
 
-### 🏛️ The "Central Hub" Architecture
+### The "Central Hub" Architecture
 The diagram below illustrates the updated flow. Note the bidirectional communication—every agent must report back to the Hub to update the state before the Hub authorizes the next transition.
 
 ```mermaid
@@ -1719,7 +1719,7 @@ graph TD
     style End fill:#00c853,stroke:#333,stroke-width:2px,color:#fff
     style Intent fill:#fff9c4,stroke:#fbc02d
 ```
-### 📋 1. Permission Sequence (The Checklist)
+### 1. Permission Sequence (The Checklist)
 
 The Supervisor uses this priority-based checklist to grant the "Execution Token." It ensures the research flow moves logically from high-recall discovery to high-precision synthesis.
 
@@ -1740,7 +1740,7 @@ The Supervisor uses this priority-based checklist to grant the "Execution Token.
 +----------+--------------------------+---------------------+-----------------------------------+
 ```
 
-### 🛡️ 2. State Validation (The Handshake)
+### 2. State Validation (The Handshake)
 Before the Supervisor grants permission to a "Spoke," it validates that the mandatory data payload from the previous step is present.
 ```ascii
 +------------------+-------------------+---------------------------------------------------+
@@ -1754,7 +1754,7 @@ Before the Supervisor grants permission to a "Spoke," it validates that the mand
 +------------------+-------------------+---------------------------------------------------+
 ```
 
-### 🔄 3. Refinement Triage (The Loop-Back)
+### 3. Refinement Triage (The Loop-Back)
 If the EvaluationAgent flags a failure, the Supervisor parses the feedback to determine how far back the system must "rewind."
 ```ascii
 +----------------+-------------------+------------------------+------------------+
@@ -1767,7 +1767,7 @@ If the EvaluationAgent flags a failure, the Supervisor parses the feedback to de
 +----------------+-------------------+------------------------+------------------+
 ```
 
-### 📋 4. Supervisor State Interface (Input/Output)
+### 4. Supervisor State Interface (Input/Output)
 This table defines the read/write permissions for the Supervisor within the global ResearchState.
 ```ascii
 +--------------------+------------+------------+------------------------------------------+
@@ -1780,7 +1780,7 @@ This table defines the read/write permissions for the Supervisor within the glob
 | refinement_retries | int        | Read/Write | Safety Fuse (Hard Limit: 2).             |
 +--------------------+------------+------------+------------------------------------------+
 ```
-### 🛡️ 5. Hub Guardrails: Intent-Based Routing
+### 5. Hub Guardrails: Intent-Based Routing
 The Supervisor acts as the system's "Security Officer" by checking intent before authorizing expensive tool calls.
 ```ascii
 +-----------------+---------------------+------------------------------------------+
@@ -1882,7 +1882,7 @@ flowchart LR
     end
 ```
 
-### 🧠 Why the LLM is Necessary (The "Semantic Bridge")
+### Why the LLM is Necessary (The "Semantic Bridge")
 While Regex handles syntax (the characters), the LLM handles semantics (the meaning). Here are the three critical reasons why the LLM is required for high-quality research:
 
 **1. Entity Disambiguation and Expansion**
@@ -1902,7 +1902,7 @@ Regex can strip the punctuation, but the conversational filler remains.
 
 LLM rewrites the query into the "Formal Language of Science," which aligns with the metadata tagging used by academic publishers.
 
-### 📋 Comparison: Regex vs. LLM
+### Comparison: Regex vs. LLM
 ```ascii
 +-----------------+-----------------------+---------------------------------+
 | FEATURE         | REGEX LAYER (SYNTAX)  | LLM LAYER (SEMANTICS)           |
@@ -2041,7 +2041,7 @@ flowchart TD
 
 ---
 
-# 🧰 Tool Agents (`tool_agents.py`)
+# Tool Agents (`tool_agents.py`)
 <-- [Back](#table)
 
 This module contains all **tool-specific agents** used in the LangGraph workflow. Each agent inherits from `BaseToolAgent` and implements its own retrieval logic while following common guardrails.
@@ -2049,7 +2049,7 @@ This module contains all **tool-specific agents** used in the LangGraph workflow
 ## BaseToolAgent
 <-- [Back](#table)
 
-### 🎯 Purpose
+### Purpose
 
 Abstract base class for all tool agents. Provides:
 
@@ -2058,7 +2058,7 @@ Abstract base class for all tool agents. Provides:
 - Tool key extraction (`_get_tool_key()`)
 - Standardized execution interface (`execute(state)`)
 
-### 📌 Inputs (from ResearchState)
+### Inputs (from ResearchState)
 
 | Field             | Type                        | Description                                       |
 | ----------------- | --------------------------- | ------------------------------------------------- |
@@ -2066,7 +2066,7 @@ Abstract base class for all tool agents. Provides:
 | `tiered_queries`  | `Dict[str, Dict[str, str]]` | Tool-specific queries (strict/moderate/broad)     |
 | `api_search_term` | `str`                       | Used for structured API tools (e.g., Materials)   |
 
-### 📤 Outputs (to ResearchState)
+### Outputs (to ResearchState)
 
 | Field            | Type                   | Description                       |
 | ---------------- | ---------------------- | --------------------------------- |
@@ -2078,35 +2078,35 @@ Abstract base class for all tool agents. Provides:
 ## PubMedAgent
 <-- [Back](#table)
 
-### 🎯 Purpose
+### Purpose
 
 Fetches biomedical literature via PubMed API using tiered queries.
 
-### 🔹 Tiered Search
+### Tiered Search
 
 - Executes queries in order: **strict → moderate → broad**
 - Stops after retrieving relevant results
 - Uses Entrez email for API access
 
-### 🔹 Metadata Fetch & URL Construction
+### Metadata Fetch & URL Construction
 
 - Retrieves abstracts, authors, journal, publication date
 - Constructs canonical PubMed URLs: `https://pubmed.ncbi.nlm.nih.gov/{pmid}/`
 
-### 📌 Inputs
+### Inputs
 
 | Field            | Type                        | Description             |
 | ---------------- | --------------------------- | ----------------------- |
 | `tiered_queries` | `Dict[str, Dict[str, str]]` | PubMed query strings    |
 
-### 📤 Outputs
+### Outputs
 
 | Field           | Type                   | Description                          |
 | --------------- | ---------------------- | ------------------------------------ |
 | `raw_tool_data` | `List[Dict[str, Any]]` | Standardized article metadata + text |
 | `references`    | `List[str]`            | Formatted citations                  |
 
-### 📄 Execution Flow
+### Execution Flow
 
 1. Check `_should_run()`
 2. Execute `_execute_tiered_search()`
@@ -2118,41 +2118,41 @@ Fetches biomedical literature via PubMed API using tiered queries.
 ## ArxivAgent
 <-- [Back](#table)
 
-### 🎯 Purpose
+### Purpose
 
 Fetches preprints from Arxiv and optionally filters by publication time.
 
-### 🔹 Time Constraints
+### Time Constraints
 
 - Filters results based on `TIME_PERIOD` from `system_constraints`
 - Defaults to last
 - 10 years if unspecified
 
-### 🔹 Tiered Search
+### Tiered Search
 
 - Executes queries in order: **strict → moderate → broad**
 - Calls `_call_arxiv_search()` via Arxiv API
 
-### 🔹 Standardization of Results
+### Standardization of Results
 
 - Truncates abstracts to 500 characters
 - Includes metadata: title, authors, published year, PDF URL
 
-### 📌 Inputs
+### Inputs
 
 | Field                 | Type                        | Description             |
 | --------------------- | --------------------------- | ----------------------- |
 | `tiered_queries`      | `Dict[str, Dict[str, str]]` | Arxiv query strings     |
 | `system_constraints`  | `List[str]`                 | Optional time filters   |
 
-### 📤 Outputs
+### Outputs
 
 | Field           | Type                   | Description                        |
 | --------------- | ---------------------- | ---------------------------------- |
 | `raw_tool_data` | `List[Dict[str, Any]]` | Standardized abstracts + metadata  |
 | `references`    | `List[str]`            | Formatted citations                |
 
-### 📄 Execution Flow
+### Execution Flow
 
 1. Check `_should_run()`
 2. Prepare tiered queries
@@ -2165,39 +2165,39 @@ Fetches preprints from Arxiv and optionally filters by publication time.
 ## OpenAlexAgent
 <-- [Back](#table)
 
-### 🎯 Purpose
+### Purpose
 
 Fetches scholarly works from OpenAlex with structured metadata.
 
-### 🔹 API Call & Query Handling
+### API Call & Query Handling
 
 - Calls OpenAlex API using `title.search`
 - Requires `OPENALEX_EMAIL` for API usage
 
-### 🔹 Abstract Reconstruction
+### Abstract Reconstruction
 
 - Handles inverted index abstracts
 - Robustly reconstructs abstracts even if indices are incomplete
 
-### 🔹 Standardization of Results
+### Standardization of Results
 
 - Builds structured dictionaries:
   - `text`, `metadata`, `tool_id`, `openalex_id`
 
-### 📌 Inputs
+### Inputs
 
 | Field            | Type                        | Description                |
 | ---------------- | --------------------------- | -------------------------- |
 | `tiered_queries` | `Dict[str, Dict[str, str]]` | OpenAlex query strings     |
 
-### 📤 Outputs
+### Outputs
 
 | Field           | Type                   | Description                        |
 | --------------- | ---------------------- | ---------------------------------- |
 | `raw_tool_data` | `List[Dict[str, Any]]` | Standardized work metadata + text  |
 | `references`    | `List[str]`            | Formatted citations                |
 
-### 📄 Execution Flow
+### Execution Flow
 
 1. Check `_should_run()`
 2. Retrieve tiered query
@@ -2209,36 +2209,36 @@ Fetches scholarly works from OpenAlex with structured metadata.
 ## MaterialsAgent
 <-- [Back](#table)
 
-### 🎯 Purpose
+### Purpose
 
 Queries the Materials Project API for material properties.
 
-### 🔹 API Query & Validation
+### API Query & Validation
 
 - Uses `MPRester` for API calls
 - Runs only if `api_search_term` is valid
 
-### 🔹 Standardization of Material Data
+### Standardization of Material Data
 
 - Converts raw results to human-readable entries:
   - Stability status
   - Band gap (LaTeX)
   - Energy above hull (LaTeX)
 
-### 📌 Inputs
+### Inputs
 
 | Field            | Type   | Description                  |
 | ---------------- | ------ | ---------------------------- |
 | `api_search_term` | `str` | Target material formula      |
 
-### 📤 Outputs
+### Outputs
 
 | Field           | Type                   | Description                  |
 | --------------- | ---------------------- | ---------------------------- |
 | `raw_tool_data` | `List[Dict[str, Any]]` | Standardized material info   |
 | `references`    | `List[str]`            | Materials Project citations  |
 
-### 📄 Execution Flow
+### Execution Flow
 
 1. Check `_should_run()`
 2. Call `_call_materials_project_api()` with formula
@@ -2250,38 +2250,38 @@ Queries the Materials Project API for material properties.
 ## WebAgent
 <-- [Back](#table)
 
-### 🎯 Purpose
+### Purpose
 
 Performs general web search using DuckDuckGo for supplemental information.
 
-### 🔹 DuckDuckGo Search Integration
+### DuckDuckGo Search Integration
 
 - Uses `DDGS()` client
 - Selects tiered query (simple → broad)
 - Falls back to `semantic_query` if no tool query exists
 
-### 🔹 Standardization of Results
+### Standardization of Results
 
 - Structured dictionaries per result:
   - `text snippet`
   - `url`
   - `source metadata`
 
-### 📌 Inputs
+### Inputs
 
 | Field            | Type   | Description                         |
 | ---------------- | ------ | ----------------------------------- |
 | `tiered_queries` | Dict   | Optional tool-specific queries      |
 | `semantic_query` | str    | Fallback search term                |
 
-### 📤 Outputs
+### Outputs
 
 | Field           | Type                   | Description                 |
 | --------------- | ---------------------- | --------------------------- |
 | `raw_tool_data` | `List[Dict[str, Any]]` | Structured web snippets     |
 | `references`    | `List[str]`            | Web citations               |
 
-### 📄 Execution Flow
+### Execution Flow
 
 1. Check `_should_run()`
 2. Call `_call_ddg_search()`
@@ -2291,22 +2291,22 @@ Performs general web search using DuckDuckGo for supplemental information.
 
 ---
 
-## 📚 Retrieval & RAG Pipeline
+## Retrieval & RAG Pipeline
 <-- [Back](#table)
 
 This project uses a two-stage Retrieval-Augmented Generation (RAG) pipeline designed to be model-agnostic, scalable, and robust to heterogeneous data sources.
 
 The pipeline consists of:
 
-- 📥 **RetrievalAgent** — document downloading, text extraction, and semantic chunking (The bridge between metadata and full text)
+-  **RetrievalAgent** — document downloading, text extraction, and semantic chunking (The bridge between metadata and full text)
   - **PDF Worker:** Identifies pdf_url or PubMed links to download full papers
   - **Semantic Chunking:** Breaks text into overlapping segments, ensuring that a paragraph describing a "Synthesis Method" isn't cut in half
-- 🔎 **RAGAgent** (The filter) — vector search, **contextual expansion**, filtering, and final context assembly
+-  **RAGAgent** (The filter) — vector search, **contextual expansion**, filtering, and final context assembly
   - **Vector DB:** Uses FAISS to index all chunks
   - **Neighbor Expansion:** A standout feature. When a relevant chunk is found, the agent retrieves the chunk immediately before and after it to provide the LLM with the full surrounding context
   - **Keyword Gating:** Filters out academic boilerplate (e.g., "References", "Conflict of Interest") to save token space
 
-### 📥 RetrievalAgent
+### RetrievalAgent
 <-- [Back](#table)
 
 **Purpose:** The RetrievalAgent is responsible for converting raw tool outputs (PDFs, abstracts, snippets) into structured, semantically meaningful text chunks suitable for vector-based retrieval.
@@ -2359,13 +2359,13 @@ This design is safe across OpenAI, Claude, Gemini, and other LLMs.
 - Falls back to abstracts/snippets when full text is unavailable
 - Ensures at least one placeholder chunk exists if retrieval fails
 
-### 🔎 RAGAgent
+### RAGAgent
 <-- [Back](#table)
 
 **The Hybrid Funnel Strategy:**
 Our RAG pipeline employs a two-stage retrieval process to solve the "Precision vs. Scalability" trade-off. While Cosine Similarity (Bi-Encoder) allows us to quickly scan millions of documents to find high-recall candidates, it often retrieves snippets that are "mathematically close" but semantically irrelevant. By adding Cross-Encoder Reranking on top, we introduce a deep neural judge that analyzes the query and document jointly, correcting these errors with high-precision scoring. Furthermore, because semantic search often returns isolated fragments, we utilize Nearest Neighbor Expansion to "re-stitch" the surrounding context. This ensures that the Synthesis Agent receives a complete, coherent narrative—preserving the document's original flow and providing the LLM with the vital evidentiary "before and after" needed for accurate grounding.
 
-**🏗️ Architectural Distinction: Bi-Encoder vs. Cross-Encoder**
+** Architectural Distinction: Bi-Encoder vs. Cross-Encoder**
 The primary difference lies in when and how the query and document interact:
 
 Cosine Similarity (Bi-Encoder): Processes the query and document independently. Each is compressed into a single "meaning vector." Because the model never sees the query and document together during encoding, it relies on surface-level semantic overlap. This is fast and scalable (O(M+N)) but can miss nuances like negations or specific constraints.
@@ -2482,14 +2482,14 @@ flowchart TD
 
 ---
 
-## ✍️ SynthesisAgent
+## SynthesisAgent
 <-- [Back](#table)
 
 The SynthesisAgent is responsible for generating the final scientific research report from the filtered RAG context and structured tool outputs. It supports both initial report generation and refinement rewrites, driven entirely by state flags set earlier in the workflow.
 
 This agent is LLM-driven, state-aware, citation-strict, and refinement-safe.
 
-### 🎯 Purpose
+### Purpose
 
 The SynthesisAgent:
 
@@ -2499,7 +2499,7 @@ The SynthesisAgent:
 - Supports iterative refinement using evaluation feedback
 - Includes context relevance guardrails to prevent garbage-in-garbage-out (GIGO)
 
-### 📌 Inputs (from ResearchState)
+### Inputs (from ResearchState)
 
 | Field               | Type                   | Description                               |
 | ------------------- | ---------------------- | ----------------------------------------- |
@@ -2512,7 +2512,7 @@ The SynthesisAgent:
 | `refinement_reason` | `str`                  | Evaluation feedback                       |
 | `final_report`      | `str`                  | Previous report (for refinement)          |
 
-### 📤 Outputs (written to ResearchState)
+### Outputs (written to ResearchState)
 
 | Field              | Type   | Description                    |
 | ------------------ | ------ | ------------------------------ |
@@ -2522,9 +2522,9 @@ The SynthesisAgent:
 | `needs_refinement` | `bool` | Reset after synthesis          |
 | `next`             | `str`  | Routed back to `evaluation`    |
 
-### 🧩 Internal Responsibilities
+### Internal Responsibilities
 
-#### 1️⃣ Material Data Extraction
+#### 1. Material Data Extraction
 
 ```python
 _extract_material_data()
@@ -2539,7 +2539,7 @@ _extract_material_data()
 
 This drives dynamic report structure selection.
 
-#### 2️⃣ Reference Formatting & Deduplication
+#### 2. Reference Formatting & Deduplication
 
 ```python
 _extract_references()
@@ -2559,7 +2559,7 @@ Ensures:
 - Deduplication
 - Markdown-safe output
 
-#### 3️⃣ Context Relevance Guardrail (Anti-GIGO)
+#### 3. Context Relevance Guardrail (Anti-GIGO)
 
 ```python
 _check_context_relevance()
@@ -2580,7 +2580,7 @@ If NO → the agent:
 
 This prevents meaningless reports.
 
-#### 4️⃣ Dynamic Prompt Construction
+#### 4. Dynamic Prompt Construction
 
 ```python
 _format_prompt()
@@ -2595,7 +2595,7 @@ The prompt is fully dynamic, adapting to:
 | `needs_refinement = True` | Rewrites previous report           |
 | Initial run               | Generates new report               |
 
-#### 5️⃣ Enforced Report Structure
+#### 5. Enforced Report Structure
 
 Every report must contain exactly four sections:
 
@@ -2606,7 +2606,7 @@ Every report must contain exactly four sections:
 - References
 ```
 
-### 🔄 Refinement Mode (Critical Feature)
+### Refinement Mode (Critical Feature)
 
 When `state["needs_refinement"] == True`:
 
@@ -2627,7 +2627,7 @@ Output:
 - A single rewritten final report
 - No commentary or explanation
 
-### 🧪 Execution Flow
+### Execution Flow
 
 ```mermaid
 flowchart TD
@@ -2646,7 +2646,7 @@ flowchart TD
     LLM --> Report
 ```
 
-### 🚦 Failure Handling
+### Failure Handling
 
 | Scenario           | Behavior                     |
 | ------------------ | ---------------------------- |
@@ -2655,7 +2655,7 @@ flowchart TD
 | No retrieved data  | Abort synthesis              |
 | LLM error          | Error state with termination |
 
-### 🧠 Summary
+### Summary
 
 The SynthesisAgent is the final authority in the LangGraph workflow. It converts structured retrieval into a grounded, citation-backed scientific report, while remaining:
 
@@ -2668,19 +2668,19 @@ It ensures the system produces credible research output, not just fluent text.
 
 ---
 
-## 🧪 EvaluationAgent
+## EvaluationAgent
 <-- [Back](#table)
 
 The EvaluationAgent is responsible for assessing the SynthesisAgent's final report against the dynamic execution plan and determining whether refinement is needed. It uses GPT-4 with a structured Pydantic schema to ensure reliable, boolean-based routing in the LangGraph workflow.
 
-### 🎯 Purpose
+### Purpose
 
 - Critically evaluate completeness, relevance, and factual correctness of the generated report
 - Decide if the report requires refinement
 - Provide a structured reason for any required refinements
 - Maintain debug-friendly output for traceability and iterative workflows
 
-### 📌 Inputs (from ResearchState)
+### Inputs (from ResearchState)
 
 | Field            | Type        | Description                                      |
 | ---------------- | ----------- | ------------------------------------------------ |
@@ -2688,7 +2688,7 @@ The EvaluationAgent is responsible for assessing the SynthesisAgent's final repo
 | `execution_plan` | `List[str]` | High-level tasks the report should cover         |
 | `final_report`   | `str`       | Synthesized report from SynthesisAgent           |
 
-### 📤 Outputs (written to ResearchState)
+### Outputs (written to ResearchState)
 
 | Field               | Type   | Description                                                                               |
 | ------------------- | ------ | ----------------------------------------------------------------------------------------- |
@@ -2696,7 +2696,7 @@ The EvaluationAgent is responsible for assessing the SynthesisAgent's final repo
 | `refinement_reason` | `str`  | Specific reason for refinement, or "Report is satisfactory" if no action needed           |
 | `report_generated`  | `bool` | Marks that the report has been evaluated                                                  |
 
-### 🧩 Internal Responsibilities
+### Internal Responsibilities
 
 1. **Prompt Construction** - Build a structured evaluation prompt including the user query, execution plan, and synthesized report
 2. **Structured LLM Invocation** - Use GPT-4 with EvaluationSchema to produce reliable boolean output
@@ -2709,7 +2709,7 @@ The EvaluationAgent is responsible for assessing the SynthesisAgent's final repo
    - Execution plan length and report character count
 5. **Error Handling** - Gracefully fall back to marking the report as complete if the LLM fails
 
-### 📄 Execution Flow
+### Execution Flow
 
 ```mermaid
 flowchart TD
@@ -2743,30 +2743,30 @@ class EvaluationSchema(BaseModel):
 ```
 ---
 
-# 🚀 Main Loop Execution & Management
+# Main Loop Execution & Management
 <-- [Back](#table)
 
 The execution layer is responsible for initializing the environment, defining the starting state, and managing the LangGraph stream. It specifically handles the logic for the Refinement Loop, ensuring that if a report is rejected by the EvaluationAgent, the system re-runs the RAG and Synthesis phases with improved context.
 
-### ⚙️ 1. Session Initialization
+### 1. Session Initialization
 
 Before any agents run, the `initialize_research_session` function prepares the environment:
 
 - **VectorDB Reset:** Calls `vector_db.reset_db()` to ensure that data from previous queries doesn't "pollute" the current research session
 - **Graph Compilation:** Passes the VectorDBWrapper instance into the ResearchGraph class to compile the LangGraph workflow
 
-### 💾 2. The Initial State (The Research Blueprint)
+### 2. The Initial State (The Research Blueprint)
 
 The `initial_state` dictionary is the starting point for the ResearchState. It initializes all 19 keys, providing a structured schema for the agents to populate.
 
 - **Transient Fields:** Fields like `raw_tool_data` and `full_text_chunks` are initialized empty
 - **Refinement Flags:** `is_refining` starts as `False`, signaling to the SupervisorAgent to follow the `clean_query_agent` path
 
-### 🔁 3. The Stream & Refinement Loop
+### 3. The Stream & Refinement Loop
 
 The core of the execution logic is the `research_graph.graph.stream()` loop. This is where the Python execution environment interacts with the LangGraph state machine.
 
-#### 🧪 Refinement Logic (Iteration Management)
+#### Refinement Logic (Iteration Management)
 
 The code implements a **Maximum Iteration Guard** (`max_iterations = 2`). This prevents infinite loops while allowing the system to improve its output once.
 
@@ -2776,18 +2776,18 @@ The code implements a **Maximum Iteration Guard** (`max_iterations = 2`). This p
    - **Routing Override:** It sets `is_refining = True` and forces `next = 'rag_filter'`
    - **Supervisor Hand-off:** When the loop restarts, the SupervisorAgent sees these updated flags and directs the flow back into the RAG pipeline rather than restarting the entire search
 
-#### 🚦 Node Monitoring
+#### Node Monitoring
 
 The stream provides real-time visibility into the agentic workflow. Each successful node execution is printed to the console using color-coded identifiers (`>> [NODE] Executed ...`), allowing for transparent debugging of the multi-agent sequence.
 
-#### 📊 4. Reporting & Output
+#### 4. Reporting & Output
 
 Once the graph reaches `__end__` or the max iterations are hit, the system calculates the total execution time and prints the `final_report`.
 
 - **Dynamic Header:** It identifies if the report is INITIAL or REFINED based on the iteration count
 - **Duration Tracking:** Monitors performance, crucial for optimizing the latency of multi-step RAG pipelines
 
-### ✅ Summary of the Main Logic
+### Summary of the Main Logic
 
 | Component        | Responsibility                                                 |
 | ---------------- | -------------------------------------------------------------- |
@@ -2800,7 +2800,7 @@ Once the graph reaches `__end__` or the max iterations are hit, the system calcu
 
 ---
 <a id ="explainable"></a>
-## ⚖️ Explainable AI (XAI) & Compliance
+## Explainable AI (XAI) & Compliance
 <-- [Back](#table)
 
 This system is engineered with **EU AI Act principles** in mind. To satisfy requirements for high-risk AI transparency, we have upgraded the architecture to provide a **"Glass Box"** view of the decision-making process.
@@ -2808,7 +2808,7 @@ This system is engineered with **EU AI Act principles** in mind. To satisfy requ
 By capturing the full `ResearchState` at every turn, we ensure that **every claim made by the AI can be audited back to its source**, reasoning path, and tool-usage logs.
 
 <a id ="backend-Feature"></a>
-### 🛠️ Backend Feature: The Audit Endpoint
+### Backend Feature: The Audit Endpoint
 <-- [Back](#table)
 **`GET /debug/raw-state/{message_id}`**
 
@@ -2895,7 +2895,7 @@ Host: localhost:8000
 
 ---
 <a id ="frontend-Feature"></a>
-### 🖥️ Frontend Feature: The Observability Console
+### Frontend Feature: The Observability Console
 <-- [Back](#table)
 <img width="1492" height="834" alt="Screenshot 2026-02-16 at 18 47 32" src="https://github.com/user-attachments/assets/1818b107-53ca-451e-99dc-8ddc94ff8984" />
 
@@ -2914,7 +2914,7 @@ Open browser: `http://localhost:8502`
 
 #### Key Modules of the Debug UI
 
-##### 1. 📊 Execution Metrics
+##### 1. Execution Metrics
 
 Real-time visualization of performance data:
 
@@ -2961,13 +2961,13 @@ with col4:
 
 ---
 
-##### 2. 🧭 Trace Analysis (The Execution Path)
+##### 2. Trace Analysis (The Execution Path)
 
 A chronological flow of the agent's logic. By surfacing the `visited_nodes`, we provide a clear map of whether the agent followed the intended **"Planning → Search → Synthesis"** route or took an unexpected detour.
 
 ```python
 # Execution Path Visualization
-st.subheader("🧭 Agent Execution Trace")
+st.subheader(" Agent Execution Trace")
 
 visited_nodes = state.get("visited_nodes", [])
 
@@ -3016,12 +3016,12 @@ graph LR
 
 ---
 
-##### 3. 🧠 Reasoning & Intent Inspection
+##### 3. Reasoning & Intent Inspection
 
 Direct visibility into the `primary_intent` and `execution_plan`. This allows the user to confirm that the AI correctly interpreted the user's query **before any data was retrieved**.
 
 ```python
-st.subheader("🧠 Intent Classification")
+st.subheader(" Intent Classification")
 
 col1, col2 = st.columns(2)
 
@@ -3045,12 +3045,12 @@ with col2:
 
 ---
 
-##### 4. 📚 Source Attribution (Retrieval Tab)
+##### 4. Source Attribution (Retrieval Tab)
 
 In compliance with **"Right to Explanation"** standards, this tab exposes the `raw_tool_data`. Users can see the exact snippets retrieved from PubMed, ArXiv, or OpenAlex **before the LLM summarized them**, allowing for manual verification of facts.
 
 ```python
-st.subheader("📚 Retrieved Sources")
+st.subheader(" Retrieved Sources")
 
 # Group by tool
 tools_used = set([doc["tool_id"] for doc in state["raw_tool_data"]])
@@ -3080,7 +3080,7 @@ for tool in tools_used:
 
 ---
 
-##### 5. 🔎 Full State Search
+##### 5. Full State Search
 
 An advanced key-value search tool that allows users to find specific data points (e.g., a specific citation or constraint) within the massive, nested JSON state.
 
@@ -3110,7 +3110,7 @@ if search_query:
 
 ---
 
-### 🏗️ Technical Architecture of Transparency
+### Technical Architecture of Transparency
 
 ```mermaid
 graph TD
@@ -3156,7 +3156,7 @@ graph TD
 
 ---
 
-### 🔐 Compliance & Governance Features
+### Compliance & Governance Features
 
 | Feature | EU AI Act Article | Implementation | Benefit |
 |---------|-------------------|----------------|---------|
@@ -3169,10 +3169,10 @@ graph TD
 
 ---
 
-### 🖥️ Frontend Feature: The Observability Console
+### Frontend Feature: The Observability Console
 
 <a id ="debug-console"></a>
-### 📋 Debug Console Use Cases
+### Debug Console Use Cases
 <-- [Back](#table)
 
 #### Use Case 1: **Fact-Checking a Research Report**
@@ -3221,17 +3221,17 @@ graph TD
 
 ---
 
-## 📄 License
+## License
 <-- [Back](#table)
 
 MIT License
 
-## 🤝 Contributing
+## Contributing
 <-- [Back](#table)
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 📧 Contact
+## Contact
 <-- [Back](#table)
 
 For questions or feedback, please open an issue on GitHub.
