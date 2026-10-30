@@ -92,6 +92,7 @@ class SupervisorAgent:
     def select_next_agent(self, state: ResearchState) -> str:
         """Determines the next logical node based on state completeness."""
         visited = state.get("visited_nodes", [])
+        retries = state.get("refinement_retries", 0)
 
         # --- A. Setup Phase ---
         if not state.get("semantic_query"): return "clean_query_agent"
@@ -110,18 +111,51 @@ class SupervisorAgent:
         # --- C. Processing & Finalization Phase ---
         if state.get("raw_tool_data") and not state.get("full_text_chunks"):
             return "retrieval_agent"
+        # After a refinement cycle: fetch the documents added by newly run tools.
+        # Bounded: at most one extra retrieval pass per refinement cycle.
+        if (
+            state.get("is_refining")
+            and visited.count("retrieval_agent") <= retries
+            and self._has_unretrieved_data(state)
+        ):
+            return "retrieval_agent"
         if state.get("full_text_chunks") and not state.get("rag_complete"):
             return "rag_agent"
 
         if not state.get("report_generated"): return "synthesis_agent"
 
         if state.get("report_generated") and not state.get("needs_refinement"):
-            if "evaluation_agent" not in visited:
+            # Every synthesis gets evaluated: the first report, and the revised report
+            # produced by each refinement cycle (MAX_REFINEMENT_ATTEMPTS bounds the loop).
+            if visited.count("evaluation_agent") <= retries:
                 return "evaluation_agent"
-            else:
-                return "END"
+            return "END"
 
         return "END"
+
+    @staticmethod
+    def _normalize_url(url):
+        return url.rstrip(".") if url else None
+
+    def _has_unretrieved_data(self, state: ResearchState) -> bool:
+        """True if raw_tool_data holds a document whose content retrieval has not processed yet.
+
+        Mirrors RetrievalAgent: it keys chunks by doc_id (the document URL) and skips
+        Materials Project entries, which have no document to download.
+        """
+        processed = {
+            c.get("doc_id")
+            for c in state.get("full_text_chunks", [])
+            if isinstance(c, dict) and c.get("doc_id")
+        }
+        for entry in state.get("raw_tool_data", []):
+            if entry.get("tool_id") == "materials_search":
+                continue
+            meta = entry.get("metadata") or {}
+            urls = {self._normalize_url(meta.get("pdf_url")), self._normalize_url(meta.get("url"))} - {None}
+            if urls and not (urls & processed):
+                return True
+        return False
 
     def _handle_refinement(self, state: ResearchState) -> ResearchState:
         """Logic to reset state and pivot strategy based on evaluator feedback."""
@@ -164,6 +198,9 @@ class SupervisorAgent:
                     active_tools.append(t)
 
             state["active_tools"] = active_tools
+            # Drop the old queries so query_gen_agent runs again and writes queries for the
+            # newly added tools; otherwise the tool phase would skip them.
+            state["tiered_queries"] = {}
             state["next"] = "planning_agent"
         elif is_pdf_issue:
             state["next"] = "retrieval_agent"

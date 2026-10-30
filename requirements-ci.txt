@@ -1,0 +1,8 @@
+# Minimal dependencies for the fast unit tests (CI "unit-tests" job).
+# The full application stack lives in requirements.txt.
+numpy
+faiss-cpu
+google-genai
+python-dotenv
+pytest
+pytest-asyncio

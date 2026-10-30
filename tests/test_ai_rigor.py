@@ -13,15 +13,20 @@ if root_dir not in sys.path:
 if backend_dir not in sys.path:
     sys.path.append(backend_dir)
 
-# 2. IMPORT: Now we import from the backend package
-from backend.main import initialize_research_session, run_research_query
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_research_integrity_locally():
     """
-    Local Validation: Ensures the LangGraph logic executes and
-    returns a state with verifiable references safely.
+    Live end-to-end check (calls external APIs, needs GEMINI_API_KEY).
+    Ensures the LangGraph logic executes and returns a state with
+    verifiable references. Run with: pytest -m integration -s
     """
+    # 2. IMPORT (lazy): importing the backend pulls in heavy ML dependencies,
+    # so it happens here and not at collection time. This keeps the fast unit
+    # tests runnable without torch or API keys.
+    from backend.main import initialize_research_session, run_research_query
+
     print(f"\n--- Initializing Local Research Session ---")
 
     # Initialize using your main.py logic

@@ -1,4 +1,4 @@
-name: LLMOps CI/CD Quality Gate
+name: CI
 
 on:
   push:
@@ -7,80 +7,83 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+# Least privilege: the jobs only need to read the repository.
+permissions:
+  contents: read
+
+# A newer push to the same branch/PR cancels the run that is still in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  research-validation:
+  # Fast, deterministic tests. No API keys, no network, no torch.
+  unit-tests:
+    name: Unit tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-ci.txt
 
-      # FIX 1: Set up Docker Buildx (Required for advanced registry layer caching)
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-ci.txt
+
+      - name: Run unit tests
+        run: python -m pytest -v
+
+  # Always builds the image so a broken Dockerfile fails the PR.
+  # Only pushes to Docker Hub for pushes to the default branch.
+  docker:
+    name: Docker image
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PUBLISH: ${{ github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Cache Pip Dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-asyncio
-
-      - name: Run Headless AI Audit
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          EMBEDDING_PROVIDER: ${{ secrets.EMBEDDING_PROVIDER }}
-          GPT_5_API_KEY: ${{ secrets.GPT_5_API_KEY }}
-          MP_API_KEY: ${{ secrets.MP_API_KEY }}
-          ENTREZ_EMAIL: "researcher@example.com"
-        run: python -m pytest -s -W ignore tests/test_ai_rigor.py | tee research_audit.log
-
-      - name: Upload AI Research Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ai-reasoning-trace-${{ github.run_id }}
-          path: research_audit.log
-          retention-days: 7
-
       - name: Log in to Docker Hub
-        id: docker_login
-        continue-on-error: true
+        if: env.PUBLISH == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      # Fallback block: If the network drops the first attempt, wait and retry
-      - name: Wait before retry
-        if: steps.docker_login.outcome == 'failure'
-        run: sleep 5
-
-      - name: Retry Login to Docker Hub on Network Failure
-        if: steps.docker_login.outcome == 'failure'
-        uses: docker/login-action@v3
+      - name: Build image (no push)
+        if: env.PUBLISH != 'true'
+        uses: docker/build-push-action@v5
         with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+          context: .
+          push: false
+          tags: research-agent:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      # FIX 2: Added advanced GitHub Actions cache configuration
-      - name: Build and Push Docker Image
+      - name: Build and push image
+        if: env.PUBLISH == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/research-agent:latest
-          cache-from: type=gha                  # Look for cached container layers in GitHub Actions
-          cache-to: type=gha,mode=max           # Export all compiled layers (including requirements) back to cache
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/research-agent:latest
+            ${{ secrets.DOCKER_HUB_USERNAME }}/research-agent:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

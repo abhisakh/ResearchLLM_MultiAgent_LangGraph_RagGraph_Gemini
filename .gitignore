@@ -17,6 +17,14 @@ __pycache__/
 .env.local
 .env.production
 
+# Runtime artifacts (generated at run time, never commit)
+*.db
+*.sqlite3
+*.pkl
+*.faiss
+research_audit.log
+sample_output.log
+
 # OS files
 .DS_Store
 

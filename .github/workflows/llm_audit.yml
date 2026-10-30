@@ -1,0 +1,53 @@
+name: Live LLM audit
+
+# Calls real external APIs (Gemini, PubMed, ArXiv, ...), so it is slower, costs quota,
+# and its output is not deterministic. It therefore runs on demand and once a week,
+# not on every push.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * 1'   # Mondays, 05:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  live-audit:
+    name: End-to-end research audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio
+
+      - name: Run live integration test
+        # "shell: bash" enables pipefail, so a failing pytest fails the step even though
+        # its output is piped through tee.
+        shell: bash
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MP_API_KEY: ${{ secrets.MP_API_KEY }}
+          EMBEDDING_PROVIDER: local
+        run: python -m pytest -m integration -s -W ignore tests/test_ai_rigor.py | tee research_audit.log
+
+      - name: Upload reasoning trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-reasoning-trace-${{ github.run_id }}
+          path: research_audit.log
+          retention-days: 14

@@ -63,7 +63,13 @@ BASE_DIR = Path(__file__).resolve().parent
 
 # 2. Smart Environment Routing Logic
 # Google Cloud Run always automatically injects the 'K_SERVICE' environment variable.
-if os.getenv("K_SERVICE"):
+CHAT_DB_PATH = os.getenv("CHAT_DB_PATH")  # optional explicit override (used by docker-compose)
+
+if CHAT_DB_PATH:
+    print(f"[DB CONFIG] CHAT_DB_PATH set. Using {CHAT_DB_PATH}")
+    os.makedirs(Path(CHAT_DB_PATH).parent, exist_ok=True)
+    DATABASE_URL = f"sqlite:///{CHAT_DB_PATH}"
+elif os.getenv("K_SERVICE"):
     print("[DB CONFIG] Cloud Run environment detected. Routing to Persistent Storage...")
 
     # Define the persistent directory we will mount inside the Cloud Run container

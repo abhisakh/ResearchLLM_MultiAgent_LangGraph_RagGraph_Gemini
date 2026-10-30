@@ -1,39 +1,43 @@
-#version: '3.8'
-
 services:
   # The Research Agent Engine (FastAPI)
   backend:
     build: .
+    image: research-agent:local
     container_name: research_backend_local
-    # FIX: PYTHONPATH allows backend.py to find 'core' and 'agents' modules
     environment:
+      # PYTHONPATH lets backend.py resolve the 'backend.*' package imports
       - PYTHONPATH=/app:/app/backend
-    # We override the Dockerfile CMD to start the API
+      # Chat history lives in a named volume, so a fresh clone needs no pre-existing files
+      - CHAT_DB_PATH=/app/data/chat_history.db
     command: uvicorn backend.backend:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
     volumes:
-      # Persistent SQLite and Vector storage
-      - ./backend/chat_history.db:/app/backend/chat_history.db
-      - ./backend/vector_index.faiss:/app/backend/vector_index.faiss
-      - ./backend/vector_data.pkl:/app/backend/vector_data.pkl
+      - chat_data:/app/data
     env_file:
       - .env
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
-  # The Research Agent UI (Streamlit)
+  # The Research Agent UI (Streamlit). Reuses the image built for the backend.
   frontend:
-    build: .
+    image: research-agent:local
     container_name: research_frontend_local
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     environment:
-      # Internal Docker networking to talk to the backend service
+      # Internal Docker networking to reach the backend service
       - API_BASE_URL=http://backend:8000
     command: streamlit run frontend/ui_main.py --server.port 8501 --server.address 0.0.0.0
     ports:
       - "8501:8501"
-    volumes:
-      # Mapping the DB here ensures the UI can see the same history
-      - ./backend/chat_history.db:/app/backend/chat_history.db
     env_file:
       - .env
+
+volumes:
+  chat_data:

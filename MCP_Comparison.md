@@ -492,5 +492,5 @@ My system could adopt MCP as its underlying communication layer — replacing in
 
 ---
 
-*For the full system architecture, agent breakdown, and LLMOps pipeline, see the sections above in this README.*
+*For the full system architecture, agent breakdown, and LLMOps pipeline, see [`README_Detailed.md`](./README_Detailed.md).*
 <img src="https://cdn-uploads.huggingface.co/production/uploads/noauth/EnXqHTws2zWEJuiNh54oL.webp" />
