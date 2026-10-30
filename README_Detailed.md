@@ -12,6 +12,8 @@
 **Autonomous AI agent for scientific literature discovery with automated reasoning audits.**
 </div>
 
+> **Note:** this is the extended, component-by-component write-up from earlier iterations of the project. Some sections (for example the routing functions, model names and setup details) predate the current hub-and-spoke supervisor and may be out of date. The [root README](./README.md) is the authoritative overview.
+
 ---
 
 ## How This System Relates to MCP (Model Context Protocol)
