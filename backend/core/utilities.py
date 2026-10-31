@@ -2,6 +2,7 @@ import os
 import numpy as np
 import faiss
 import time
+from pathlib import Path
 from google import genai
 from google.genai import types
 from typing import Optional, Any, Union, List
@@ -37,8 +38,18 @@ if EMBEDDING_PROVIDER == "local":
     DIMENSION = 384  # all-MiniLM-L6-v2 fixed dimension
 else:
     DIMENSION = 3072 # Gemini embedding-001 dimension
-VECTOR_INDEX_PATH = "vector_index.faiss"
-VECTOR_DATA_PATH = "vector_data.pkl"
+
+# Where the FAISS index and its pickled metadata live.
+# Defaults to the repository root (same place as before, so nothing moves for existing setups),
+# and no longer depends on the directory the app is started from.
+# Override with VECTOR_DATA_DIR (e.g. a mounted volume in Docker).
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+VECTOR_DATA_DIR = Path(os.getenv("VECTOR_DATA_DIR") or _PROJECT_ROOT).expanduser().resolve()
+VECTOR_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# Kept as str: faiss.read_index / faiss.write_index do not accept Path objects.
+VECTOR_INDEX_PATH = str(VECTOR_DATA_DIR / "vector_index.faiss")
+VECTOR_DATA_PATH = str(VECTOR_DATA_DIR / "vector_data.pkl")
 
 # Entrez Configuration (Required by PubMedAgent)
 ENTREZ_EMAIL = "your.email@example.com" # !!! REPLACE WITH REAL EMAIL !!!
