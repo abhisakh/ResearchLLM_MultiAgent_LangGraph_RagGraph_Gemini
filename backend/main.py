@@ -1,7 +1,7 @@
 import time
 from datetime import datetime
 from typing import Optional
-from backend.core.research_state import ResearchState
+from backend.core.research_state import ResearchState, new_research_state
 from backend.core.vector_db import VectorDBWrapper
 from backend.graph.research_graph import ResearchGraph
 from backend.core.utilities import (
@@ -63,31 +63,7 @@ def run_research_query(research_graph: ResearchGraph, query: str):
     """Executes the research query through the LangGraph state machine."""
 
     # 1. Initialize the starting state (The Graph's Memory)
-    initial_state: ResearchState = {
-        "user_query": query,
-        "semantic_query": "",
-        "primary_intent": "",
-        "reasoning": "",
-        "execution_plan": [],
-        "material_elements": [],
-        "system_constraints": [],
-        "api_search_term": "",
-        "tiered_queries": {},
-        "active_tools": [],
-        "raw_tool_data": [],
-        "full_text_chunks": [],
-        "rag_complete": False,
-        "filtered_context": "",
-        "references": [],
-        "final_report": "",
-        "report_generated": False,
-        "needs_refinement": False,
-        "refinement_reason": "",
-        "is_refining": False,
-        "refinement_retries": 0,
-        "next": "",
-        "visited_nodes": [],
-    }
+    initial_state: ResearchState = new_research_state(query)
 
     print(f"\n{C_ACTION}--- STARTING RESEARCH FOR QUERY: '{query}' ---{C_RESET}")
     start_time = time.time()

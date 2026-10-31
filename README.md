@@ -112,7 +112,7 @@ sequenceDiagram
 | Layer | Technology |
 |---|---|
 | Orchestration | LangGraph |
-| LLM and embeddings | Google Gemini (`google-genai`, `langchain-google-genai`); local `all-MiniLM-L6-v2` embeddings by default |
+| LLM and embeddings | Google Gemini (`google-genai`); local `all-MiniLM-L6-v2` embeddings by default |
 | Retrieval | FAISS, sentence-transformers cross-encoder |
 | Data sources | PubMed, ArXiv, OpenAlex, ChemRxiv, Materials Project, DuckDuckGo |
 | Backend | FastAPI, Uvicorn, SQLAlchemy, SQLite |
@@ -180,7 +180,7 @@ The response contains `id`, `session_id`, `response` (the report), `visited_path
 
 ## Testing and CI
 
-Tests come in two tiers:
+Install the test tools first (`pip install -r requirements-dev.txt`). Tests come in two tiers:
 
 ```bash
 python -m pytest                        # fast unit tests: no API keys, no network (default)

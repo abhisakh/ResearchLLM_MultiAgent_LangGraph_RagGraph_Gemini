@@ -1,47 +1,30 @@
-# --- Core LLM/LangChain Framework ---
-openai>=1.0.0            # OpenAI API integration
-langgraph                # State machine orchestration
-langchain-core           # Core LangChain abstractions
-langchain-community      # Tool/DB implementations (ChromaDB, DDG, etc.)
-langchain_openai         # OpenAI LLM and Embedding wrappers
-langgraph-checkpoint-sqlite
+# Runtime dependencies, pinned to the versions the project was developed and tested with.
+# Test tools live in requirements-dev.txt; the minimal CI set lives in requirements-ci.txt.
 
-# --- Vector Database & Retrieval ---
-faiss-cpu                # For vector storage and similarity search (alternative to Chroma)
-numpy                    # Required by faiss-cpu
-pypdf                    # For PDF parsing (used by RetrievalAgent)
-sentence-transformers   # Cross encoder reranking
-bs4
+# --- Orchestration and LLM ---
+langgraph==1.2.11
+google-genai==2.23.0
+pydantic==2.13.5
 
-# --- Tool Agents (API & Web Search) ---
-arxiv                    # Arxiv Agent
-mp_api                   # Materials Project Agent
-pymatgen                 # For handling and processing material formulas (used by Materials/Planning Agents)
-ddgs                     # DuckDuckGo Search (Used by WebAgent)
-duckduckgo-search        # DuckDuckGo Search (Backup/alternative for WebAgent)
-biopython                # Biopython (Potentially used by PubMed/Procedural Agents - note lowercase package name)
+# --- Retrieval (vector search, reranking, document parsing) ---
+faiss-cpu==1.15.0
+numpy==2.5.3
+sentence-transformers==6.0.1   # also provides the cross-encoder reranker
+pypdf==6.18.1
+beautifulsoup4==4.15.0
+requests==2.34.2
 
-# --- Backend & API ---
-fastapi                  # Web framework for the backend service (if using a separate API)
-uvicorn                  # ASGI server to run FastAPI application
+# --- Data sources used by the tool agents ---
+arxiv==4.0.1
+biopython==1.88                # PubMed via Entrez
+mp-api==0.46.5                 # Materials Project
+ddgs==9.16.0                   # WebAgent (DuckDuckGo search)
 
-# --- Utilities & Structure ---
-pydantic                 # Data validation and structured output (used by EvaluationAgent)
-python-dotenv            # Environment variable management (API keys, etc.)
-requests                 # General HTTP requests
+# --- Backend API and persistence ---
+fastapi==0.141.1
+uvicorn==0.53.0
+SQLAlchemy==2.0.52
+python-dotenv==1.2.3
 
-# --- Visualization & Deployment ---
-streamlit                # User interface framework (for ui_main.py)
-graphviz                 # For visualizing the LangGraph workflow
-
-# --- Database (Optional - Based on SQLAlchemy/Databases) ---
-sqlalchemy               # ORM for persistent data (if needed)
-databases                # Async DB support (if needed for FastAPI)
-
-# ------ Pytest ----------------------
-pytest
-pytest-asyncio
-
-# ------------ Gemini / Google GenAI ----------------------
-google-genai             # Official Google GenAI SDK
-langchain-google-genai   # LangChain integration package for Gemini models
+# --- Frontend ---
+streamlit==1.63.0

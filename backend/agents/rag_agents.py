@@ -337,33 +337,3 @@ def run_rag_test(root_dir: Path, state_input: Optional[ResearchState] = None) ->
 
     save_json_state(updated_state, output_file)
     return updated_state
-
-
-if __name__ == "__main__":
-    project_root = Path(__file__).resolve().parent.parent.parent / "examples" / "sample_outputs"
-
-    print(f"\n{C_MAGENTA}===================================================={C_RESET}")
-    print(f"{C_MAGENTA}      AGENT PIPELINE CLI TEST RUNNER                {C_RESET}")
-    print(f"{C_MAGENTA}===================================================={C_RESET}")
-    print("1: Run Retrieval Agent Test  (Input: level_2_test_input.json)")
-    print("2: Run RAG Agent Test        (Input: level_3_retrieval_output.json)")
-    print("3: Run BOTH sequentially    (Retrieval -> RAG)")
-    print("4: Exit")
-    print(f"{C_MAGENTA}----------------------------------------------------{C_RESET}")
-
-    choice = input("Enter your choice (1-4): ").strip()
-
-    try:
-        if choice == "1":
-            run_retrieval_test(project_root)
-        elif choice == "2":
-            run_rag_test(project_root)
-        elif choice == "3":
-            retrieval_state = run_retrieval_test(project_root)
-            run_rag_test(project_root, state_input=retrieval_state)
-        elif choice == "4":
-            print(f"{C_YELLOW}Exiting without running tests.{C_RESET}")
-        else:
-            print(f"{C_RED}Invalid option selected. Exiting.{C_RESET}")
-    except Exception as e:
-        print(f"\n{C_RED}[TEST FAILED] Error: {e}{C_RESET}")

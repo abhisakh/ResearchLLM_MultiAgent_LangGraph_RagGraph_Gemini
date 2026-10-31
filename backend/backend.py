@@ -10,7 +10,6 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
-from google import genai
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -21,7 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column, declarative_base, sessionmaker
 from dotenv import load_dotenv, find_dotenv
 
 # --- PROJECT SPECIFIC IMPORTS ---
-from backend.core.research_state import ResearchState
+from backend.core.research_state import new_research_state
 from backend.graph.research_graph import ResearchGraph
 from backend.core.vector_db import VectorDBWrapper
 from backend.core.utilities import (
@@ -46,7 +45,6 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     raise ValueError(" >> [FATAL] Missing GEMINI_API_KEY in environment")
 print(f" {C_GREEN}>> [INIT] Environment variables loaded successfully.{C_RESET}")
-client = genai.Client()
 
 # ------------------------------------------------------------------------------
 # SECTION 2: DATABASE SETUP (SQLite)
@@ -256,31 +254,7 @@ async def research_chat(q: Query):
         db_wrapper.reset_db()
         print(f"{C_CYAN} >> [SYSTEM] Vector Database reset.{C_RESET}")
 
-        initial_state: ResearchState = {
-            "user_query": q.message,
-            "semantic_query": "",
-            "primary_intent": "",
-            "reasoning": "",
-            "execution_plan": [],
-            "material_elements": [],
-            "system_constraints": [],
-            "api_search_term": "",
-            "tiered_queries": {},
-            "active_tools": [],
-            "raw_tool_data": [],
-            "full_text_chunks": [],
-            "rag_complete": False,
-            "filtered_context": "",
-            "references": [],
-            "final_report": "",
-            "report_generated": False,
-            "needs_refinement": False,
-            "refinement_reason": "",
-            "is_refining": False,
-            "refinement_retries": 0,
-            "next": "supervisor_agent",
-            "visited_nodes": []
-        }
+        initial_state = new_research_state(q.message)
 
         print(f"{C_MAGENTA} >> [AGENT] Invoking Research Workflow...{C_RESET}")
         result = await asyncio.get_running_loop().run_in_executor(

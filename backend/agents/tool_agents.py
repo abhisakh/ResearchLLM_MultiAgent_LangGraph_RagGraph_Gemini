@@ -8,7 +8,7 @@ from typing import Dict, Any, List, Optional
 # --- Actual External Library Imports ---
 from Bio import Entrez
 from arxiv import Search, SortCriterion, SortOrder, Client as ArxivClient
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 from mp_api.client import MPRester
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
@@ -18,12 +18,10 @@ from urllib3.util import Retry
 from backend.core.research_state import ResearchState
 from backend.core.utilities import (
     C_ACTION, C_RED, C_BLUE, C_YELLOW, C_GREEN, C_RESET,
-    LLM_MODEL, client, MP_API_KEY
+    LLM_MODEL, client, MP_API_KEY, ENTREZ_EMAIL, OPENALEX_EMAIL
 )
 
-# --- Configuration Constants (Required for API agents) ---
-ENTREZ_EMAIL = "your.pubmed.email@example.com"
-OPENALEX_EMAIL = "mailto:your.openalex.email@example.com"
+# ENTREZ_EMAIL and OPENALEX_EMAIL come from .env (see backend/core/utilities.py).
 
 
 # ==================================================================================
@@ -96,9 +94,10 @@ class PubMedAgent(BaseToolAgent):
         super().__init__(agent_id)
         self.min_results = min_results
         self.query_order = ["strict", "moderate", "broad"]
-        Entrez.email = ENTREZ_EMAIL
-        if Entrez.email == "your.pubmed.email@example.com":
-             print(f"{C_RED}[{self.id} WARNING] Entrez email is a placeholder. Set a real email!{C_RESET}")
+        if ENTREZ_EMAIL:
+            Entrez.email = ENTREZ_EMAIL
+        else:
+            print(f"{C_RED}[{self.id} WARNING] ENTREZ_EMAIL is not set in .env. NCBI may throttle or block requests.{C_RESET}")
 
     def _execute_tiered_search(self, tiered_queries: Dict[str, str]) -> List[str]:
         pmids: List[str] = []
@@ -299,14 +298,16 @@ class OpenAlexAgent(BaseToolAgent):
         self.max_results = max_results
         self.base_url = "https://api.openalex.org/works"
         self.email_for_polite_pool = OPENALEX_EMAIL
-        if self.email_for_polite_pool == "mailto:your.openalex.email@example.com":
-             print(f"{C_RED}[{self.id} WARNING] OpenAlex email is a placeholder. Set a real email!{C_RESET}")
+        if not self.email_for_polite_pool:
+            print(f"{C_RED}[{self.id} WARNING] OPENALEX_EMAIL is not set in .env. Requests use the slower common pool.{C_RESET}")
 
     def _call_openalex_api(self, query: str) -> List[Dict[str, Any]]:
         """Handles the HTTP request to the OpenAlex API."""
         try:
             # title.search filter provides high-relevance matches for specific research queries
-            url = f"{self.base_url}?filter=title.search:{query}&per-page={self.max_results}&mailto={self.email_for_polite_pool}"
+            url = f"{self.base_url}?filter=title.search:{query}&per-page={self.max_results}"
+            if self.email_for_polite_pool:
+                url += f"&mailto={self.email_for_polite_pool}"
             r = requests.get(url, timeout=10)
             r.raise_for_status()
             return r.json().get("results", [])
@@ -723,7 +724,7 @@ class SemanticScholarAgent(BaseToolAgent):
         params = {
             "query": clean_query,
             "limit": self.max_results,
-            "fields": "title,abstract,url,openAccessPdf,venue,year,citationCount"
+            "fields": "paperId,title,abstract,url,openAccessPdf,venue,year,citationCount"
         }
 
         headers = {}
@@ -740,125 +741,56 @@ class SemanticScholarAgent(BaseToolAgent):
             print(f"\n{C_RED}[S2 ERROR] Public Tier limit or error: {e}{C_RESET}")
             return []
 
+    def _standardize_s2_results(self, raw_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Converts Semantic Scholar papers into the unified raw_tool_data format."""
+        standardized_list = []
+        for r in raw_results:
+            title = (r.get('title') or '').strip()
+            if not title:
+                continue
+            # S2 often returns abstract=null, and openAccessPdf=null for closed-access papers
+            abstract = (r.get('abstract') or '').strip() or "Abstract unavailable."
+            open_access = r.get('openAccessPdf') or {}
+            page_url = r.get('url')
+            pdf_url = open_access.get('url') or page_url
+
+            standardized_list.append({
+                'text': f"Title: {title}. Abstract: {abstract[:1200]}",
+                'source_type': 'semanticscholar',
+                'tool_id': self.id,
+                'metadata': {
+                    's2_id': r.get('paperId'),
+                    'title': title,
+                    'abstract': abstract,
+                    'venue': r.get('venue'),
+                    'published_year': r.get('year'),
+                    'citation_count': r.get('citationCount'),
+                    'pdf_url': pdf_url,
+                }
+            })
+        return standardized_list
+
     def run_tool_logic(self, state: ResearchState) -> ResearchState:
         print(f"\n{C_ACTION}[{self.id.upper()} START] Searching S2 (Public Tier Mode)...{C_RESET}")
 
-        # Get query logic
+        # Query priority: moderate tier -> strict tier -> the cleaned user query
         queries = state.get('tiered_queries', {}).get('semanticscholar', {})
-        search_query = queries.get('moderate') or state.get('semantic_query')
+        search_query = queries.get('moderate') or queries.get('strict') or state.get('semantic_query')
 
-        # Execution
+        if not search_query or not search_query.strip():
+            print(f"{C_RED}[{self.id.upper()} FAIL] No search query available.{C_RESET}")
+            return state
+
         raw_data = self._call_s2_api(search_query)
+        standardized_data = self._standardize_s2_results(raw_data)
 
-        if raw_data:
-            # ... rest of your standardization logic ...
-            print(f"{C_GREEN}[S2 DONE] Successfully retrieved {len(raw_data)} papers.{C_RESET}")
+        if standardized_data:
+            state.setdefault('raw_tool_data', []).extend(standardized_data)
+            state.setdefault('references', []).extend(
+                f"🔗 Semantic Scholar: {r['metadata']['title']}" for r in standardized_data
+            )
+            print(f"{C_GREEN}[{self.id.upper()} DONE] Added {len(standardized_data)} papers.{C_RESET}")
         else:
-            print(f"{C_YELLOW}[S2 INFO] No results. This is common on Public Tier due to rate limits.{C_RESET}")
+            print(f"{C_YELLOW}[{self.id.upper()} INFO] No results. This is common on Public Tier due to rate limits.{C_RESET}")
 
         return state
-
-# ===========================================================================================================================
-#                                     TESTING BLOCK
-# =============================== CODE DEBUG BLOCK (Updated for system_constraints & State Export) ===============================
-if __name__ == "__main__":
-    import os
-    import json
-    from pathlib import Path
-    from backend.core.research_state import ResearchState
-    from backend.core.utilities import (
-        C_CYAN, C_RESET, C_GREEN, C_YELLOW, C_RED, C_MAGENTA, ENTREZ_EMAIL
-    )
-
-    # --- SETUP & INITIAL CHECKS ---
-    print(f"\n{C_CYAN}*** STARTING TOOL AGENT ISOLATED TESTS (USING INPUT FILE) ***{C_RESET}")
-
-    has_mp_key = bool(os.getenv("MP_API_KEY"))
-    has_entrez_email = (ENTREZ_EMAIL != "your.pubmed.email@example.com")
-
-    if not has_mp_key:
-        print(f"{C_RED}[SETUP FAIL] MP_API_KEY is missing. MaterialsAgent test will fail.{C_RESET}")
-    if not has_entrez_email:
-        print(f"{C_RED}[SETUP FAIL] ENTREZ_EMAIL is a placeholder. PubMedAgent test may be blocked.{C_RESET}")
-
-    # Determine project root and paths
-    current_file_path = Path(__file__).resolve()
-    backend_dir = current_file_path.parent if current_file_path.parent.name == "backend" else current_file_path.parent.parent
-    parent_dir = backend_dir.parent / "examples" / "sample_outputs"
-
-    input_file = parent_dir / "level_1_planning_output.json"
-
-    if not input_file.exists():
-        print(f"{C_RED}[TEST ERROR] Input file 'level_1_planning_output.json' not found in path: {input_file}{C_RESET}")
-        exit(1)
-
-    print(f"{C_YELLOW}[TEST SETUP] Loading state from input file: {input_file}{C_RESET}")
-    with open(input_file, "r", encoding="utf-8") as f:
-        mock_state: ResearchState = json.load(f)
-
-    # Helper function to check state and print results
-    def run_agent_test(agent_instance: Any, state: ResearchState) -> None:
-        agent_id = agent_instance.id
-        tool_key = agent_instance._get_tool_key()
-
-        print(f"\n{C_MAGENTA}--- TESTING {agent_id.upper()} ({tool_key}) ---{C_RESET}")
-
-        if tool_key not in state.get('active_tools', []):
-            print(f"{C_YELLOW}[{agent_id.upper()}] SKIPPING (Not in active_tools list: {state.get('active_tools')}).{C_RESET}")
-            return
-
-        initial_data_count = len(state.get('raw_tool_data', []))
-
-        try:
-            new_state = agent_instance.execute(state)
-        except Exception as e:
-            print(f"{C_RED}[{agent_id.upper()} FAIL] Execution raised exception: {e}{C_RESET}")
-            return
-
-        final_data_count = len(new_state.get('raw_tool_data', []))
-        new_items = final_data_count - initial_data_count
-
-        if new_items > 0:
-            print(f"{C_GREEN}[{agent_id.upper()} SUCCESS] Added {new_items} items to raw_tool_data.{C_RESET}")
-            first_item = new_state['raw_tool_data'][initial_data_count]
-            print(f"{C_YELLOW}[{agent_id.upper()} SNIPPET] Source: {first_item.get('source_type')}")
-            print(f"  Text: {first_item.get('text', '')[:100]}...{C_RESET}")
-        else:
-            print(f"{C_RED}[{agent_id.upper()} WARNING] Did not add any data (Items: {new_items}). Check API key/query/connection.{C_RESET}")
-
-        print("-" * 40)
-
-    # --- EXECUTE TESTS ---
-    # 1. Materials Agent
-    run_agent_test(MaterialsAgent(), mock_state)
-
-    # 2. PubMed Agent
-    run_agent_test(PubMedAgent(), mock_state)
-
-    # 3. ArXiv Agent
-    run_agent_test(ArxivAgent(), mock_state)
-
-    # 4. Web Agent
-    run_agent_test(WebAgent(), mock_state)
-
-    # 5. OpenAlex Agent
-    run_agent_test(OpenAlexAgent(), mock_state)
-
-    # --- FINAL SUMMARY ---
-    total_data = len(mock_state.get('raw_tool_data', []))
-    total_references = len(mock_state.get('references', []))
-    print(f"\n{C_CYAN}*** TOOL AGENT TESTS COMPLETE ***{C_RESET}")
-    print(f"{C_GREEN}[FINAL STATE] Total Raw Data Items Collected: {total_data}{C_RESET}")
-    print(f"{C_GREEN}[FINAL STATE] Total References Collected: {total_references}{C_RESET}")
-
-    # --- SAVE STATE TO PARENT DIRECTORY AS level_2_tool_output.json ---
-    def save_state_to_parent(state_data: dict, filename: str = "level_2_tool_output.json") -> Path:
-        output_file = parent_dir / filename
-
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(state_data, f, indent=4, default=str)
-
-        print(f"\n{C_GREEN}[EXPORT SUCCESS] Saved state output to: {output_file}{C_RESET}")
-        return output_file
-
-    save_state_to_parent(dict(mock_state), filename="level_2_tool_output.json")

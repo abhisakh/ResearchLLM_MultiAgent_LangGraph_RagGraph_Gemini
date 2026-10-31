@@ -18,7 +18,7 @@ class SupervisorAgent:
     """
 
     MAX_REFINEMENT_ATTEMPTS = 2
-    MAX_CONCUTIVE_RETRIES = 5  # <--- Guardrail threshold to step down aggressiveness
+    MAX_CONSECUTIVE_RETRIES = 5  # <--- Guardrail threshold to step down aggressiveness
 
     # Keyword sets for automated refinement triage
     DATA_KEYWORDS = ["missing", "data", "search", "papers", "pubmed", "arxiv", "found", "sources", "literature"]
@@ -76,7 +76,7 @@ class SupervisorAgent:
             time.sleep(backoff_sleep)
 
             # If it's hammered the free tier too many times consecutively, gracefully pivot
-            if current_count >= self.MAX_CONCUTIVE_RETRIES and next_destination == "query_gen_agent":
+            if current_count >= self.MAX_CONSECUTIVE_RETRIES and next_destination == "query_gen_agent":
                 print(f"{C_RED}[{self.id.upper()} BREAK] Rate limit loop unbroken. Injecting blank queries object to escape cycle.{C_RESET}")
                 state["tiered_queries"] = {"fallback": ["General system search overview"]}
                 next_destination = self.select_next_agent(state)
@@ -210,56 +210,3 @@ class SupervisorAgent:
             state["next"] = "synthesis_agent"
 
         return state
-
-
-if __name__ == "__main__":
-    print(f"{C_BLUE}==================================================")
-    print("      RUNNING SUPERVISOR AGENT TEST SUITE         ")
-    print(f"=================================================={C_RESET}")
-
-    project_root = Path(__file__).resolve().parent.parent.parent / "examples" / "sample_outputs"
-
-    # Look for level_6_evaluation_output.json (with fallback for alternative spelling)
-    input_file = project_root / "level_6_evaluation_output.json"
-    if not input_file.exists():
-        fallback_match = project_root / "level_6_evaluation_ouput.json"
-        if fallback_match.exists():
-            input_file = fallback_match
-        else:
-            matches = list(project_root.glob("**/level_6_evaluation_output.json")) + list(project_root.glob("**/level_6_evaluation_ouput.json"))
-            if matches:
-                input_file = matches[0]
-
-    if not input_file.exists():
-        print(f"{C_RED}[TEST ERROR] Input file 'level_6_evaluation_output.json' not found in project root or subdirectories.{C_RESET}")
-    else:
-        print(f"{C_YELLOW}[TEST SETUP] Loading state from input file: {input_file}{C_RESET}")
-
-        try:
-            with open(input_file, "r", encoding="utf-8") as f:
-                test_state = json.load(f)
-
-            agent = SupervisorAgent()
-            updated_state = agent.execute(test_state)
-
-            print(f"\n{C_GREEN}================ SUPERVISOR RESULTS ================{C_RESET}\n")
-            print(f"Next Node Assigned: {updated_state.get('next')}")
-            print(f"\n{C_GREEN}===================================================={C_RESET}")
-
-            output_json_file = project_root / "level_7_supervisor_output.json"
-            output_md_file = project_root / "level_7_supervisor_output.md"
-
-            with open(output_json_file, "w", encoding="utf-8") as f:
-                json.dump(updated_state, f, indent=2, ensure_ascii=False)
-            print(f"{C_GREEN}[SAVED] Updated state written to: {output_json_file}{C_RESET}")
-
-            with open(output_md_file, "w", encoding="utf-8") as f:
-                f.write(f"# Supervisor Agent Routing Report\n\n")
-                f.write(f"- **Next Node**: `{updated_state.get('next')}`\n")
-                f.write(f"- **Visited Nodes**: `{updated_state.get('visited_nodes', [])}`\n")
-            print(f"{C_GREEN}[SAVED] Supervisor summary written to: {output_md_file}{C_RESET}")
-
-            print(f"{C_BLUE}[TEST SUCCESS] Routing completed successfully.{C_RESET}")
-
-        except Exception as err:
-            print(f"{C_RED}[TEST FAILED] Execution raised an exception: {err}{C_RESET}")

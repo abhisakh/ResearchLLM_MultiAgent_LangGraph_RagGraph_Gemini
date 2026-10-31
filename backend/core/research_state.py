@@ -50,3 +50,36 @@ class ResearchState(TypedDict):
 
     # Used for tracking the sequential visited agent
     visited_nodes: List[str]  # Use 'add' to accumulate the path
+
+
+def new_research_state(query: str) -> ResearchState:
+    """
+    The single place that defines what a fresh run looks like.
+    Every entry point (API, CLI, tests) must build its starting state here, so a field
+    added to ResearchState only needs a default added in this one function.
+    """
+    return {
+        "user_query": query,
+        "semantic_query": "",
+        "primary_intent": "",
+        "reasoning": "",
+        "execution_plan": [],
+        "system_constraints": [],
+        "material_elements": [],
+        "api_search_term": "",
+        "tiered_queries": {},
+        "active_tools": [],
+        "raw_tool_data": [],
+        "references": [],
+        "full_text_chunks": [],
+        "rag_complete": False,
+        "is_refining": False,
+        "filtered_context": "",
+        "final_report": "",
+        "report_generated": False,
+        "needs_refinement": False,
+        "refinement_reason": "",
+        "refinement_retries": 0,
+        "next": "supervisor_agent",
+        "visited_nodes": [],
+    }
