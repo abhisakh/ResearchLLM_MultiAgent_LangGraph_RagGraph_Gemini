@@ -3,7 +3,6 @@ import requests
 import json
 from datetime import datetime
 
-#API_BASE_URL = "http://localhost:8000"
 
 import os
 
@@ -196,17 +195,6 @@ with colB:
 
 #--------------------------------------------
 # --- CUSTOM CSS FOR TAB FONT SIZE ---
-#--------------------------------------------
-# st.markdown("""
-#     <style>
-#         /* Target the tab button text */
-#         .stTabs [data-baseweb="tab"] p {
-#             font-size: 25px;
-#             font-weight: 600;
-#             color: #008000;
-#         }
-#     </style>
-# """, unsafe_allow_html=True)
 # --- ENHANCED CSS FOR TAB BOX & PADDING ---
 st.markdown("""
     <style>

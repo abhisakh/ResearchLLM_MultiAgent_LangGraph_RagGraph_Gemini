@@ -340,7 +340,7 @@ def run_rag_test(root_dir: Path, state_input: Optional[ResearchState] = None) ->
 
 
 if __name__ == "__main__":
-    project_root = Path(__file__).resolve().parent.parent
+    project_root = Path(__file__).resolve().parent.parent.parent / "examples" / "sample_outputs"
 
     print(f"\n{C_MAGENTA}===================================================={C_RESET}")
     print(f"{C_MAGENTA}      AGENT PIPELINE CLI TEST RUNNER                {C_RESET}")

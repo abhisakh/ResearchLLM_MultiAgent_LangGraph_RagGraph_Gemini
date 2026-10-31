@@ -784,7 +784,7 @@ if __name__ == "__main__":
     # Determine project root and paths
     current_file_path = Path(__file__).resolve()
     backend_dir = current_file_path.parent if current_file_path.parent.name == "backend" else current_file_path.parent.parent
-    parent_dir = backend_dir
+    parent_dir = backend_dir.parent / "examples" / "sample_outputs"
 
     input_file = parent_dir / "level_1_planning_output.json"
 

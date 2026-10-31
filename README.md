@@ -67,7 +67,7 @@ sequenceDiagram
     A->>D: log the user turn
     A->>A: reset vector index, build initial ResearchState
     A->>W: run_in_executor(graph.invoke)
-    W->>G: supervisor <-> agents (recursion limit 60)
+    W->>G: supervisor and agents loop (recursion limit 60)
     G-->>W: final ResearchState
     W-->>A: result
     A->>D: log agent turn + full state + visited path
