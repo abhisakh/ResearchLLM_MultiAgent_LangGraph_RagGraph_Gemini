@@ -1,14 +1,15 @@
+import logging
 import json
-import re
 from typing import Dict, Any, List, Optional
 from google.genai import types
 
 # Keep package import paths identical to your project setup
 from backend.core.research_state import ResearchState
 from backend.core.utilities import (
-    C_ACTION, C_RESET, C_GREEN, C_YELLOW, C_RED, C_BLUE,
-    client, LLM_MODEL, C_MAGENTA, C_CYAN, generate_content_with_retry
+    client, LLM_MODEL, generate_content_with_retry
 )
+
+logger = logging.getLogger(__name__)
 
 # ==================================================================================================
 # Intent Agent (Section 3)
@@ -51,7 +52,7 @@ class IntentAgent:
         if client is None:
             return None
         try:
-            print(f"{C_BLUE}[{self.id.upper()} ACTION] Classifying intent...{C_RESET}")
+            logger.info(f'[{self.id.upper()} ACTION] Classifying intent...')
             response = generate_content_with_retry(
                 model=self.model,
                 contents=prompt,
@@ -64,14 +65,14 @@ class IntentAgent:
             )
             return json.loads(response.text.strip()) if response.text else None
         except Exception as e:
-            print(f"{C_RED}[{self.id} ERROR] {e}{C_RESET}")
+            logger.error(f'[{self.id} ERROR] {e}')
             return None
 
     def execute(self, state: ResearchState) -> ResearchState:
         # 1. TRACK VISIT
         state.setdefault("visited_nodes", []).append(self.id)
 
-        print(f"\n{C_ACTION}[{self.id.upper()} START] Analyzing query intent...{C_RESET}")
+        logger.info(f'[{self.id.upper()} START] Analyzing query intent...')
         semantic_query = state.get("semantic_query", "")
 
         llm_output = self._call_llm_and_parse(self._format_prompt(semantic_query))
@@ -88,9 +89,9 @@ class IntentAgent:
             state["material_elements"] = []
 
             if primary_intent == "irrelevant":
-                print(f"{C_RED}[{self.id.upper()} REJECT] Out-of-scope query flagged.{C_RESET}")
+                logger.warning(f'[{self.id.upper()} REJECT] Out-of-scope query flagged.')
             else:
-                print(f"{C_YELLOW}[{self.id.upper()} STATE] Intent: **{primary_intent}**{C_RESET}")
+                logger.info(f'[{self.id.upper()} STATE] Intent: **{primary_intent}**')
         else:
             state["primary_intent"] = "general_research"
             state["reasoning"] = "LLM parsing failure; defaulting to research."
@@ -98,7 +99,7 @@ class IntentAgent:
 
         state["next"] = "supervisor_agent"
 
-        print(f"{C_GREEN}[{self.id.upper()} DONE] Returning control to Supervisor.{C_RESET}")
+        logger.info(f'[{self.id.upper()} DONE] Returning control to Supervisor.')
         return state
 
 # ==================================================================================================
@@ -147,7 +148,7 @@ class PlanningAgent:
     def _call_llm_and_parse(self, prompt: str) -> Optional[Dict[str, Any]]:
         if client is None: return None
         try:
-            print(f"{C_BLUE}[{self.id.upper()} ACTION] Planning and Tool Selection...{C_RESET}")
+            logger.info(f'[{self.id.upper()} ACTION] Planning and Tool Selection...')
             response = generate_content_with_retry(
                 model=self.model,
                 contents=prompt,
@@ -160,7 +161,7 @@ class PlanningAgent:
             )
             return json.loads(response.text.strip()) if response.text else None
         except Exception as e:
-            print(f"{C_RED}[{self.id.upper()} ERROR] {e}{C_RESET}")
+            logger.error(f'[{self.id.upper()} ERROR] {e}')
             return None
 
     def execute(self, state: ResearchState) -> ResearchState:
@@ -180,7 +181,7 @@ class PlanningAgent:
         prompt_modifier = ""
 
         if is_refining and refinement_reason:
-            print(f"{C_MAGENTA}[{self.id.upper()} REFINEMENT MODE] Strategy guided by Evaluation feedback.{C_RESET}")
+            logger.info(f'[{self.id.upper()} REFINEMENT MODE] Strategy guided by Evaluation feedback.')
             prompt_modifier = f"""
             **REFINEMENT INSTRUCTION:** The previous attempt failed because: "{refinement_reason}".
             You MUST expand the Tool Selection. Add alternatives to fill the data gaps.
@@ -216,7 +217,7 @@ class PlanningAgent:
 
         state["next"] = "supervisor_agent"
 
-        print(f"{C_GREEN}[{self.id.upper()} DONE] Returning to Supervisor.{C_RESET}")
+        logger.info(f'[{self.id.upper()} DONE] Returning to Supervisor.')
         return state
 
 
@@ -327,12 +328,12 @@ class QueryGenerationAgent:
                 "material_elements": [str(e).strip() for e in data.get('material_elements', []) if e]
             }
         except Exception as e:
-            print(f"{C_RED}[{self.id.upper()} ERROR] LLM Call Failed: {e}{C_RESET}")
+            logger.error(f'[{self.id.upper()} ERROR] LLM Call Failed: {e}')
             return None
 
     def execute(self, state: ResearchState) -> ResearchState:
         state.setdefault("visited_nodes", []).append(self.id)
-        print(f"\n{C_ACTION}[{self.id.upper()} START] Generating tool-specific queries...{C_RESET}")
+        logger.info(f'[{self.id.upper()} START] Generating tool-specific queries...')
 
         semantic_query = state.get("semantic_query", "")
         active_tools = state.get("active_tools", [])
@@ -341,7 +342,7 @@ class QueryGenerationAgent:
         system_constraints_list = state.get("system_constraints", [])
 
         if not active_tools:
-            print(f"{C_RED}[{self.id.upper()} FAIL] No active tools provided. Returning to Hub.{C_RESET}")
+            logger.error(f'[{self.id.upper()} FAIL] No active tools provided. Returning to Hub.')
             state["next"] = "supervisor_agent"
             return state
 
@@ -359,12 +360,12 @@ class QueryGenerationAgent:
             state["api_search_term"] = llm_output["material_elements"][0] if llm_output["material_elements"] else semantic_query
 
             total_q = sum(len(v) for v in state["tiered_queries"].values())
-            print(f"{C_YELLOW}[{self.id.upper()} STATE] {total_q} queries generated for {len(active_tools)} tools.{C_RESET}")
+            logger.info(f'[{self.id.upper()} STATE] {total_q} queries generated for {len(active_tools)} tools.')
         else:
-            print(f"{C_RED}[{self.id.upper()} FAIL] Using fallback. Queries empty.{C_RESET}")
+            logger.error(f'[{self.id.upper()} FAIL] Using fallback. Queries empty.')
             state["tiered_queries"] = {}
 
         state["next"] = "supervisor_agent"
 
-        print(f"{C_GREEN}[{self.id.upper()} DONE] Handing state back to Supervisor Hub.{C_RESET}")
+        logger.info(f'[{self.id.upper()} DONE] Handing state back to Supervisor Hub.')
         return state

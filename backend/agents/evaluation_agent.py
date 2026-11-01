@@ -1,16 +1,15 @@
-import os
+import logging
 import json
-from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import Dict, Any
 from google.genai import types
 
 # --- Synchronized Imports from Synthesis logic ---
 from backend.core.research_state import ResearchState
 from backend.core.utilities import (
-    C_ACTION, C_RESET, C_RED, C_BLUE, C_MAGENTA, C_GREEN,C_YELLOW,
     LLM_MODEL, client
 )
+
+logger = logging.getLogger(__name__)
 
 # ==================================================================================================
 # SECTION 9.A.: EVALUATION AGENT
@@ -35,7 +34,7 @@ class EvaluationAgent:
         # 1. BREADCRUMB TRACKING
         state.setdefault("visited_nodes", []).append(self.id)
 
-        print(f"\n{C_ACTION}[{self.id.upper()} START] Performing quality audit...{C_RESET}")
+        logger.info(f'[{self.id.upper()} START] Performing quality audit...')
 
         if client is None:
             state.update({'needs_refinement': False, 'next': 'supervisor_agent'})
@@ -47,7 +46,7 @@ class EvaluationAgent:
 
         # 2. Guardrail: Empty/Short Report
         if not final_report or len(final_report) < 200:
-            print(f"{C_RED}[{self.id.upper()} ERROR] Content insufficient. Triggering refinement cycle.{C_RESET}")
+            logger.error(f'[{self.id.upper()} ERROR] Content insufficient. Triggering refinement cycle.')
             state.update({
                 'needs_refinement': True,
                 'refinement_reason': "Synthesis produced insufficient or empty content.",
@@ -89,12 +88,12 @@ class EvaluationAgent:
                 'next': 'supervisor_agent'
             })
 
-            color = C_RED if result.needs_refinement else C_GREEN
-            print(f"{color}[{self.id.upper()} RESULT] Needs Refinement: {result.needs_refinement}{C_RESET}")
-            print(f"{color}[{self.id.upper()} REASON] {result.refinement_reason}{C_RESET}")
+            log = logger.warning if result.needs_refinement else logger.info
+            log(f"[{self.id.upper()} RESULT] Needs Refinement: {result.needs_refinement}")
+            log(f"[{self.id.upper()} REASON] {result.refinement_reason}")
 
         except Exception as e:
-            print(f"{C_RED}[{self.id.upper()} ERROR] Evaluation failed: {e}{C_RESET}")
+            logger.error(f'[{self.id.upper()} ERROR] Evaluation failed: {e}')
             state.update({'needs_refinement': False, 'next': 'supervisor_agent'})
 
         return state

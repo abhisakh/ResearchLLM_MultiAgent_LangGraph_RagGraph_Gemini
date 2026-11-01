@@ -1,20 +1,25 @@
+import logging
+import os
 import time
 import re
 import requests
 from io import BytesIO
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 from pypdf import PdfReader
-import json
 from sentence_transformers import CrossEncoder
 from bs4 import BeautifulSoup
-from pathlib import Path
 
 from backend.core.research_state import ResearchState
 from backend.core.vector_db import VectorDBWrapper
 from backend.core.utilities import (
-    C_ACTION, C_RESET, C_GREEN, C_YELLOW, C_RED, C_BLUE, C_MAGENTA, C_PURPLE, C_CYAN,
     client, LLM_MODEL, embedding_model
 )
+
+logger = logging.getLogger(__name__)
+
+# Honest, identifiable User-Agent: site operators can see who is fetching and how to reach the maintainer.
+_CONTACT = os.getenv("ENTREZ_EMAIL") or os.getenv("OPENALEX_EMAIL") or "no-contact-configured"
+USER_AGENT = f"ResearchLLM/1.0 (academic research assistant; mailto:{_CONTACT})"
 
 # ==================================================================================================
 # SECTION 7: RETRIEVAL AGENT (PRODUCTION-GRADE, MODEL-AGNOSTIC)
@@ -32,16 +37,14 @@ class RetrievalAgent:
     def _fetch_content(self, url: str) -> Optional[Dict[str, Any]]:
         try:
             time.sleep(1.5)
-            stealth_headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-                'Referer': 'https://www.google.com/',
-                'Connection': 'keep-alive'
+            headers = {
+                'User-Agent': USER_AGENT,
+                'Accept': 'application/pdf,text/html;q=0.9,*/*;q=0.5',
             }
-            response = requests.get(url, timeout=15, headers=stealth_headers, allow_redirects=True)
+            response = requests.get(url, timeout=15, headers=headers, allow_redirects=True)
 
             if response.status_code == 403:
-                print(f"{C_YELLOW}[{self.id.upper()} WAF] 403 Forbidden on {url[:40]}.{C_RESET}")
+                logger.info(f'[{self.id.upper()} WAF] 403 Forbidden on {url[:40]}.')
                 return None
 
             response.raise_for_status()
@@ -94,7 +97,7 @@ class RetrievalAgent:
 
     def execute(self, state: ResearchState) -> ResearchState:
         state.setdefault("visited_nodes", []).append(self.id)
-        print(f"\n{C_ACTION}[{self.id.upper()} START] Fetching and Processing Content...{C_RESET}")
+        logger.info(f'[{self.id.upper()} START] Fetching and Processing Content...')
 
         existing_chunks = state.get('full_text_chunks', [])
         processed_doc_ids = {chunk['doc_id'] for chunk in existing_chunks if 'doc_id' in chunk}
@@ -113,7 +116,7 @@ class RetrievalAgent:
             if not fetch_result:
                 continue
 
-            print(f"{C_GREEN}[{self.id.upper()} SUCCESS] Downloaded {target_url[:40]}...{C_RESET}")
+            logger.info(f'[{self.id.upper()} SUCCESS] Downloaded {target_url[:40]}...')
 
             text = self._extract_text_from_pdf(fetch_result['data']) if fetch_result['type'] == 'pdf' else self._extract_text_from_html(fetch_result['data'])
             if not text.strip():
@@ -140,7 +143,7 @@ class RetrievalAgent:
 
         state.setdefault('full_text_chunks', []).extend(all_new_chunks)
         state["next"] = "supervisor_agent" # HUB-AND-SPOKE ROUTE
-        print(f"{C_GREEN}[{self.id.upper()} DONE] Retrieval complete.{C_RESET}")
+        logger.info(f'[{self.id.upper()} DONE] Retrieval complete.')
         return state
 
 
@@ -205,20 +208,20 @@ class RAGAgent:
 
     def execute(self, state: ResearchState) -> ResearchState:
         state.setdefault("visited_nodes", []).append(self.id)
-        print(f"\n{C_ACTION}[{self.id.upper()} START] Reranking & Neighbor Expansion...{C_RESET}")
+        logger.info(f'[{self.id.upper()} START] Reranking & Neighbor Expansion...')
 
         chunks_for_db = [c for c in state.get('full_text_chunks', []) if isinstance(c, dict) and c.get('text')]
 
         if client is None or not chunks_for_db:
             state.update({'filtered_context': "No relevant context found.", 'rag_complete': True, 'next': 'supervisor_agent'})
-            print(f"{C_YELLOW}[{self.id.upper()} SKIPPED] No text chunks to process.{C_RESET}")
+            logger.info(f'[{self.id.upper()} SKIPPED] No text chunks to process.')
             return state
 
         query = state.get('semantic_query', '')
         literal_term = state.get('api_search_term', '').lower()
 
         # 1. Vector DB Indexing with embedding model
-        print(f"{C_BLUE}[{self.id.upper()} INDEX] Adding {len(chunks_for_db)} chunks to vector database...{C_RESET}")
+        logger.info(f'[{self.id.upper()} INDEX] Adding {len(chunks_for_db)} chunks to vector database...')
         self.vector_db.add_chunks(chunks_for_db)
 
         # 2. Vector Search using embedding model (Top 30 candidates)
@@ -226,7 +229,7 @@ class RAGAgent:
 
         # 3. Cross-Encoder Reranking
         if top_k_results and query:
-            print(f"{C_PURPLE}[{self.id.upper()} RERANK] Scoring top {len(top_k_results)} candidates...{C_RESET}")
+            logger.info(f'[{self.id.upper()} RERANK] Scoring top {len(top_k_results)} candidates...')
             sentence_pairs = [[query, res[0]['text']] for res in top_k_results]
             scores = self.reranker.predict(sentence_pairs)
             reranked_list = sorted([(top_k_results[i][0], scores[i]) for i in range(len(top_k_results))], key=lambda x: x[1], reverse=True)
@@ -279,61 +282,5 @@ class RAGAgent:
         state['rag_complete'] = True
         state["next"] = "supervisor_agent" # HUB-AND-SPOKE ROUTE
 
-        print(f"{C_GREEN}[{self.id.upper()} DONE] RAG processing complete.{C_RESET}")
+        logger.info(f'[{self.id.upper()} DONE] RAG processing complete.')
         return state
-
-
-# ==================================================================================================
-# INTEGRATED CLI & TEST RUNNER
-# ==================================================================================================
-
-def load_json_state(filepath: Path) -> ResearchState:
-    """Helper to safely read state JSON files."""
-    if not filepath.exists():
-        raise FileNotFoundError(f"{C_RED}[FILE NOT FOUND] {filepath}{C_RESET}")
-    with open(filepath, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    print(f"{C_GREEN}[LOAD SUCCESS] Loaded {filepath.name}{C_RESET}")
-    return data
-
-def save_json_state(state: ResearchState, filepath: Path):
-    """Helper to write updated state back out to JSON."""
-    with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(state, f, indent=2, ensure_ascii=False)
-    print(f"{C_GREEN}[SAVE SUCCESS] State output written to {filepath.name}{C_RESET}")
-
-def run_retrieval_test(root_dir: Path) -> ResearchState:
-    """Runs RetrievalAgent using level_2_test_input.json."""
-    print(f"\n{C_CYAN}=== RUNNING TEST 1: RETRIEVAL AGENT ==={C_RESET}")
-    input_file = root_dir / "level_2_test_input.json"
-    output_file = root_dir / "level_3_retrieval_output.json"
-
-    state = load_json_state(input_file)
-    agent = RetrievalAgent()
-    updated_state = agent.execute(state)
-
-    chunks_count = len(updated_state.get("full_text_chunks", []))
-    print(f"{C_CYAN}[RETRIEVAL RESULT] Extracted {chunks_count} total text chunks.{C_RESET}")
-
-    save_json_state(updated_state, output_file)
-    return updated_state
-
-def run_rag_test(root_dir: Path, state_input: Optional[ResearchState] = None) -> ResearchState:
-    """Runs RAGAgent using loaded state or reading from saved output JSON."""
-    print(f"\n{C_CYAN}=== RUNNING TEST 2: RAG AGENT ==={C_RESET}")
-    output_file = root_dir / "level_4_rag_output.json"
-
-    if state_input is None:
-        primary = root_dir / "level_3_retrieval_output.json"
-        fallback = root_dir / "level_2_test_input.json"
-        target = primary if primary.exists() else fallback
-        state_input = load_json_state(target)
-
-    agent = RAGAgent()
-    updated_state = agent.execute(state_input)
-
-    context = updated_state.get("filtered_context", "")
-    print(f"{C_CYAN}[RAG RESULT] Filtered Context Length: {len(context)} characters.{C_RESET}")
-
-    save_json_state(updated_state, output_file)
-    return updated_state

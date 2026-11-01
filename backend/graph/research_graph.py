@@ -1,9 +1,9 @@
+import logging
 from langgraph.graph import StateGraph, END
 from typing import Optional
 
 from backend.core.research_state import ResearchState
 from backend.core.vector_db import VectorDBWrapper
-from backend.core.utilities import C_CYAN, C_RESET, C_MAGENTA
 
 # --- 1. Import Agents ---
 from backend.agents.procedural_agents import CleanQueryAgent
@@ -14,6 +14,8 @@ from backend.agents.synthesis_agent import SynthesisAgent
 from backend.agents.evaluation_agent import EvaluationAgent
 from backend.agents.supervisor_agent import SupervisorAgent # <-- NEW
 
+logger = logging.getLogger(__name__)
+
 # --- 2. Define Conditional Edges (Routers) ---
 # (Routings defined previously remain the same)
 
@@ -21,7 +23,7 @@ from backend.agents.supervisor_agent import SupervisorAgent # <-- NEW
 class ResearchGraph:
     def __init__(self, vector_db: Optional[VectorDBWrapper] = None):
         self.vector_db = vector_db if vector_db is not None else VectorDBWrapper()
-        print(f"{C_CYAN}>> [INIT] Initializing Central Hub Graph with VectorDB.{C_RESET}")
+        logger.info('>> [INIT] Initializing Central Hub Graph with VectorDB.')
         self.graph = self._build_graph()
 
     def _build_graph(self):

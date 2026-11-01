@@ -1,5 +1,4 @@
-import time
-import json
+import logging
 import requests
 import re
 import datetime
@@ -17,9 +16,10 @@ from urllib3.util import Retry
 # Relative imports from the modular structure
 from backend.core.research_state import ResearchState
 from backend.core.utilities import (
-    C_ACTION, C_RED, C_BLUE, C_YELLOW, C_GREEN, C_RESET,
-    LLM_MODEL, client, MP_API_KEY, ENTREZ_EMAIL, OPENALEX_EMAIL
+    MP_API_KEY, ENTREZ_EMAIL, OPENALEX_EMAIL
 )
+
+logger = logging.getLogger(__name__)
 
 # ENTREZ_EMAIL and OPENALEX_EMAIL come from .env (see backend/core/utilities.py).
 
@@ -42,18 +42,18 @@ class BaseToolAgent:
         tool_key = self._get_tool_key()
 
         if tool_key not in state.get('active_tools', []):
-            print(f"{C_YELLOW}[{self.id.upper()}] Skipping (Not in active_tools).{C_RESET}")
+            logger.info(f'[{self.id.upper()}] Skipping (Not in active_tools).')
             return False
 
         if tool_key not in ['materials']:
             if not state.get('tiered_queries', {}).get(tool_key):
-                 print(f"{C_YELLOW}[{self.id.upper()}] Skipping (No queries available).{C_RESET}")
+                 logger.info(f'[{self.id.upper()}] Skipping (No queries available).')
                  return False
 
         if tool_key == 'materials':
             target_formula = state.get('api_search_term')
             if not target_formula or len(target_formula) < 2 or ":" in target_formula:
-                 print(f"{C_YELLOW}[{self.id.upper()}] Skipping (Invalid/Missing api_search_term).{C_RESET}")
+                 logger.info(f'[{self.id.upper()}] Skipping (Invalid/Missing api_search_term).')
                  return False
 
         return True
@@ -97,7 +97,7 @@ class PubMedAgent(BaseToolAgent):
         if ENTREZ_EMAIL:
             Entrez.email = ENTREZ_EMAIL
         else:
-            print(f"{C_RED}[{self.id} WARNING] ENTREZ_EMAIL is not set in .env. NCBI may throttle or block requests.{C_RESET}")
+            logger.warning(f'[{self.id} WARNING] ENTREZ_EMAIL is not set in .env. NCBI may throttle or block requests.')
 
     def _execute_tiered_search(self, tiered_queries: Dict[str, str]) -> List[str]:
         pmids: List[str] = []
@@ -105,7 +105,7 @@ class PubMedAgent(BaseToolAgent):
             current_query = tiered_queries.get(tier)
             if not current_query or not current_query.strip():
                 continue
-            print(f"[{self.id} SEARCH] Trying '{tier}' query: '{current_query[:50]}...'")
+            logger.info(f"[{self.id} SEARCH] Trying '{tier}' query: '{current_query[:50]}...'")
             try:
                 handle = Entrez.esearch(db="pubmed", term=current_query, retmax=self.min_results, sort="relevance")
                 record = Entrez.read(handle)
@@ -114,7 +114,7 @@ class PubMedAgent(BaseToolAgent):
                 if ids:
                     return ids
             except Exception as e:
-                print(f"{C_RED}[{self.id} FAIL] Tier '{tier}' failed: {e}.{C_RESET}")
+                logger.error(f"[{self.id} FAIL] Tier '{tier}' failed: {e}.")
         return []
 
     def _fetch_metadata_for_pmids(self, pmids: List[str]) -> List[Dict[str, Any]]:
@@ -151,7 +151,7 @@ class PubMedAgent(BaseToolAgent):
                     }
                 })
         except Exception as e:
-            print(f"{C_RED}[{self.id} ERROR] Metadata fetch failed: {e}{C_RESET}")
+            logger.error(f'[{self.id} ERROR] Metadata fetch failed: {e}')
             return []
         return metadata_list
 
@@ -161,7 +161,7 @@ class PubMedAgent(BaseToolAgent):
         The actual API interaction logic.
         Bookkeeping and Guardrails are now handled by BaseToolAgent.execute()
         """
-        print(f"\n{C_ACTION}[{self.id.upper()} START] Executing tiered PubMed search...{C_RESET}")
+        logger.info(f'[{self.id.upper()} START] Executing tiered PubMed search...')
 
         # Use helper from BaseToolAgent to get queries
         pubmed_queries = self._get_query_data(state)
@@ -176,9 +176,9 @@ class PubMedAgent(BaseToolAgent):
                 ref_str = f"📄 Journal Article: {r['metadata']['title']}"
                 state.setdefault('references', []).append(ref_str)
 
-            print(f"{C_GREEN}[{self.id.upper()} DONE] Added {len(standardized_data)} PubMed results.{C_RESET}")
+            logger.info(f'[{self.id.upper()} DONE] Added {len(standardized_data)} PubMed results.')
         else:
-            print(f"{C_RED}[{self.id.upper()} WARNING] No relevant results retrieved.{C_RESET}")
+            logger.warning(f'[{self.id.upper()} WARNING] No relevant results retrieved.')
 
         return state
 
@@ -226,7 +226,7 @@ class ArxivAgent(BaseToolAgent):
             for r in self.client_arxiv.results(search):
                 results.append(r)
         except Exception as e:
-            print(f"{C_RED}[{self.id} ERROR] ArXiv API failed: {str(e)}{C_RESET}")
+            logger.error(f'[{self.id} ERROR] ArXiv API failed: {str(e)}')
             return []
         return results
 
@@ -256,7 +256,7 @@ class ArxivAgent(BaseToolAgent):
         Specific ArXiv retrieval logic.
         Note: visited_nodes and _should_run are handled by BaseToolAgent.
         """
-        print(f"\n{C_ACTION}[{self.id.upper()} START] Executing tiered ArXiv search...{C_RESET}")
+        logger.info(f'[{self.id.upper()} START] Executing tiered ArXiv search...')
 
         # 1. Prepare Inputs
         arxiv_queries = self._get_query_data(state)
@@ -264,7 +264,7 @@ class ArxivAgent(BaseToolAgent):
         date_filter = self._calculate_date_filter(time_period) if time_period else ""
 
         if date_filter:
-            print(f"{C_YELLOW}[{self.id} INFO] Applying ArXiv date filter: {date_filter.strip()}{C_RESET}")
+            logger.info(f'[{self.id} INFO] Applying ArXiv date filter: {date_filter.strip()}')
 
         # 2. Tiered Search Loop
         raw_results = []
@@ -273,7 +273,7 @@ class ArxivAgent(BaseToolAgent):
             if current_query and current_query.strip():
                 raw_results = self._call_arxiv_search(current_query, date_filter)
                 if raw_results:
-                    print(f"{C_GREEN}[{self.id} SUCCESS] Found results in '{tier}' tier.{C_RESET}")
+                    logger.info(f"[{self.id} SUCCESS] Found results in '{tier}' tier.")
                     break
 
         # 3. State Update
@@ -285,7 +285,7 @@ class ArxivAgent(BaseToolAgent):
             new_refs = [f"🔗 Arxiv: {r['metadata']['title']}" for r in standardized_data]
             state.setdefault('references', []).extend(new_refs)
 
-            print(f"{C_GREEN}[{self.id.upper()} DONE] Added {len(standardized_data)} ArXiv papers.{C_RESET}")
+            logger.info(f'[{self.id.upper()} DONE] Added {len(standardized_data)} ArXiv papers.')
 
         return state
 
@@ -299,20 +299,29 @@ class OpenAlexAgent(BaseToolAgent):
         self.base_url = "https://api.openalex.org/works"
         self.email_for_polite_pool = OPENALEX_EMAIL
         if not self.email_for_polite_pool:
-            print(f"{C_RED}[{self.id} WARNING] OPENALEX_EMAIL is not set in .env. Requests use the slower common pool.{C_RESET}")
+            logger.warning(f'[{self.id} WARNING] OPENALEX_EMAIL is not set in .env. Requests use the slower common pool.')
 
     def _call_openalex_api(self, query: str) -> List[Dict[str, Any]]:
         """Handles the HTTP request to the OpenAlex API."""
-        try:
+        # OpenAlex treats "," (AND) and "|" (OR) inside a filter as separators, so a query containing
+        # them would be cut into several filters. Replace them with spaces.
+        clean_query = re.sub(r"[,|]", " ", query).strip()
+
+        # params= lets requests URL-encode the value instead of splicing the raw query into the URL.
+        params = {
             # title.search filter provides high-relevance matches for specific research queries
-            url = f"{self.base_url}?filter=title.search:{query}&per-page={self.max_results}"
-            if self.email_for_polite_pool:
-                url += f"&mailto={self.email_for_polite_pool}"
-            r = requests.get(url, timeout=10)
+            "filter": f"title.search:{clean_query}",
+            "per-page": self.max_results,
+        }
+        if self.email_for_polite_pool:
+            params["mailto"] = self.email_for_polite_pool
+
+        try:
+            r = requests.get(self.base_url, params=params, timeout=10)
             r.raise_for_status()
             return r.json().get("results", [])
         except requests.exceptions.RequestException as e:
-            print(f"{C_RED}[{self.id} ERROR] OpenAlex request failed: {e}{C_RESET}")
+            logger.error(f'[{self.id} ERROR] OpenAlex request failed: {e}')
             return []
 
     def _reconstruct_openalex_abstract(self, inverted_index: Dict[str, List[int]]) -> str:
@@ -337,7 +346,7 @@ class OpenAlexAgent(BaseToolAgent):
             return " ".join(word for word in words if word is not None).strip()
 
         except Exception as e:
-            print(f"{C_YELLOW}[{self.id} WARN] Abstract reconstruction failed: {e}{C_RESET}")
+            logger.warning(f'[{self.id} WARN] Abstract reconstruction failed: {e}')
             return "Abstract reconstruction failed."
 
     def _standardize_openalex_results(self, raw_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -356,7 +365,7 @@ class OpenAlexAgent(BaseToolAgent):
                     'openalex_id': r.get('id', 'N/A'),
                     'title': title,
                     # OpenAlex often provides direct landing page or PDF links
-                    'pdf_url': r.get('primary_location', {}).get('landing_page_url')
+                    'pdf_url': (r.get('primary_location') or {}).get('landing_page_url')
                 }
             })
         return standardized_list
@@ -367,13 +376,13 @@ class OpenAlexAgent(BaseToolAgent):
         Specific OpenAlex retrieval logic.
         Breadcrumbs and Guardrails are inherited from BaseToolAgent.
         """
-        print(f"\n{C_ACTION}[{self.id.upper()} START] Retrieving open-access data...{C_RESET}")
+        logger.info(f'[{self.id.upper()} START] Retrieving open-access data...')
 
         # Use helper from BaseToolAgent to get tool-specific queries
         search_query = self._get_query_data(state).get('simple')
 
         if not search_query or not search_query.strip():
-             print(f"{C_RED}[{self.id} FAIL] No search query found in state. Skipping.{C_RESET}")
+             logger.error(f'[{self.id} FAIL] No search query found in state. Skipping.')
              return state
 
         raw_results = self._call_openalex_api(search_query)
@@ -388,7 +397,9 @@ class OpenAlexAgent(BaseToolAgent):
             new_refs = [f"🔗 OpenAlex: {r['metadata']['title']}" for r in standardized_data]
             state.setdefault('references', []).extend(new_refs)
 
-            print(f"{C_GREEN}[{self.id.upper()} DONE] Added {len(standardized_data)} works.{C_RESET}")
+            logger.info(f'[{self.id.upper()} DONE] Added {len(standardized_data)} works.')
+        else:
+            logger.info(f"[{self.id.upper()} INFO] No results for query: '{search_query[:80]}'")
 
         return state
 
@@ -404,7 +415,7 @@ class MaterialsAgent(BaseToolAgent):
     def _call_materials_project_api(self, formula: str, max_results: int) -> List[Dict[str, Any]]:
         """Handles the specialized MPRester client connection and search."""
         if not MP_API_KEY:
-            print(f"{C_RED}[{self.id} ERROR] MP_API_KEY is not set.{C_RESET}")
+            logger.error(f'[{self.id} ERROR] MP_API_KEY is not set.')
             return []
 
         try:
@@ -435,7 +446,7 @@ class MaterialsAgent(BaseToolAgent):
                 return results
 
         except Exception as e:
-            print(f"{C_RED}[{self.id} ERROR] MP API call failed: {type(e).__name__}: {e}{C_RESET}")
+            logger.error(f'[{self.id} ERROR] MP API call failed: {type(e).__name__}: {e}')
             return []
 
     def _standardize_mp_results(self, raw_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -477,7 +488,7 @@ class MaterialsAgent(BaseToolAgent):
         Specific Materials Project retrieval logic.
         Validates target_formula and updates the state with thermodynamic data.
         """
-        print(f"\n{C_ACTION}[{self.id.upper()} START] Retrieving material properties...{C_RESET}")
+        logger.info(f'[{self.id.upper()} START] Retrieving material properties...')
 
         # Retrieve target formula (guaranteed valid by BaseToolAgent._should_run)
         target_formula = state.get('api_search_term')
@@ -498,9 +509,9 @@ class MaterialsAgent(BaseToolAgent):
             ]
             state.setdefault('references', []).extend(new_refs)
 
-            print(f"{C_GREEN}[{self.id.upper()} DONE] Added {len(standardized_data)} entries for {target_formula}.{C_RESET}")
+            logger.info(f'[{self.id.upper()} DONE] Added {len(standardized_data)} entries for {target_formula}.')
         else:
-             print(f"{C_RED}[{self.id.upper()} WARNING] No MP data found for '{target_formula}'.{C_RESET}")
+             logger.warning(f"[{self.id.upper()} WARNING] No MP data found for '{target_formula}'.")
 
         return state
 
@@ -524,7 +535,7 @@ class WebAgent(BaseToolAgent):
             with DDGS() as ddgs:
                 return list(ddgs.text(query, max_results=limit))
         except Exception as e:
-            print(f"{C_RED}[{self.id} ERROR] DDGS search failed: {e}{C_RESET}")
+            logger.error(f'[{self.id} ERROR] DDGS search failed: {e}')
             return []
 
     def _standardize_web_results(self, raw_results: List[Dict[str, str]]) -> List[Dict[str, Any]]:
@@ -562,7 +573,7 @@ class WebAgent(BaseToolAgent):
         Specific Web Search retrieval logic.
         Uses specialized academic-intent queries from the state.
         """
-        print(f"\n{C_ACTION}[{self.id.upper()} START] Retrieving context (Filtered Web Search)...{C_RESET}")
+        logger.info(f'[{self.id.upper()} START] Retrieving context (Filtered Web Search)...')
 
         # 1. Get query (Priority: simple -> broad -> semantic fallback)
         queries = self._get_query_data(state)
@@ -585,11 +596,11 @@ class WebAgent(BaseToolAgent):
                 ]
                 state.setdefault('references', []).extend(new_refs)
 
-                print(f"{C_GREEN}[{self.id.upper()} DONE] Added {len(standardized_results)} relevant web sources.{C_RESET}")
+                logger.info(f'[{self.id.upper()} DONE] Added {len(standardized_results)} relevant web sources.')
             else:
-                print(f"{C_YELLOW}[{self.id} WARN] All results filtered out as non-academic noise.{C_RESET}")
+                logger.warning(f'[{self.id} WARN] All results filtered out as non-academic noise.')
         else:
-            print(f"{C_YELLOW}[{self.id} WARN] No web results found for: '{focused_query[:40]}...'{C_RESET}")
+            logger.warning(f"[{self.id} WARN] No web results found for: '{focused_query[:40]}...'")
 
         return state
 
@@ -628,12 +639,12 @@ class ChemRxivAgent(BaseToolAgent):
 
             # Print specific error message from the server if it fails
             if r.status_code != 200:
-                print(f"{C_RED}[{self.id.upper()} ERROR] API Status {r.status_code}: {r.text}{C_RESET}")
+                logger.error(f'[{self.id.upper()} ERROR] API Status {r.status_code}: {r.text}')
                 return []
 
             return r.json()
         except Exception as e:
-            print(f"{C_RED}[{self.id.upper()} ERROR] API request failed: {e}{C_RESET}")
+            logger.error(f'[{self.id.upper()} ERROR] API request failed: {e}')
             return []
 
     def _standardize_results(self, raw_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -662,14 +673,14 @@ class ChemRxivAgent(BaseToolAgent):
         return standardized
 
     def run_tool_logic(self, state: ResearchState) -> ResearchState:
-        print(f"\n{C_ACTION}[{self.id.upper()} START] Querying ChemRxiv...{C_RESET}")
+        logger.info(f'[{self.id.upper()} START] Querying ChemRxiv...')
 
         # Fallback logic for queries
         queries = state.get('tiered_queries', {}).get('chemrxiv', {})
         search_query = queries.get('simple') or state.get('semantic_query')
 
         if not search_query:
-            print(f"{C_RED}[{self.id.upper()} FAIL] No search query available.{C_RESET}")
+            logger.error(f'[{self.id.upper()} FAIL] No search query available.')
             return state
 
         raw_data = self._call_chemrxiv_api(search_query)
@@ -687,16 +698,16 @@ class ChemRxivAgent(BaseToolAgent):
                 state['references'] = []
             state['references'].extend(new_refs)
 
-            print(f"{C_GREEN}[{self.id.upper()} DONE] Successfully added {len(standardized)} preprints.{C_RESET}")
+            logger.info(f'[{self.id.upper()} DONE] Successfully added {len(standardized)} preprints.')
         else:
-            print(f"{C_YELLOW}[{self.id.upper()} INFO] No results found for query: {search_query}{C_RESET}")
+            logger.info(f'[{self.id.upper()} INFO] No results found for query: {search_query}')
 
         return state
 
 class SemanticScholarAgent(BaseToolAgent):
     """
-    S2 Agent optimized for Public Tier (No API Key).
-    Uses high-latency backoff to survive aggressive rate limits.
+    Semantic Scholar agent. Works without an API key (public tier, heavily rate limited, so it fails
+    fast) and uses S2_API_KEY from .env when present (much higher limits, more patient retries).
     """
     def __init__(self, agent_id: str = "semanticscholar_search", max_results: int = 5):
         super().__init__(agent_id)
@@ -707,14 +718,24 @@ class SemanticScholarAgent(BaseToolAgent):
         self.api_key = os.getenv("S2_API_KEY")
 
         self.session = requests.Session()
-        # Increased backoff_factor to 4 since you are on the Public Tier
-        # This will wait longer between retries: 4s, 8s, 16s...
-        retry_strategy = Retry(
-            total=5,
-            backoff_factor=4,
-            status_forcelist=[429, 500, 502, 503, 504],
-            allowed_methods=["GET"]
-        )
+        # Without an API key the public tier answers most requests with HTTP 429, and waiting minutes
+        # for retries just stalls the whole pipeline: fail fast and let the other tools carry on.
+        # With a key the limits are far looser, so retry more patiently.
+        if self.api_key:
+            retry_strategy = Retry(
+                total=4,
+                backoff_factor=2,
+                status_forcelist=[429, 500, 502, 503, 504],
+                allowed_methods=["GET"]
+            )
+        else:
+            retry_strategy = Retry(
+                total=2,
+                backoff_factor=1,
+                status_forcelist=[429, 500, 502, 503, 504],
+                allowed_methods=["GET"],
+                respect_retry_after_header=False
+            )
         self.session.mount("https://", HTTPAdapter(max_retries=retry_strategy))
 
     def _call_s2_api(self, query: str):
@@ -738,7 +759,7 @@ class SemanticScholarAgent(BaseToolAgent):
             return r.json().get('data', [])
         except Exception as e:
             # This will now catch and report errors without crashing the whole backend
-            print(f"\n{C_RED}[S2 ERROR] Public Tier limit or error: {e}{C_RESET}")
+            logger.error(f'[S2 ERROR] Public Tier limit or error: {e}')
             return []
 
     def _standardize_s2_results(self, raw_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -771,14 +792,14 @@ class SemanticScholarAgent(BaseToolAgent):
         return standardized_list
 
     def run_tool_logic(self, state: ResearchState) -> ResearchState:
-        print(f"\n{C_ACTION}[{self.id.upper()} START] Searching S2 (Public Tier Mode)...{C_RESET}")
+        logger.info(f'[{self.id.upper()} START] Searching S2 (Public Tier Mode)...')
 
         # Query priority: moderate tier -> strict tier -> the cleaned user query
         queries = state.get('tiered_queries', {}).get('semanticscholar', {})
         search_query = queries.get('moderate') or queries.get('strict') or state.get('semantic_query')
 
         if not search_query or not search_query.strip():
-            print(f"{C_RED}[{self.id.upper()} FAIL] No search query available.{C_RESET}")
+            logger.error(f'[{self.id.upper()} FAIL] No search query available.')
             return state
 
         raw_data = self._call_s2_api(search_query)
@@ -789,8 +810,8 @@ class SemanticScholarAgent(BaseToolAgent):
             state.setdefault('references', []).extend(
                 f"🔗 Semantic Scholar: {r['metadata']['title']}" for r in standardized_data
             )
-            print(f"{C_GREEN}[{self.id.upper()} DONE] Added {len(standardized_data)} papers.{C_RESET}")
+            logger.info(f'[{self.id.upper()} DONE] Added {len(standardized_data)} papers.')
         else:
-            print(f"{C_YELLOW}[{self.id.upper()} INFO] No results. This is common on Public Tier due to rate limits.{C_RESET}")
+            logger.info(f'[{self.id.upper()} INFO] No results. This is common on Public Tier due to rate limits.')
 
         return state

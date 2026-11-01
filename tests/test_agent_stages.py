@@ -5,8 +5,6 @@ agent module. They use the JSON files in examples/sample_outputs as realistic in
 """
 import json
 
-import pytest
-
 from backend.agents import evaluation_agent as evaluation_module
 from backend.agents import planning_agents as planning_module
 from backend.agents import procedural_agents as procedural_module

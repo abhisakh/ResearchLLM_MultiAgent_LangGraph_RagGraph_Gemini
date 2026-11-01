@@ -1,11 +1,9 @@
-import os
-import json
+import logging
 import time  # <--- Added for rate-limit throttling
-from pathlib import Path
-from typing import Dict, Any, List
 
 from backend.core.research_state import ResearchState
-from backend.core.utilities import C_ACTION, C_RESET, C_BLUE, C_YELLOW, C_MAGENTA, C_RED, C_CYAN, C_GREEN
+
+logger = logging.getLogger(__name__)
 
 # ==================================================================================================
 # SECTION 1: SUPERVISOR AGENT (PROCEDURAL ROUTER)
@@ -42,7 +40,7 @@ class SupervisorAgent:
         # 1. Breadcrumb Tracking
         state.setdefault("visited_nodes", []).append(self.id)
 
-        print(f"\n{C_CYAN}[{self.id.upper()} HUB] Analyzing state for next dispatch...{C_RESET}")
+        logger.info(f'[{self.id.upper()} HUB] Analyzing state for next dispatch...')
 
         # 2. Guardrail: Out-of-Scope Handling
         # If IntentAgent flagged 'irrelevant', bypass research and go to Synthesis for rejection
@@ -50,7 +48,7 @@ class SupervisorAgent:
             if state.get("report_generated"):
                 state["next"] = "END"
                 return state
-            print(f"{C_RED}[{self.id.upper()} GUARDRAIL] Irrelevant query detected. Routing to Synthesis Agent.{C_RESET}")
+            logger.warning(f'[{self.id.upper()} GUARDRAIL] Irrelevant query detected. Routing to Synthesis Agent.')
             state["next"] = "synthesis_agent"
             return state
 
@@ -72,12 +70,12 @@ class SupervisorAgent:
         if current_count > 1:
             # Exponentially back off: 2s, 4s, 8s, 16s, etc.
             backoff_sleep = min(2 ** current_count, 45)
-            print(f"{C_YELLOW}[{self.id.upper()} THROTTLE] Detected loop on '{next_destination}' (Hit count: {current_count}). Free quota cooling down. Sleeping for {backoff_sleep}s...{C_RESET}")
+            logger.info(f"[{self.id.upper()} THROTTLE] Detected loop on '{next_destination}' (Hit count: {current_count}). Free quota cooling down. Sleeping for {backoff_sleep}s...")
             time.sleep(backoff_sleep)
 
             # If it's hammered the free tier too many times consecutively, gracefully pivot
             if current_count >= self.MAX_CONSECUTIVE_RETRIES and next_destination == "query_gen_agent":
-                print(f"{C_RED}[{self.id.upper()} BREAK] Rate limit loop unbroken. Injecting blank queries object to escape cycle.{C_RESET}")
+                logger.warning(f'[{self.id.upper()} BREAK] Rate limit loop unbroken. Injecting blank queries object to escape cycle.')
                 state["tiered_queries"] = {"fallback": ["General system search overview"]}
                 next_destination = self.select_next_agent(state)
         else:
@@ -86,7 +84,7 @@ class SupervisorAgent:
         # ----------------------------------------------
 
         state["next"] = next_destination
-        print(f"{C_CYAN}[{self.id.upper()} HUB] Next Destination: **{state['next']}**{C_RESET}")
+        logger.info(f'[{self.id.upper()} HUB] Next Destination: **{state['next']}**')
         return state
 
     def select_next_agent(self, state: ResearchState) -> str:
@@ -162,14 +160,14 @@ class SupervisorAgent:
         retries = state.get("refinement_retries", 0)
 
         if retries >= self.MAX_REFINEMENT_ATTEMPTS:
-            print(f"{C_RED}[{self.id.upper()}] Max refinement attempts reached. Terminating.{C_RESET}")
+            logger.warning(f'[{self.id.upper()}] Max refinement attempts reached. Terminating.')
             state["next"] = "END"
             return state
 
         state["refinement_retries"] = retries + 1
         reason = state.get("refinement_reason", "").lower()
 
-        print(f"{C_MAGENTA}[{self.id.upper()} REFINEMENT] Cycle {state['refinement_retries']}: {reason[:100]}...{C_RESET}")
+        logger.info(f'[{self.id.upper()} REFINEMENT] Cycle {state['refinement_retries']}: {reason[:100]}...')
 
         is_data_issue = any(k in reason for k in self.DATA_KEYWORDS)
         is_pdf_issue = any(k in reason for k in self.PDF_KEYWORDS)

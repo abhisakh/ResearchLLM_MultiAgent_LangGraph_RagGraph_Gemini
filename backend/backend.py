@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import uuid
@@ -6,6 +7,7 @@ import json
 import base64
 import asyncio
 from typing import Optional, List, Dict, Any, Union
+from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,37 +16,53 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from sqlalchemy import create_engine, String, Text, DateTime
+from sqlalchemy import create_engine, String, Text, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, declarative_base, sessionmaker
-
-from dotenv import load_dotenv, find_dotenv
 
 # --- PROJECT SPECIFIC IMPORTS ---
 from backend.core.research_state import new_research_state
 from backend.graph.research_graph import ResearchGraph
 from backend.core.vector_db import VectorDBWrapper
-from backend.core.utilities import (
-    C_CYAN, C_RESET, C_ACTION, C_GREEN,
-    C_RED, C_MAGENTA, C_BLUE
-)
+
+logger = logging.getLogger(__name__)
 
 # --- GLOBAL VARIABLES & EXECUTOR CONFIGURATION ---
 executor = ThreadPoolExecutor(max_workers=5)
-app = FastAPI(title="Research Agent API with SQLite Logging")
 
 research_workflow_instance: Optional[ResearchGraph] = None
 db_wrapper: Optional[VectorDBWrapper] = None
 research_agent_app: Any = None
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Builds the vector DB and research graph before the first request; frees the worker threads on shutdown."""
+    global research_workflow_instance, db_wrapper, research_agent_app
+    logger.info('>> [API STARTUP] Initializing Research System...')
+    try:
+        db_wrapper = VectorDBWrapper()
+        db_wrapper.reset_db()
+        research_workflow_instance = ResearchGraph(vector_db=db_wrapper)
+        research_agent_app = research_workflow_instance.graph
+        logger.info('>> [API STARTUP] Initialization successful: Graph compiled and DB ready.')
+    except Exception:
+        logger.exception('>> [FATAL STARTUP ERROR]')
+        raise
+    yield
+    executor.shutdown(wait=False, cancel_futures=True)
+
+
+app = FastAPI(title="Research Agent API with SQLite Logging", lifespan=lifespan)
+
 # ------------------------------------------------------------------------------
 # SECTION 1: MODULE IMPORTS AND CONFIGURATION
 # ------------------------------------------------------------------------------
-print(f" {C_ACTION}>> [INIT] Loading necessary modules and configuration.{C_RESET}")
-load_dotenv(find_dotenv())
+logger.info('>> [INIT] Loading necessary modules and configuration.')
+# .env is loaded in backend/core/utilities.py (imported above), before this line runs.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     raise ValueError(" >> [FATAL] Missing GEMINI_API_KEY in environment")
-print(f" {C_GREEN}>> [INIT] Environment variables loaded successfully.{C_RESET}")
+logger.info('>> [INIT] Environment variables loaded successfully.')
 
 # ------------------------------------------------------------------------------
 # SECTION 2: DATABASE SETUP (SQLite)
@@ -57,11 +75,11 @@ BASE_DIR = Path(__file__).resolve().parent
 CHAT_DB_PATH = os.getenv("CHAT_DB_PATH")  # optional explicit override (used by docker-compose)
 
 if CHAT_DB_PATH:
-    print(f"[DB CONFIG] CHAT_DB_PATH set. Using {CHAT_DB_PATH}")
+    logger.info(f'[DB CONFIG] CHAT_DB_PATH set. Using {CHAT_DB_PATH}')
     os.makedirs(Path(CHAT_DB_PATH).parent, exist_ok=True)
     DATABASE_URL = f"sqlite:///{CHAT_DB_PATH}"
 elif os.getenv("K_SERVICE"):
-    print("[DB CONFIG] Cloud Run environment detected. Routing to Persistent Storage...")
+    logger.info('[DB CONFIG] Cloud Run environment detected. Routing to Persistent Storage...')
 
     # Define the persistent directory we will mount inside the Cloud Run container
     MOUNT_DIR = Path("/mnt/db")
@@ -70,7 +88,7 @@ elif os.getenv("K_SERVICE"):
     os.makedirs(MOUNT_DIR, exist_ok=True)
     DATABASE_URL = f"sqlite:///{MOUNT_DIR / 'chat_history.db'}"
 else:
-    print("[DB CONFIG] Local Laptop or GitHub Actions pipeline detected. Routing to Local SQLite...")
+    logger.info('[DB CONFIG] Local Laptop or GitHub Actions pipeline detected. Routing to Local SQLite...')
     DATABASE_URL = f"sqlite:///{BASE_DIR / 'chat_history.db'}"
 
 # 3. Standard SQLAlchemy Initialization
@@ -95,7 +113,7 @@ class ChatLog(Base):
 
 
 Base.metadata.create_all(bind=engine)
-print(f" {C_GREEN}>> [INIT] Database structure verified/created.{C_RESET}")
+logger.info('>> [INIT] Database structure verified/created.')
 
 # ------------------------------------------------------------------------------
 # SECTION 3: API SETUP AND MODELS
@@ -121,24 +139,6 @@ class ChatEntry(BaseModel):
     tool_used: Optional[str] = None
     raw_data: Optional[Union[str, Dict[str, Any], List[Any]]] = None
     visited_nodes: Optional[List[str]] = None
-
-
-# ------------------------------------------------------------------------------
-# SECTION 3.A: CRITICAL STARTUP INITIALIZATION
-# ------------------------------------------------------------------------------
-@app.on_event("startup")
-async def startup_event():
-    global research_workflow_instance, db_wrapper, research_agent_app
-    print(f" {C_CYAN}>> [API STARTUP] Initializing Research System...{C_RESET}")
-    try:
-        db_wrapper = VectorDBWrapper()
-        db_wrapper.reset_db()
-        research_workflow_instance = ResearchGraph(vector_db=db_wrapper)
-        research_agent_app = research_workflow_instance.graph
-        print(f" {C_GREEN}>> [API STARTUP] Initialization successful: Graph compiled and DB ready.{C_RESET}")
-    except Exception as exc:
-        print(f" {C_RED}>> [FATAL STARTUP ERROR] {traceback.format_exc()}{C_RESET}")
-        raise exc
 
 
 # ------------------------------------------------------------------------------
@@ -171,7 +171,7 @@ def log_to_db(msg_id, session_id, role, message, tool_used=None, raw_data=None, 
         )
         db.commit()
     except Exception as e:
-        print(f"{C_RED} >> [DB ERROR] Stabilization Failed: {e}{C_RESET}")
+        logger.error(f'>> [DB ERROR] Stabilization Failed: {e}')
     finally:
         db.close()
 
@@ -203,12 +203,19 @@ def _cleanse_recursive_state(data: Any) -> Any:
 
 @app.get("/")
 async def home():
-    print(f" {C_ACTION}>> [HOME] Health check called.{C_RESET}")
     return {
         "status": "running",
         "agent_status": "initialized" if research_agent_app else "failed_initialization",
         "storage": "SQLite",
     }
+
+
+@app.get("/health")
+async def health():
+    """Lightweight liveness probe for the Docker healthcheck: 200 only once the research graph is ready."""
+    if not research_agent_app:
+        raise HTTPException(status_code=503, detail="Research system not initialized.")
+    return {"status": "ok"}
 
 
 @app.get("/graph-visualization")
@@ -239,24 +246,24 @@ async def get_graph_visualization():
 
 @app.post("/research-chat")
 async def research_chat(q: Query):
-    if not q.message:
+    if not q.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
     if not research_agent_app or not db_wrapper:
         raise HTTPException(status_code=503, detail="Research system not initialized.")
 
     session_id = q.session_id or str(uuid.uuid4())
     user_msg_id = str(uuid.uuid4())
-    print(f"\n{C_BLUE}>> [CHAT START] Session: {session_id[:8]} | Query: {q.message[:50]}...{C_RESET}")
+    logger.info(f'>> [CHAT START] Session: {session_id[:8]} | Query: {q.message[:50]}...')
 
     log_to_db(msg_id=user_msg_id, session_id=session_id, role="user", message=q.message)
 
     try:
         db_wrapper.reset_db()
-        print(f"{C_CYAN} >> [SYSTEM] Vector Database reset.{C_RESET}")
+        logger.info('>> [SYSTEM] Vector Database reset.')
 
         initial_state = new_research_state(q.message)
 
-        print(f"{C_MAGENTA} >> [AGENT] Invoking Research Workflow...{C_RESET}")
+        logger.info('>> [AGENT] Invoking Research Workflow...')
         result = await asyncio.get_running_loop().run_in_executor(
             executor,
             lambda: research_agent_app.invoke(initial_state, config={"recursion_limit": 60})
@@ -278,7 +285,7 @@ async def research_chat(q: Query):
             raw_data=cleansed_result
         )
 
-        print(f"{C_GREEN} >> [CHAT SUCCESS] Report generated.{C_RESET}")
+        logger.info('>> [CHAT SUCCESS] Report generated.')
 
         return {
             "id": agent_msg_id,
@@ -294,7 +301,7 @@ async def research_chat(q: Query):
     except Exception as e:
         error_trace = traceback.format_exc()
         err_id = str(uuid.uuid4())
-        print(f"{C_RED} >> [AGENT ERROR] {error_trace}{C_RESET}")
+        logger.exception('>> [AGENT ERROR]')
         log_to_db(
             msg_id=err_id,
             session_id=session_id,
@@ -344,7 +351,7 @@ async def get_chat_history(session_id: str):
             )
         return entries
     except Exception as e:
-        print(f" >> [HISTORY ERROR] {traceback.format_exc()}")
+        logger.exception('>> [HISTORY ERROR]')
         raise HTTPException(status_code=500, detail="Database retrieval failed") from e
     finally:
         db.close()
@@ -354,19 +361,32 @@ async def get_chat_history(session_id: str):
 async def list_sessions():
     db = SessionLocal()
     try:
-        session_ids = db.query(ChatLog.session_id).distinct().all()
+        # One query instead of one per session: join every log row with the newest timestamp of its session.
+        newest = (
+            db.query(ChatLog.session_id, func.max(ChatLog.timestamp).label("last_ts"))
+            .group_by(ChatLog.session_id)
+            .subquery()
+        )
+        rows = (
+            db.query(ChatLog)
+            .join(newest, (ChatLog.session_id == newest.c.session_id) & (ChatLog.timestamp == newest.c.last_ts))
+            .order_by(ChatLog.timestamp.desc())
+            .all()
+        )
         session_list = []
-        for (sid,) in session_ids:
-            last_log = db.query(ChatLog).filter(ChatLog.session_id == sid).order_by(ChatLog.timestamp.desc()).first()
-            if last_log:
-                session_list.append({
-                    "session_id": sid,
-                    "last_msg": last_log.message[:100],
-                    "last_ts": last_log.timestamp.isoformat()
-                })
+        seen = set()
+        for last_log in rows:
+            if last_log.session_id in seen:  # two rows can share the exact same timestamp
+                continue
+            seen.add(last_log.session_id)
+            session_list.append({
+                "session_id": last_log.session_id,
+                "last_msg": last_log.message[:100],
+                "last_ts": last_log.timestamp.isoformat()
+            })
         return session_list
     except Exception as e:
-        print(f" >> [LIST SESSIONS ERROR] {traceback.format_exc()}")
+        logger.exception('>> [LIST SESSIONS ERROR]')
         raise HTTPException(status_code=500, detail="Error fetching session list") from e
     finally:
         db.close()
@@ -385,7 +405,7 @@ async def get_raw_state(message_id: str):
             raise HTTPException(status_code=404, detail="Message not found")
 
         if not log.raw_data:
-            return {"raw_data": None}
+            return {"id": log.id, "session_id": log.session_id, "raw_state": None}
 
         try:
             parsed = json.loads(log.raw_data)

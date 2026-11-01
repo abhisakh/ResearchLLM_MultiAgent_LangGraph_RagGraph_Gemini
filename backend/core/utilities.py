@@ -1,26 +1,27 @@
+import logging
 import os
 import numpy as np
-import faiss
 import time
 from pathlib import Path
 from google import genai
 from google.genai import types
-from typing import Optional, Any, Union, List
-from dotenv import load_dotenv, find_dotenv
+from typing import Optional
+from dotenv import load_dotenv
 
-# Load Environment Variables
-load_dotenv(find_dotenv())
+from .logging_config import setup_logging
 
-# --- ANSI Color Codes ---
-C_RESET = "\033[0m"
-C_RED = "\033[91m"
-C_GREEN = "\033[92m"  # Success/Done
-C_YELLOW = "\033[93m" # Data flow/State update/DEBUG
-C_BLUE = "\033[94m"  # Agent Info
-C_MAGENTA = "\033[95m" # Router/Supervisor
-C_CYAN = "\033[96m"  # Initialization/Setup
-C_ACTION = "\033[38;5;208m" # Action/Start
-C_PURPLE = "\033[95m"  # Reranking / Special Logic
+logger = logging.getLogger(__name__)
+
+# Repository root (this file is backend/core/utilities.py, so two levels up).
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+# Load <repo root>/.env explicitly, so it does not matter which folder the app is started from.
+# In Docker there is no .env file (the variables come from the container environment) and a
+# missing file is simply ignored. Variables already set in the environment are never overridden.
+load_dotenv(_PROJECT_ROOT / ".env")
+
+# Configure logging right after .env is loaded (LOG_LEVEL lives there) and before anything logs.
+setup_logging()
 
 # --- Global Configuration Constants ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -44,7 +45,6 @@ else:
 # Defaults to the repository root (same place as before, so nothing moves for existing setups),
 # and no longer depends on the directory the app is started from.
 # Override with VECTOR_DATA_DIR (e.g. a mounted volume in Docker).
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
 VECTOR_DATA_DIR = Path(os.getenv("VECTOR_DATA_DIR") or _PROJECT_ROOT).expanduser().resolve()
 VECTOR_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -62,11 +62,11 @@ client: Optional[genai.Client] = None
 if GEMINI_API_KEY:
     try:
         client = genai.Client()
-        print(f"{C_CYAN} >> [INIT] Gemini client initialized successfully.{C_RESET}")
+        logger.info('>> [INIT] Gemini client initialized successfully.')
     except Exception:
-        print(f"{C_RED} >> [FATAL] Failed to initialize Gemini client despite finding key.{C_RESET}")
+        logger.error('>> [FATAL] Failed to initialize Gemini client despite finding key.')
 else:
-    print(f"{C_RED} >> [FATAL] GEMINI_API_KEY not found. LLM/Tool Agents will fail.{C_RESET}")
+    logger.error('>> [FATAL] GEMINI_API_KEY not found. LLM/Tool Agents will fail.')
 
 
 # ----------- Retry logic (single implementation, shared by LLM and embedding calls) -----------
@@ -89,7 +89,7 @@ def call_with_retry(fn, *, max_retries: int = 5, initial_delay: float = 2.0, lab
                 raise
             if attempt == max_retries:
                 break
-            print(f"{C_YELLOW}[RATE LIMIT] Hit 429 limit on {label}. Retrying in {delay}s... (Attempt {attempt}/{max_retries}){C_RESET}")
+            logger.info(f'[RATE LIMIT] Hit 429 limit on {label}. Retrying in {delay}s... (Attempt {attempt}/{max_retries})')
             time.sleep(delay)
             delay *= 2
     raise RuntimeError(f"Max retries exceeded for {label} due to rate limits.")
@@ -143,12 +143,12 @@ def get_embedding(text: str) -> np.ndarray:
         try:
             vec = _get_local_model().encode(text, convert_to_numpy=True).astype(np.float32)
         except Exception as e:
-            print(f"{C_RED}[LOCAL EMBEDDING ERROR] {e}{C_RESET}")
+            logger.error(f'[LOCAL EMBEDDING ERROR] {e}')
             return zero
         return _normalize(vec)
 
     if client is None:
-        print(f"{C_RED}[EMBEDDING ERROR] Gemini client not initialized.{C_RESET}")
+        logger.error('[EMBEDDING ERROR] Gemini client not initialized.')
         return zero
 
     try:
@@ -162,7 +162,7 @@ def get_embedding(text: str) -> np.ndarray:
         )
         vec = np.array(response.embeddings[0].values, dtype=np.float32)
     except Exception as e:
-        print(f"{C_RED}[EMBEDDING ERROR] {e}{C_RESET}")
+        logger.error(f'[EMBEDDING ERROR] {e}')
         return zero
     return _normalize(vec)
 

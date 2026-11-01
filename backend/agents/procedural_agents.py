@@ -1,12 +1,12 @@
+import logging
 import re
-import json
-from pathlib import Path
-from typing import Any
 from google.genai import types
 from backend.core.research_state import ResearchState
 from backend.core.utilities import (
-    C_ACTION, C_RESET, C_GREEN, C_YELLOW, C_RED, client, LLM_MODEL, generate_content_with_retry
+    client, LLM_MODEL, generate_content_with_retry
 )
+
+logger = logging.getLogger(__name__)
 
 class CleanQueryAgent:
     """
@@ -27,7 +27,7 @@ class CleanQueryAgent:
             state["next"] = "supervisor_agent"
             return state
 
-        print(f"\n{C_ACTION}[{self.id.upper()} START] Cleaning initial query: '{user_query[:60]}...'{C_RESET}")
+        logger.info(f"[{self.id.upper()} START] Cleaning initial query: '{user_query[:60]}...'")
 
         # 2. ROBUST CLEANING (Preserve chemical dashes/dots)
         cleaned_query = " ".join(user_query.split())
@@ -41,7 +41,7 @@ class CleanQueryAgent:
         state["semantic_query"] = semantic_query
         state["next"] = "supervisor_agent" # HUB ROUTE
 
-        print(f"{C_YELLOW}[{self.id.upper()} STATE] Updated semantic_query: **'{semantic_query}'** {C_RESET}")
+        logger.info(f"[{self.id.upper()} STATE] Updated semantic_query: **'{semantic_query}'**")
         return state
 
     def generate_semantic_query(self, query: str) -> str:
@@ -72,5 +72,5 @@ class CleanQueryAgent:
             )
             return response.text.strip() if response.text else query
         except Exception as e:
-            print(f"{C_RED}[{self.id.upper()} ERROR] Gemini generation failed: {e}{C_RESET}")
+            logger.error(f'[{self.id.upper()} ERROR] Gemini generation failed: {e}')
             return query

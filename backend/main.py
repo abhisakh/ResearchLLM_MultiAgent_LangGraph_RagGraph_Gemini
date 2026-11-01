@@ -1,13 +1,11 @@
+import logging
 import time
-from datetime import datetime
 from typing import Optional
 from backend.core.research_state import ResearchState, new_research_state
 from backend.core.vector_db import VectorDBWrapper
 from backend.graph.research_graph import ResearchGraph
-from backend.core.utilities import (
-    C_CYAN, C_RESET, C_ACTION, C_GREEN,
-    C_RED, C_MAGENTA, C_YELLOW
-)
+
+logger = logging.getLogger(__name__)
 
 # ==================================================================================================
 # SECTION: UTILITIES & INITIALIZATION
@@ -15,7 +13,7 @@ from backend.core.utilities import (
 
 def initialize_research_session() -> ResearchGraph:
     """Initializes the VectorDB and the LangGraph workflow."""
-    print(f"{C_CYAN}*** RESEARCH AGENT SYSTEM INITIALIZATION ***{C_RESET}")
+    logger.info("*** RESEARCH AGENT SYSTEM INITIALIZATION ***")
 
     # Initialize the database and ensure it's clean for a new session
     vector_db = VectorDBWrapper()
@@ -24,7 +22,7 @@ def initialize_research_session() -> ResearchGraph:
     # Build the graph, passing the DB instance
     research_graph = ResearchGraph(vector_db=vector_db)
 
-    print(f"{C_GREEN}*** INITIALIZATION COMPLETE ***{C_RESET}")
+    logger.info("*** INITIALIZATION COMPLETE ***")
     return research_graph
 
 def print_mermaid_code(compiled_graph, final_state: Optional[ResearchState] = None):
@@ -53,7 +51,7 @@ def print_mermaid_code(compiled_graph, final_state: Optional[ResearchState] = No
         print(mermaid_code)
         print("\n" + "="*60)
     except Exception as e:
-        print(f"{C_RED}Error generating Mermaid code: {e}{C_RESET}")
+        logger.error(f"Error generating Mermaid code: {e}")
 
 # ==================================================================================================
 # SECTION: CORE EXECUTION
@@ -65,7 +63,7 @@ def run_research_query(research_graph: ResearchGraph, query: str):
     # 1. Initialize the starting state (The Graph's Memory)
     initial_state: ResearchState = new_research_state(query)
 
-    print(f"\n{C_ACTION}--- STARTING RESEARCH FOR QUERY: '{query}' ---{C_RESET}")
+    logger.info(f"--- STARTING RESEARCH FOR QUERY: '{query}' ---")
     start_time = time.time()
     final_state = initial_state
 
@@ -82,31 +80,31 @@ def run_research_query(research_graph: ResearchGraph, query: str):
                 if node_name != "__end__":
                     # Visual feedback for the refinement loop
                     if node_name == "supervisor_agent" and final_state.get('is_refining'):
-                         print(f"{C_YELLOW}>> [SYSTEM] Supervisor triggering refinement cycle...{C_RESET}")
+                        logger.info(">> [SYSTEM] Supervisor triggering refinement cycle...")
 
-                    print(f"{C_MAGENTA}>> [NODE] Executed {node_name} successfully.{C_RESET}")
+                    logger.info(f">> [NODE] Executed {node_name} successfully.")
 
     except Exception as e:
-        print(f"{C_RED}>> [CRITICAL ERROR] Graph execution failed: {e}{C_RESET}")
+        logger.error(f">> [CRITICAL ERROR] Graph execution failed: {e}")
 
     duration = time.time() - start_time
 
-    # 3. OUTPUT GENERATION
+    # 3. OUTPUT GENERATION (this is the program's result, so it is printed, not logged)
     is_refined = final_state.get('refinement_retries', 0) > 0
 
-    print(f"\n{C_GREEN}==================================================================={C_RESET}")
-    print(f"{C_GREEN}*** FINAL RESEARCH REPORT ({'REFINED' if is_refined else 'INITIAL'}) ***{C_RESET}")
-    print(f"{C_GREEN}Execution Time: {duration:.2f} seconds{C_RESET}")
-    print(f"{C_GREEN}==================================================================={C_RESET}")
+    print("\n" + "=" * 67)
+    print(f"*** FINAL RESEARCH REPORT ({'REFINED' if is_refined else 'INITIAL'}) ***")
+    print(f"Execution Time: {duration:.2f} seconds")
+    print("=" * 67)
 
     # Display the report or the error message
     report = final_state.get("final_report")
     if report:
         print(report)
     else:
-        print(f"{C_RED}ERROR: The system failed to generate a final report.{C_RESET}")
+        logger.error("The system failed to generate a final report.")
 
-    print(f"\n{C_GREEN}==================================================================={C_RESET}")
+    print("\n" + "=" * 67)
 
     # 4. VISUAL AUDIT TRAIL
     # Crucially pass the final_state here to enable green highlighting of the path taken

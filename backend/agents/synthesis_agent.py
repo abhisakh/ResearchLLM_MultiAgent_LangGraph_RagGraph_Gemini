@@ -1,17 +1,14 @@
-import json
-import os
-import glob
+import logging
 import re
-from pathlib import Path
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, Tuple
 from google.genai import types
 
 # Relative imports from the modular structure
-from backend.core.research_state import ResearchState
 from backend.core.utilities import (
-    C_ACTION, C_RESET, C_GREEN, C_YELLOW, C_RED, C_BLUE,
     client, LLM_MODEL
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SynthesisAgent:
@@ -167,13 +164,13 @@ class SynthesisAgent:
 
         # Intent Guardrail
         if state.get("primary_intent") == "irrelevant":
-            print(f"{C_RED}[SYNTHESIS] Rejecting irrelevant query.{C_RESET}")
+            logger.warning('[SYNTHESIS] Rejecting irrelevant query.')
             state['final_report'] = "Query rejected based on scope."
             state['report_generated'] = True
             state['next'] = 'supervisor_agent'
             return state
 
-        print(f"\n{C_ACTION}[SYNTHESIS START] Writing report with clickable links via Gemini...{C_RESET}")
+        logger.info('[SYNTHESIS START] Writing report with clickable links via Gemini...')
         prompt = self._format_prompt(state)
 
         try:
@@ -193,9 +190,9 @@ class SynthesisAgent:
             # Post-process to fix citation order and verify links
             state['final_report'] = self._reorder_citations(raw_report)
             state['report_generated'] = True
-            print(f"{C_GREEN}[SYNTHESIS DONE] Report generated successfully.{C_RESET}")
+            logger.info('[SYNTHESIS DONE] Report generated successfully.')
         except Exception as e:
-            print(f"{C_RED}[SYNTHESIS ERROR] {e}{C_RESET}")
+            logger.error(f'[SYNTHESIS ERROR] {e}')
             state['final_report'] = "Error generating report."
 
         state['next'] = 'supervisor_agent'
