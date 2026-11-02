@@ -1,7 +1,9 @@
 import logging
 import time
+import uuid
 from typing import Optional
-from backend.core.research_state import ResearchState, new_research_state
+from backend.core.errors import describe_failure
+from backend.core.research_state import RECURSION_LIMIT, ResearchState, new_research_state
 from backend.core.vector_db import VectorDBWrapper
 from backend.graph.research_graph import ResearchGraph
 
@@ -71,8 +73,8 @@ def run_research_query(research_graph: ResearchGraph, query: str):
     # The .stream() method handles the iterative logic and the supervisor's routing.
     # We use a recursion_limit to prevent infinite loops.
     try:
-        # recursion_limit=50 allows for multiple refinement cycles
-        for output in research_graph.graph.stream(initial_state, config={"recursion_limit": 50}):
+        # RECURSION_LIMIT leaves room for two full refinement cycles (see research_state.py)
+        for output in research_graph.graph.stream(initial_state, config={"recursion_limit": RECURSION_LIMIT}):
             for node_name, node_state in output.items():
                 # Update our local state tracker with updates from the agent nodes
                 final_state.update(node_state)
@@ -85,24 +87,39 @@ def run_research_query(research_graph: ResearchGraph, query: str):
                     logger.info(f">> [NODE] Executed {node_name} successfully.")
 
     except Exception as e:
-        logger.error(f">> [CRITICAL ERROR] Graph execution failed: {e}")
+        # The traceback goes to the log; the failure record carries a short message and an error ID
+        error_id = uuid.uuid4().hex[:8]
+        logger.exception(f">> [CRITICAL ERROR] Graph execution failed (error ID {error_id})")
+        final_state["failure"] = describe_failure(
+            {"id": error_id, "agent": "graph", "kind": "unknown", "message": str(e)}
+        )
 
     duration = time.time() - start_time
 
     # 3. OUTPUT GENERATION (this is the program's result, so it is printed, not logged)
     is_refined = final_state.get('refinement_retries', 0) > 0
+    failure = final_state.get("failure")
 
     print("\n" + "=" * 67)
-    print(f"*** FINAL RESEARCH REPORT ({'REFINED' if is_refined else 'INITIAL'}) ***")
+    if failure:
+        print("*** RESEARCH COULD NOT BE COMPLETED ***")
+    else:
+        print(f"*** FINAL RESEARCH REPORT ({'REFINED' if is_refined else 'INITIAL'}) ***")
     print(f"Execution Time: {duration:.2f} seconds")
     print("=" * 67)
 
-    # Display the report or the error message
-    report = final_state.get("final_report")
-    if report:
-        print(report)
+    if failure:
+        print(failure["message"])
+        print(f"(stopped in {failure['agent']}: {failure['kind']}, error ID {failure['error_id']})")
     else:
-        logger.error("The system failed to generate a final report.")
+        # Display the report or the error message
+        report = final_state.get("final_report")
+        if report:
+            print(report)
+        else:
+            logger.error("The system failed to generate a final report.")
+        if final_state.get("evaluation_unavailable"):
+            print("\nNote: the evaluation agent could not review this report, so treat it as unchecked.")
 
     print("\n" + "=" * 67)
 

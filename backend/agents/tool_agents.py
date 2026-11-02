@@ -72,8 +72,12 @@ class BaseToolAgent:
         if not self._should_run(state):
             return state
 
-        # 3. Call child logic (PubMed, Arxiv, etc.)
-        state = self.run_tool_logic(state)
+        # 3. Call child logic (PubMed, Arxiv, etc.). One tool failing must not kill the run: the other
+        # sources can still produce a report, so log the traceback and carry on without this tool.
+        try:
+            state = self.run_tool_logic(state)
+        except Exception:
+            logger.exception(f'[{self.id.upper()} ERROR] Tool failed; continuing without its results.')
 
         # 4. CRITICAL: Hand control back to the Central Hub
         state["next"] = "supervisor_agent"
@@ -206,6 +210,8 @@ class ArxivAgent(BaseToolAgent):
             end_date = datetime.date.today()
             start_date = end_date - datetime.timedelta(days=3652)
         else:
+            # Only "last_decade" is supported. Say so instead of silently searching all years.
+            logger.warning(f'[{self.id} WARN] Unsupported TIME_PERIOD "{time_period}": searching without a date filter.')
             return ""
 
         start_date_str = start_date.strftime("%Y%m%d")
@@ -353,8 +359,9 @@ class OpenAlexAgent(BaseToolAgent):
         """Converts raw API response into standardized internal research format."""
         standardized_list = []
         for r in raw_results:
-            title = r.get('title', 'No Title Available')
-            abstract = self._reconstruct_openalex_abstract(r.get('abstract_inverted_index', {}))
+            # The API can return null (not just a missing key) for the title and the abstract
+            title = r.get('title') or 'No Title Available'
+            abstract = self._reconstruct_openalex_abstract(r.get('abstract_inverted_index') or {})
             text_content = f"Title: {title}. Abstract: {abstract}"
 
             standardized_list.append({
@@ -420,7 +427,7 @@ class MaterialsAgent(BaseToolAgent):
 
         try:
             with MPRester(MP_API_KEY, use_document_model=False) as mpr:
-                docs = mpr.summary.search(
+                docs = mpr.materials.summary.search(
                     formula=formula,
                     fields=[
                         "material_id",
@@ -542,8 +549,12 @@ class WebAgent(BaseToolAgent):
         """Standardizes web results while applying academic noise filters."""
         standardized_list = []
         for result in raw_results:
-            url = result.get('href', '').lower()
-            title = result.get('title', '').lower()
+            url = (result.get('href') or '').lower()
+            title = (result.get('title') or '').lower()
+
+            # A result without a link cannot be cited or retrieved
+            if not url:
+                continue
 
             # --- DYNAMIC FILTERING ---
             # 1. Block known noise domains and social media
@@ -642,7 +653,9 @@ class ChemRxivAgent(BaseToolAgent):
                 logger.error(f'[{self.id.upper()} ERROR] API Status {r.status_code}: {r.text}')
                 return []
 
-            return r.json()
+            data = r.json()
+            # An error body is JSON too, but a dict: only a list holds preprints
+            return data if isinstance(data, list) else []
         except Exception as e:
             logger.error(f'[{self.id.upper()} ERROR] API request failed: {e}')
             return []

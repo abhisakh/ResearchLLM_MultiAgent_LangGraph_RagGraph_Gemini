@@ -245,3 +245,8 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# AI assistant notes and local settings (local only, never push)
+CLAUDE.md
+CLAUDE.local.md
+.claude/

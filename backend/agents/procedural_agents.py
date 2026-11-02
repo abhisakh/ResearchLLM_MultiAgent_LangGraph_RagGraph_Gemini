@@ -2,8 +2,9 @@ import logging
 import re
 from google.genai import types
 from backend.core.research_state import ResearchState
+from backend.core.errors import record_error, to_llm_error
 from backend.core.utilities import (
-    client, LLM_MODEL, generate_content_with_retry
+    LLM_MODEL, generate_content_with_retry, llm_text
 )
 
 logger = logging.getLogger(__name__)
@@ -34,8 +35,15 @@ class CleanQueryAgent:
         cleaned_query = re.sub(r'[?!()\[\]\"\'*]', '', cleaned_query)
         cleaned_query = cleaned_query.strip()
 
-        # 3. SEMANTIC GENERATION
-        semantic_query = self.generate_semantic_query(cleaned_query)
+        # 3. SEMANTIC GENERATION. If the LLM cannot be used, keep the cleaned query and record why
+        # (the supervisor reads state["errors"] and stops the run if the failure is fatal).
+        try:
+            semantic_query = self.generate_semantic_query(cleaned_query)
+        except Exception as exc:
+            error = to_llm_error(exc, label=self.id)
+            record_error(state, self.id, error)
+            logger.warning(f"[{self.id.upper()} DEGRADED] {error.kind.value}: keeping the cleaned query as it is.")
+            semantic_query = cleaned_query
 
         # 4. UPDATE STATE & ROUTE
         state["semantic_query"] = semantic_query
@@ -45,9 +53,7 @@ class CleanQueryAgent:
         return state
 
     def generate_semantic_query(self, query: str) -> str:
-        if client is None:
-            return query
-
+        """Asks the LLM for a semantic query. Raises LLMCallError if the model cannot be used."""
         prompt = f"""
         You are a Research Query Optimizer.
         TASK: Transform raw user input into a formal, concise, and semantically rich research query.
@@ -62,15 +68,13 @@ class CleanQueryAgent:
 
         OUTPUT: Provide ONLY the optimized string. No preamble.
         """
-        try:
-            response = generate_content_with_retry(
+        return llm_text(
+            lambda: generate_content_with_retry(
                 model=self.model,
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     temperature=0.0
                 )
-            )
-            return response.text.strip() if response.text else query
-        except Exception as e:
-            logger.error(f'[{self.id.upper()} ERROR] Gemini generation failed: {e}')
-            return query
+            ),
+            label=self.id,
+        )

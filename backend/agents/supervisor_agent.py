@@ -1,6 +1,6 @@
 import logging
-import time  # <--- Added for rate-limit throttling
 
+from backend.core.errors import ErrorKind, LLMCallError, describe_failure, record_error
 from backend.core.research_state import ResearchState
 
 logger = logging.getLogger(__name__)
@@ -12,13 +12,29 @@ class SupervisorAgent:
     """
     Finalized Hub-and-Spoke Orchestrator.
     Controls the flow between specialized agents, handles guardrails for
-    irrelevant queries, and manages the iterative refinement loop.
+    irrelevant queries, manages the iterative refinement loop, and ends the run
+    when the errors recorded by the agents show it cannot succeed.
     """
 
     MAX_REFINEMENT_ATTEMPTS = 2
-    MAX_CONSECUTIVE_RETRIES = 5  # <--- Guardrail threshold to step down aggressiveness
 
-    # Keyword sets for automated refinement triage
+    # A failed synthesis is tried once more (the LLM layer has already retried transient errors
+    # and switched models); a second failure ends the run.
+    MAX_SYNTHESIS_FAILURES = 2
+    # Retrying a synthesis cannot help when the request itself is the problem.
+    NOT_WORTH_RETRYING = {ErrorKind.CONTENT_BLOCKED.value, ErrorKind.BAD_REQUEST.value}
+
+    # Safety net against any agent being dispatched over and over without making progress.
+    # In a healthy run the busiest node (synthesis) runs at most 1 + MAX_REFINEMENT_ATTEMPTS times
+    # plus one retry, so this is never reached. Hitting it means a bug: the run ends with an error ID
+    # instead of looping until LangGraph's recursion limit.
+    MAX_DISPATCHES_PER_NODE = 8
+
+    # Stages a refinement cycle can restart from. The evaluator names one (state["refinement_stage"]).
+    REFINEMENT_STAGES = ("search", "retrieval", "context", "synthesis")
+
+    # Keyword sets: only a fallback to guess the stage when the evaluator did not name one
+    # (an older recorded state, or a model that left the field empty).
     DATA_KEYWORDS = ["missing", "data", "search", "papers", "pubmed", "arxiv", "found", "sources", "literature"]
     PDF_KEYWORDS = ["pdf", "extraction", "parsing", "read"]
     CONTEXT_KEYWORDS = ["relevance", "context", "snippets", "rag"]
@@ -42,7 +58,12 @@ class SupervisorAgent:
 
         logger.info(f'[{self.id.upper()} HUB] Analyzing state for next dispatch...')
 
-        # 2. Guardrail: Out-of-Scope Handling
+        # 2. Recorded errors decide first whether the run can go on at all
+        failing = self._find_run_ending_error(state)
+        if failing:
+            return self._end_run(state, failing)
+
+        # 3. Guardrail: Out-of-Scope Handling
         # If IntentAgent flagged 'irrelevant', bypass research and go to Synthesis for rejection
         if state.get("primary_intent") == "irrelevant":
             if state.get("report_generated"):
@@ -52,41 +73,76 @@ class SupervisorAgent:
             state["next"] = "synthesis_agent"
             return state
 
-        # 3. Refinement Gate: Handle loops from EvaluationAgent
+        # 4. Refinement Gate: Handle loops from EvaluationAgent
         if state.get("needs_refinement", False):
             return self._handle_refinement(state)
 
-        # 4. Standard Orchestration: Sequential Flow Checklist
+        # 5. Standard Orchestration: Sequential Flow Checklist
         next_destination = self.select_next_agent(state)
 
-        # --- NEW CONCURRENCY RATE LIMIT MITIGATION ---
-        # Track if the workflow is stuck trying to invoke the same agent repeatedly
-        consecutive_tracker = state.get("consecutive_node_counts", {})
-        current_count = consecutive_tracker.get(next_destination, 0) + 1
-        consecutive_tracker[next_destination] = current_count
-        state["consecutive_node_counts"] = consecutive_tracker
-
-        # If an agent loop is detected (like query_gen_agent hitting 429 over and over)
-        if current_count > 1:
-            # Exponentially back off: 2s, 4s, 8s, 16s, etc.
-            backoff_sleep = min(2 ** current_count, 45)
-            logger.info(f"[{self.id.upper()} THROTTLE] Detected loop on '{next_destination}' (Hit count: {current_count}). Free quota cooling down. Sleeping for {backoff_sleep}s...")
-            time.sleep(backoff_sleep)
-
-            # If it's hammered the free tier too many times consecutively, gracefully pivot
-            if current_count >= self.MAX_CONSECUTIVE_RETRIES and next_destination == "query_gen_agent":
-                logger.warning(f'[{self.id.upper()} BREAK] Rate limit loop unbroken. Injecting blank queries object to escape cycle.')
-                state["tiered_queries"] = {"fallback": ["General system search overview"]}
-                next_destination = self.select_next_agent(state)
-        else:
-            # Clear historical counters for other nodes if we successfully progressed elsewhere
-            state["consecutive_node_counts"] = {next_destination: 1}
-        # ----------------------------------------------
+        # 6. Loop guard: no agent may be dispatched over and over
+        dispatched = state["visited_nodes"].count(next_destination)
+        if next_destination != "END" and dispatched >= self.MAX_DISPATCHES_PER_NODE:
+            error = LLMCallError(
+                ErrorKind.UNKNOWN,
+                f"{next_destination} was dispatched {dispatched} times without finishing its work",
+                label=self.id,
+            )
+            return self._end_run(state, record_error(state, self.id, error))
 
         state["next"] = next_destination
-        logger.info(f'[{self.id.upper()} HUB] Next Destination: **{state['next']}**')
+        logger.info(f"[{self.id.upper()} HUB] Next Destination: **{state['next']}**")
         return state
 
+    # ----------------------------------------------------------------------------------------------
+    # Error handling
+    # ----------------------------------------------------------------------------------------------
+    @staticmethod
+    def _kind_of(entry: dict) -> ErrorKind:
+        try:
+            return ErrorKind(entry.get("kind"))
+        except ValueError:
+            return ErrorKind.UNKNOWN
+
+    def _find_run_ending_error(self, state: ResearchState):
+        """The recorded error that makes further work pointless, or None if the run can go on.
+
+        Agents that failed but degraded to a fallback (a rate limit, a transient error, bad output) do
+        not stop the run: the fallback already moved the state forward. A run ends when
+        - the kind cannot be fixed by waiting or retrying (bad key, wrong model, daily quota, a bug), or
+        - synthesis keeps failing, so there is no report to deliver.
+        """
+        errors = state.get("errors", [])
+        report_exists = bool(state.get("report_generated") and state.get("final_report"))
+
+        for entry in errors:
+            if self._kind_of(entry).stops_run:
+                # A failed audit must not throw away a finished report: it is delivered flagged
+                # evaluation_unavailable (see EvaluationAgent) instead of being dropped.
+                if entry.get("agent") == "evaluation_agent" and report_exists:
+                    continue
+                return entry
+
+        failed_syntheses = [e for e in errors if e.get("agent") == "synthesis_agent"]
+        if failed_syntheses and not state.get("report_generated"):
+            last = failed_syntheses[-1]
+            if len(failed_syntheses) >= self.MAX_SYNTHESIS_FAILURES or last.get("kind") in self.NOT_WORTH_RETRYING:
+                return last
+        return None
+
+    def _end_run(self, state: ResearchState, entry: dict) -> ResearchState:
+        """Stops the workflow and leaves a person-readable reason in state["failure"]."""
+        failure = describe_failure(entry)
+        state["failure"] = failure
+        state["next"] = "END"
+        logger.error(
+            f"[{self.id.upper()} ABORT] {failure['agent']} ended the run ({failure['kind']}): {failure['message']}"
+        )
+        return state
+
+    # ----------------------------------------------------------------------------------------------
+    # Routing
+    # ----------------------------------------------------------------------------------------------
     def select_next_agent(self, state: ResearchState) -> str:
         """Determines the next logical node based on state completeness."""
         visited = state.get("visited_nodes", [])
@@ -155,6 +211,23 @@ class SupervisorAgent:
                 return True
         return False
 
+    def _refinement_stage(self, state: ResearchState, reason: str) -> str:
+        """Where a refinement cycle restarts: search, retrieval, context or synthesis.
+
+        The evaluator names the stage itself (state["refinement_stage"]). Only when it did not is the stage
+        guessed from keywords in the reason, in the old precedence order: search, then retrieval, then context.
+        """
+        stage = state.get("refinement_stage")
+        if stage in self.REFINEMENT_STAGES:
+            return stage
+        if any(k in reason for k in self.DATA_KEYWORDS):
+            return "search"
+        if any(k in reason for k in self.PDF_KEYWORDS):
+            return "retrieval"
+        if any(k in reason for k in self.CONTEXT_KEYWORDS):
+            return "context"
+        return "synthesis"
+
     def _handle_refinement(self, state: ResearchState) -> ResearchState:
         """Logic to reset state and pivot strategy based on evaluator feedback."""
         retries = state.get("refinement_retries", 0)
@@ -167,21 +240,20 @@ class SupervisorAgent:
         state["refinement_retries"] = retries + 1
         reason = state.get("refinement_reason", "").lower()
 
-        logger.info(f'[{self.id.upper()} REFINEMENT] Cycle {state['refinement_retries']}: {reason[:100]}...')
+        logger.info(f"[{self.id.upper()} REFINEMENT] Cycle {state['refinement_retries']}: {reason[:100]}...")
 
-        is_data_issue = any(k in reason for k in self.DATA_KEYWORDS)
-        is_pdf_issue = any(k in reason for k in self.PDF_KEYWORDS)
-        is_context_issue = any(k in reason for k in self.CONTEXT_KEYWORDS)
+        stage = self._refinement_stage(state, reason)
 
         state.update({
             "is_refining": True,
             "needs_refinement": False,
+            "refinement_stage": None,  # consumed: the next evaluation names its own
             "report_generated": False,
             "rag_complete": False,
             "filtered_context": ""
         })
 
-        if is_data_issue:
+        if stage == "search":
             active_tools = state.get("active_tools", [])
 
             # Dynamically ensure missing preprint/database tools mentioned in reason are added
@@ -200,9 +272,9 @@ class SupervisorAgent:
             # newly added tools; otherwise the tool phase would skip them.
             state["tiered_queries"] = {}
             state["next"] = "planning_agent"
-        elif is_pdf_issue:
+        elif stage == "retrieval":
             state["next"] = "retrieval_agent"
-        elif is_context_issue:
+        elif stage == "context":
             state["next"] = "rag_agent"
         else:
             state["next"] = "synthesis_agent"

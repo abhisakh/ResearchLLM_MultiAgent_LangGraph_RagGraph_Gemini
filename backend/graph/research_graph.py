@@ -1,6 +1,6 @@
 import logging
 from langgraph.graph import StateGraph, END
-from typing import Optional
+from typing import Dict, Optional
 
 from backend.core.research_state import ResearchState
 from backend.core.vector_db import VectorDBWrapper
@@ -21,16 +21,17 @@ logger = logging.getLogger(__name__)
 
 
 class ResearchGraph:
-    def __init__(self, vector_db: Optional[VectorDBWrapper] = None):
-        self.vector_db = vector_db if vector_db is not None else VectorDBWrapper()
+    def __init__(self, vector_db: Optional[VectorDBWrapper] = None, agents: Optional[Dict[str, object]] = None):
+        # `agents` replaces the real agents (tests pass stubs with an .execute(state) method) while the
+        # graph wiring below stays exactly the production wiring.
+        if agents is None and vector_db is None:
+            vector_db = VectorDBWrapper()
+        self.vector_db = vector_db
         logger.info('>> [INIT] Initializing Central Hub Graph with VectorDB.')
-        self.graph = self._build_graph()
+        self.graph = self._build_graph(agents)
 
-    def _build_graph(self):
-        workflow = StateGraph(ResearchState)
-
-        # 1. Initialize Agents
-        agents = {
+    def _create_agents(self) -> Dict[str, object]:
+        return {
             "supervisor_agent": SupervisorAgent(),
             "clean_query_agent": CleanQueryAgent(),
             "intent_agent": IntentAgent(),
@@ -48,6 +49,13 @@ class ResearchGraph:
             "synthesis_agent": SynthesisAgent(),
             "evaluation_agent": EvaluationAgent(),
         }
+
+    def _build_graph(self, agents: Optional[Dict[str, object]] = None):
+        workflow = StateGraph(ResearchState)
+
+        # 1. Initialize Agents
+        if agents is None:
+            agents = self._create_agents()
 
         # 2. Add Nodes
         for name, agent in agents.items():

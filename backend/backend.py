@@ -2,10 +2,10 @@ import logging
 import os
 import re
 import uuid
-import traceback
 import json
 import base64
 import asyncio
+import time
 from typing import Optional, List, Dict, Any, Union
 from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor
@@ -20,7 +20,9 @@ from sqlalchemy import create_engine, String, Text, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, declarative_base, sessionmaker
 
 # --- PROJECT SPECIFIC IMPORTS ---
-from backend.core.research_state import new_research_state
+from backend.core.errors import ErrorKind, LLMCallError, describe_failure
+from backend.core.http_errors import http_response_for
+from backend.core.research_state import RECURSION_LIMIT, new_research_state
 from backend.graph.research_graph import ResearchGraph
 from backend.core.vector_db import VectorDBWrapper
 
@@ -244,6 +246,25 @@ async def get_graph_visualization():
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+def _failure_http_error(session_id: str, failure: dict, visited_path=None, raw_state=None) -> HTTPException:
+    """Stores a failed run in the chat log and builds the HTTP error the client receives.
+
+    `failure` comes from errors.describe_failure, so its message is safe to show. Tracebacks are never
+    stored here: /chat-history and /debug/raw-state serve this row to any client. They stay in the server log.
+    """
+    status, detail, headers = http_response_for(failure)
+    log_to_db(
+        msg_id=str(uuid.uuid4()),
+        session_id=session_id,
+        role="error",
+        message=failure["message"],
+        tool_used=failure.get("agent") or None,
+        visited_nodes=visited_path,
+        raw_data=raw_state if raw_state is not None else {"failure": failure},
+    )
+    return HTTPException(status_code=status, detail=detail, headers=headers or None)
+
+
 @app.post("/research-chat")
 async def research_chat(q: Query):
     if not q.message.strip():
@@ -257,6 +278,7 @@ async def research_chat(q: Query):
 
     log_to_db(msg_id=user_msg_id, session_id=session_id, role="user", message=q.message)
 
+    started = time.perf_counter()
     try:
         db_wrapper.reset_db()
         logger.info('>> [SYSTEM] Vector Database reset.')
@@ -266,53 +288,64 @@ async def research_chat(q: Query):
         logger.info('>> [AGENT] Invoking Research Workflow...')
         result = await asyncio.get_running_loop().run_in_executor(
             executor,
-            lambda: research_agent_app.invoke(initial_state, config={"recursion_limit": 60})
+            lambda: research_agent_app.invoke(initial_state, config={"recursion_limit": RECURSION_LIMIT})
         )
-
-        cleansed_result = _cleanse_recursive_state(result)
-        final_report = cleansed_result.get("final_report", "Error: No report generated.")
-        raw_path = cleansed_result.get("visited_nodes", [])
-        visited_path = list(raw_path)
-        agent_msg_id = str(uuid.uuid4())
-
-        log_to_db(
-            msg_id=agent_msg_id,
-            session_id=session_id,
-            role="agent",
-            message=final_report,
-            tool_used="SynthesisAgent",
-            visited_nodes=visited_path,
-            raw_data=cleansed_result
-        )
-
-        logger.info('>> [CHAT SUCCESS] Report generated.')
-
-        return {
-            "id": agent_msg_id,
-            "session_id": session_id,
-            "response": final_report,
-            "visited_path": visited_path,
-            "metadata": {
-                "refinement_retries": cleansed_result.get("refinement_retries", 0),
-                "execution_time": datetime.now(timezone.utc).isoformat()
-            }
-        }
-
     except Exception as e:
-        error_trace = traceback.format_exc()
-        err_id = str(uuid.uuid4())
-        logger.exception('>> [AGENT ERROR]')
-        log_to_db(
-            msg_id=err_id,
-            session_id=session_id,
-            role="error",
-            message=str(e),
-            raw_data={"traceback": error_trace}
+        # A bug, or an error the supervisor could not turn into a clean failure. The traceback goes to the
+        # server log only; the client gets a short message and an error ID to quote.
+        error_id = uuid.uuid4().hex[:8]
+        logger.exception(f'>> [AGENT ERROR] error ID {error_id}')
+        kind = e.kind.value if isinstance(e, LLMCallError) else ErrorKind.UNKNOWN.value
+        failure = describe_failure({"id": error_id, "agent": "graph", "kind": kind, "message": str(e)})
+        raise _failure_http_error(session_id, failure) from e
+
+    cleansed_result = _cleanse_recursive_state(result)
+    visited_path = list(cleansed_result.get("visited_nodes", []))
+    final_report = cleansed_result.get("final_report", "")
+
+    # The supervisor ends a run it cannot finish (bad key, quota used up, a bug) and says why in `failure`.
+    failure = cleansed_result.get("failure")
+    if not failure and not final_report:
+        error_id = uuid.uuid4().hex[:8]
+        logger.error(f'>> [AGENT ERROR] The run ended without a report and without a failure. error ID {error_id}')
+        failure = describe_failure(
+            {"id": error_id, "agent": "graph", "kind": "unknown", "message": "The run ended without a report."}
         )
-        raise HTTPException(
-            status_code=500,
-            detail={"error": "Agent execution failed", "message": str(e)}
-        ) from e
+    if failure:
+        logger.error(f">> [CHAT FAILED] {failure.get('agent')} ended the run ({failure.get('kind')}).")
+        raise _failure_http_error(session_id, failure, visited_path, cleansed_result)
+
+    agent_msg_id = str(uuid.uuid4())
+    log_to_db(
+        msg_id=agent_msg_id,
+        session_id=session_id,
+        role="agent",
+        message=final_report,
+        tool_used="SynthesisAgent",
+        visited_nodes=visited_path,
+        raw_data=cleansed_result
+    )
+
+    logger.info('>> [CHAT SUCCESS] Report generated.')
+
+    return {
+        "id": agent_msg_id,
+        "session_id": session_id,
+        "response": final_report,
+        "visited_path": visited_path,
+        "metadata": {
+            "refinement_retries": cleansed_result.get("refinement_retries", 0),
+            # Seconds the whole run took (it used to be the finish timestamp, which says nothing about speed)
+            "execution_time": round(time.perf_counter() - started, 2),
+            # True when the evaluation agent could not review the report: treat it as unchecked
+            "evaluation_unavailable": bool(cleansed_result.get("evaluation_unavailable", False)),
+            # Agents that hit an LLM error and used their fallback (the details stay in the server log)
+            "degraded_agents": [
+                {"agent": e.get("agent", ""), "kind": e.get("kind", "")}
+                for e in cleansed_result.get("errors", [])
+            ],
+        }
+    }
 
 
 @app.get("/chat-history/{session_id}", response_model=List[ChatEntry])

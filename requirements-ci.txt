@@ -1,8 +1,27 @@
 # Minimal dependencies for the fast unit tests (CI "unit-tests" job).
 # The full application stack lives in requirements.txt.
+#
+# No torch / sentence-transformers and no mp-api: the tests replace those two heavy packages with
+# stubs (see tests/conftest.py). Everything below is light and pure Python or a small wheel.
 numpy
 faiss-cpu
-google-genai
+google-genai          # also brings pydantic, httpx and requests (used by backend/core/errors.py)
 python-dotenv
+
+# The graph tests run the production wiring with stub agents (tests/test_graph_failures.py)
+langgraph
+
+# Imported by the tool and retrieval agents, which the tests exercise with canned responses
+beautifulsoup4
+pypdf
+biopython
+arxiv
+ddgs
+
+# The API tests run the real FastAPI app with a scripted graph (tests/test_api_failures.py).
+# The test client needs httpx, which google-genai already brings.
+fastapi
+sqlalchemy
+
 pytest
 pytest-asyncio

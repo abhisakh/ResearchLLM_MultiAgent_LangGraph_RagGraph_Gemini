@@ -6,6 +6,8 @@ import base64
 import os
 from datetime import datetime
 
+from api_errors import describe_api_error
+
 # -----------------------------------------------------------------------------
 # 1. INITIALIZATION & STATE MANAGEMENT
 # -----------------------------------------------------------------------------
@@ -258,11 +260,16 @@ with col_middle:
                             st.session_state['turn_paths'][m_id] = path
                             st.session_state['active_view_path'] = path
                             resp = data.get('response', '')
+                            if data.get('metadata', {}).get('evaluation_unavailable'):
+                                resp += "\n\n> ⚠️ The evaluation agent could not review this report, so treat it as unchecked."
                             if path:
                                 resp += f"\n\n---\n**Tracked Path:** {' → '.join([f'`{n}`' for n in path])}"
                             st.session_state['messages'].append({"id": m_id, "role": "assistant", "content": resp})
                         else:
-                            st.error(f"Backend API Error: Received Status Code {res.status_code}")
+                            # Keep the explanation in the chat log: an st.error would vanish with the rerun below
+                            st.session_state['messages'].append(
+                                {"id": str(uuid.uuid4()), "role": "assistant", "content": f"⚠️ {describe_api_error(res)}"}
+                            )
 
                         # Turn off processing and rerun to display the newly added assistant response bubble
                         st.session_state['processing'] = False

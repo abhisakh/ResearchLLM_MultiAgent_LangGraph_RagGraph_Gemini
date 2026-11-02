@@ -7,22 +7,14 @@ Run with:  pytest            (integration tests are excluded by default)
 """
 import pytest
 
-from backend.agents import supervisor_agent as supervisor_module
 from backend.agents.supervisor_agent import SupervisorAgent
+from backend.core.errors import ErrorKind
 
 TOOL_NODES = ["pubmed_search", "arxiv_search"]
 
 
 @pytest.fixture
-def sleeps(monkeypatch):
-    """Replace time.sleep so the rate-limit back-off path runs instantly; returns the recorded delays."""
-    recorded = []
-    monkeypatch.setattr(supervisor_module.time, "sleep", recorded.append)
-    return recorded
-
-
-@pytest.fixture
-def supervisor(sleeps):
+def supervisor():
     return SupervisorAgent()
 
 
@@ -203,6 +195,40 @@ def test_refinement_does_not_duplicate_tools(supervisor):
 
 
 # --------------------------------------------------------------------------------------
+# The evaluator names the stage to restart from; keywords are only a fallback
+# --------------------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "stage, expected_next",
+    [
+        ("search", "planning_agent"),
+        ("retrieval", "retrieval_agent"),
+        ("context", "rag_agent"),
+        ("synthesis", "synthesis_agent"),
+    ],
+)
+def test_the_stage_named_by_the_evaluator_decides_where_the_cycle_restarts(supervisor, stage, expected_next):
+    state = supervisor.execute(refining_state("Something is off", refinement_stage=stage))
+    assert state["next"] == expected_next
+
+
+def test_the_named_stage_beats_misleading_keywords(supervisor):
+    # "missing" and "papers" would send a keyword guess to the search stage; the evaluator blamed the writing
+    state = supervisor.execute(refining_state("Missing papers are cited loosely", refinement_stage="synthesis"))
+    assert state["next"] == "synthesis_agent"
+    assert state["active_tools"] == ["pubmed"]  # the tool set was not widened
+
+
+def test_an_unrecognised_stage_falls_back_to_the_keywords(supervisor):
+    state = supervisor.execute(refining_state("PDF parsing failed", refinement_stage="banana"))
+    assert state["next"] == "retrieval_agent"
+
+
+def test_the_stage_is_cleared_once_it_has_been_used(supervisor):
+    state = supervisor.execute(refining_state("Missing papers", refinement_stage="search"))
+    assert state["refinement_stage"] is None
+
+
+# --------------------------------------------------------------------------------------
 # Re-querying, re-retrieval and re-evaluation after a refinement cycle
 # --------------------------------------------------------------------------------------
 def test_data_refinement_sends_the_workflow_back_through_query_generation(supervisor):
@@ -273,25 +299,115 @@ def test_materials_entries_never_trigger_retrieval(supervisor):
 
 
 # --------------------------------------------------------------------------------------
-# Rate-limit throttle
+# Recorded errors decide whether the run can go on
 # --------------------------------------------------------------------------------------
-def test_repeated_dispatch_to_the_same_node_backs_off(supervisor, sleeps):
-    state = {"visited_nodes": []}
-    supervisor.execute(state)  # first dispatch to clean_query_agent: no delay
-    assert sleeps == []
-    supervisor.execute(state)  # same node again: exponential back-off (2 ** 2 seconds)
-    assert sleeps == [4]
-    assert state["next"] == "clean_query_agent"
+def error_entry(agent, kind, error_id="abc12345"):
+    return {"id": error_id, "agent": agent, "kind": kind.value, "message": f"[{kind.value}] {agent}: failed"}
 
 
-def test_query_gen_loop_is_broken_with_fallback_queries(supervisor, sleeps):
+@pytest.mark.parametrize(
+    "kind", [ErrorKind.AUTH, ErrorKind.CONFIG, ErrorKind.QUOTA_EXHAUSTED, ErrorKind.UNKNOWN]
+)
+def test_errors_that_a_retry_cannot_fix_end_the_run_with_a_clear_message(supervisor, kind):
+    state = supervisor.execute(planned_state(errors=[error_entry("planning_agent", kind)]))
+    assert state["next"] == "END"
+    assert state["failure"]["kind"] == kind.value
+    assert state["failure"]["agent"] == "planning_agent"
+    assert state["failure"]["message"]
+
+
+def test_an_unknown_error_tells_the_person_its_error_id(supervisor):
+    state = supervisor.execute(planned_state(errors=[error_entry("planning_agent", ErrorKind.UNKNOWN)]))
+    assert "abc12345" in state["failure"]["message"]
+    assert state["failure"]["error_id"] == "abc12345"
+
+
+@pytest.mark.parametrize(
+    "kind",
+    [ErrorKind.RATE_LIMITED, ErrorKind.TRANSIENT, ErrorKind.BAD_OUTPUT, ErrorKind.BAD_REQUEST, ErrorKind.CONTENT_BLOCKED],
+)
+def test_errors_the_agent_already_degraded_around_do_not_stop_the_run(supervisor, kind):
+    state = supervisor.execute(planned_state(errors=[error_entry("query_gen_agent", kind)]))
+    assert state["next"] == "pubmed_search"
+    assert state.get("failure") is None
+
+
+def test_a_failed_audit_does_not_throw_away_a_finished_report(supervisor):
     state = planned_state(
-        tiered_queries={}, active_tools=[], consecutive_node_counts={"query_gen_agent": 4}
+        visited_nodes=TOOL_NODES + ["synthesis_agent", "evaluation_agent"],
+        report_generated=True,
+        final_report="A finished report.",
+        errors=[error_entry("evaluation_agent", ErrorKind.QUOTA_EXHAUSTED)],
     )
     state = supervisor.execute(state)
-    assert sleeps == [32]
-    assert state["tiered_queries"] == {"fallback": ["General system search overview"]}
+    assert state["next"] == "END"
+    assert state.get("failure") is None
+
+
+def test_a_failed_audit_without_a_report_ends_the_run(supervisor):
+    state = supervisor.execute(planned_state(errors=[error_entry("evaluation_agent", ErrorKind.AUTH)]))
+    assert state["next"] == "END"
+    assert state["failure"]["kind"] == "auth"
+
+
+def test_a_failed_synthesis_is_tried_once_more(supervisor):
+    state = supervisor.execute(
+        planned_state(visited_nodes=TOOL_NODES, errors=[error_entry("synthesis_agent", ErrorKind.TRANSIENT)])
+    )
     assert state["next"] == "synthesis_agent"
+    assert state.get("failure") is None
+
+
+def test_a_second_failed_synthesis_ends_the_run(supervisor):
+    errors = [
+        error_entry("synthesis_agent", ErrorKind.TRANSIENT, "e1"),
+        error_entry("synthesis_agent", ErrorKind.RATE_LIMITED, "e2"),
+    ]
+    state = supervisor.execute(planned_state(visited_nodes=TOOL_NODES, errors=errors))
+    assert state["next"] == "END"
+    assert state["failure"]["agent"] == "synthesis_agent"
+    assert state["failure"]["kind"] == "rate_limited"
+    assert state["failure"]["error_id"] == "e2"
+
+
+@pytest.mark.parametrize("kind", [ErrorKind.CONTENT_BLOCKED, ErrorKind.BAD_REQUEST])
+def test_a_synthesis_failure_that_a_retry_cannot_fix_ends_at_once(supervisor, kind):
+    state = supervisor.execute(
+        planned_state(visited_nodes=TOOL_NODES, errors=[error_entry("synthesis_agent", kind)])
+    )
+    assert state["next"] == "END"
+    assert state["failure"]["kind"] == kind.value
+
+
+def test_a_synthesis_that_succeeded_after_a_failure_is_not_held_against_the_run(supervisor):
+    state = supervisor.execute(
+        planned_state(
+            visited_nodes=TOOL_NODES + ["synthesis_agent"] * 2,
+            report_generated=True,
+            final_report="A report.",
+            errors=[error_entry("synthesis_agent", ErrorKind.TRANSIENT)],
+        )
+    )
+    assert state["next"] == "evaluation_agent"
+    assert state.get("failure") is None
+
+
+# --------------------------------------------------------------------------------------
+# Loop guard (replaces the sleeping rate-limit throttle)
+# --------------------------------------------------------------------------------------
+def test_an_agent_dispatched_over_and_over_ends_the_run_instead_of_looping(supervisor):
+    visited = ["clean_query_agent"] * SupervisorAgent.MAX_DISPATCHES_PER_NODE
+    state = supervisor.execute({"visited_nodes": visited})
+    assert state["next"] == "END"
+    assert state["failure"]["kind"] == "unknown"
+    assert state["failure"]["error_id"]
+    assert state["errors"][-1]["agent"] == "supervisor_agent"
+
+
+def test_the_dispatch_cap_leaves_room_for_every_legitimate_repeat(supervisor):
+    # busiest healthy node: synthesis = first report + one per refinement cycle + one retry after a failure
+    busiest = 1 + SupervisorAgent.MAX_REFINEMENT_ATTEMPTS + 1
+    assert busiest < SupervisorAgent.MAX_DISPATCHES_PER_NODE
 
 
 # --------------------------------------------------------------------------------------

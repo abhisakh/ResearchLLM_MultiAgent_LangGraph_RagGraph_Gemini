@@ -1,12 +1,13 @@
 import logging
 import json
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from google.genai import types
 
 # Keep package import paths identical to your project setup
 from backend.core.research_state import ResearchState
+from backend.core.errors import record_error, to_llm_error
 from backend.core.utilities import (
-    client, LLM_MODEL, generate_content_with_retry
+    LLM_MODEL, generate_content_with_retry, llm_json
 )
 
 logger = logging.getLogger(__name__)
@@ -48,12 +49,11 @@ class IntentAgent:
         }}
         """
 
-    def _call_llm_and_parse(self, prompt: str) -> Optional[Dict[str, Any]]:
-        if client is None:
-            return None
-        try:
-            logger.info(f'[{self.id.upper()} ACTION] Classifying intent...')
-            response = generate_content_with_retry(
+    def _call_llm_and_parse(self, prompt: str) -> Dict[str, Any]:
+        """Raises LLMCallError if the model cannot be used or keeps answering unusably."""
+        logger.info(f'[{self.id.upper()} ACTION] Classifying intent...')
+        return llm_json(
+            lambda: generate_content_with_retry(
                 model=self.model,
                 contents=prompt,
                 config=types.GenerateContentConfig(
@@ -62,11 +62,9 @@ class IntentAgent:
                     temperature=0.0,
                     tools=[]  # Silences AFC SDK warning
                 )
-            )
-            return json.loads(response.text.strip()) if response.text else None
-        except Exception as e:
-            logger.error(f'[{self.id} ERROR] {e}')
-            return None
+            ),
+            label=self.id,
+        )
 
     def execute(self, state: ResearchState) -> ResearchState:
         # 1. TRACK VISIT
@@ -75,7 +73,14 @@ class IntentAgent:
         logger.info(f'[{self.id.upper()} START] Analyzing query intent...')
         semantic_query = state.get("semantic_query", "")
 
-        llm_output = self._call_llm_and_parse(self._format_prompt(semantic_query))
+        # Degrade: if the LLM cannot be used, treat the query as general research and record why.
+        try:
+            llm_output = self._call_llm_and_parse(self._format_prompt(semantic_query))
+        except Exception as exc:
+            error = to_llm_error(exc, label=self.id)
+            record_error(state, self.id, error)
+            logger.warning(f'[{self.id.upper()} DEGRADED] {error.kind.value}: defaulting to general research.')
+            llm_output = None
 
         if llm_output and llm_output.get("primary_intent"):
             state["reasoning"] = llm_output.get("reasoning", "Scientific inquiry detected.")
@@ -110,6 +115,9 @@ class PlanningAgent:
     Agent responsible for creating an execution plan AND dynamically selecting
     the necessary tools. Logic updated for Hub-and-Spoke orchestration.
     """
+    # Used when the LLM cannot be used, or when it names no valid tool at all
+    DEFAULT_TOOLS = ["arxiv", "openalex", "web"]
+
     def __init__(self, model: str = LLM_MODEL):
         self.id = "planning_agent"
         self.model = model
@@ -145,11 +153,11 @@ class PlanningAgent:
            }}
         """
 
-    def _call_llm_and_parse(self, prompt: str) -> Optional[Dict[str, Any]]:
-        if client is None: return None
-        try:
-            logger.info(f'[{self.id.upper()} ACTION] Planning and Tool Selection...')
-            response = generate_content_with_retry(
+    def _call_llm_and_parse(self, prompt: str) -> Dict[str, Any]:
+        """Raises LLMCallError if the model cannot be used or keeps answering unusably."""
+        logger.info(f'[{self.id.upper()} ACTION] Planning and Tool Selection...')
+        return llm_json(
+            lambda: generate_content_with_retry(
                 model=self.model,
                 contents=prompt,
                 config=types.GenerateContentConfig(
@@ -158,11 +166,9 @@ class PlanningAgent:
                     temperature=0.1,
                     tools=[]
                 )
-            )
-            return json.loads(response.text.strip()) if response.text else None
-        except Exception as e:
-            logger.error(f'[{self.id.upper()} ERROR] {e}')
-            return None
+            ),
+            label=self.id,
+        )
 
     def execute(self, state: ResearchState) -> ResearchState:
         # 1. TRACK VISIT
@@ -193,7 +199,14 @@ class PlanningAgent:
         if prompt_modifier:
             full_prompt = prompt_modifier + full_prompt
 
-        llm_output = self._call_llm_and_parse(full_prompt)
+        # Degrade: if the LLM cannot be used, fall back to a default plan and tool set.
+        try:
+            llm_output = self._call_llm_and_parse(full_prompt)
+        except Exception as exc:
+            error = to_llm_error(exc, label=self.id)
+            record_error(state, self.id, error)
+            logger.warning(f'[{self.id.upper()} DEGRADED] {error.kind.value}: using the default plan.')
+            llm_output = None
 
         # 4. PROCESS OUTPUT
         if llm_output and isinstance(llm_output, dict):
@@ -207,13 +220,15 @@ class PlanningAgent:
 
             if is_refining:
                 previous_tools = state.get("active_tools", [])
-                validated_tools = list(set(validated_tools + previous_tools))
+                validated_tools = validated_tools + previous_tools
 
             state["execution_plan"] = execution_plan if execution_plan else ["Execute search.", "Synthesize."]
-            state["active_tools"] = list(set(validated_tools))
+            # Order-preserving dedupe (a set would shuffle the tools from run to run). Never empty: with no
+            # tools, query generation would have nothing to do and the supervisor would send the run back to it.
+            state["active_tools"] = list(dict.fromkeys(validated_tools)) or list(self.DEFAULT_TOOLS)
         else:
             state["execution_plan"] = ["Execute multi-tool search.", "Generate synthesis report."]
-            state["active_tools"] = ["arxiv", "openalex", "web"]
+            state["active_tools"] = list(self.DEFAULT_TOOLS)
 
         state["next"] = "supervisor_agent"
 
@@ -308,10 +323,17 @@ class QueryGenerationAgent:
         {tier_instructions}
         """
 
-    def _call_llm_and_parse(self, prompt: str, active_tools: List[str]) -> Optional[Dict[str, Any]]:
-        if client is None: return None
-        try:
-            response = generate_content_with_retry(
+    def _fallback_queries(self, semantic_query: str, active_tools: List[str]) -> Dict[str, Dict[str, str]]:
+        """Crude but working queries (the semantic query in every tier), used when the LLM cannot write better ones."""
+        return {
+            tool: {tier: semantic_query for tier in self.search_tiers[tool]}
+            for tool in active_tools if tool in self.search_tiers
+        }
+
+    def _call_llm_and_parse(self, prompt: str, active_tools: List[str]) -> Dict[str, Any]:
+        """Raises LLMCallError if the model cannot be used or keeps answering unusably."""
+        data = llm_json(
+            lambda: generate_content_with_retry(
                 model=self.model,
                 contents=prompt,
                 config=types.GenerateContentConfig(
@@ -320,16 +342,15 @@ class QueryGenerationAgent:
                     temperature=0.1,
                     tools=[]
                 )
-            )
-            data = json.loads(response.text.strip()) if response.text else {}
-
-            return {
-                "tiered_queries": {k: v for k, v in data.get('tiered_queries', {}).items() if k in active_tools},
-                "material_elements": [str(e).strip() for e in data.get('material_elements', []) if e]
-            }
-        except Exception as e:
-            logger.error(f'[{self.id.upper()} ERROR] LLM Call Failed: {e}')
-            return None
+            ),
+            label=self.id,
+        )
+        tiered = data.get('tiered_queries')
+        elements = data.get('material_elements')
+        return {
+            "tiered_queries": {k: v for k, v in (tiered if isinstance(tiered, dict) else {}).items() if k in active_tools},
+            "material_elements": [str(e).strip() for e in (elements if isinstance(elements, list) else []) if e]
+        }
 
     def execute(self, state: ResearchState) -> ResearchState:
         state.setdefault("visited_nodes", []).append(self.id)
@@ -348,22 +369,32 @@ class QueryGenerationAgent:
 
         constraints_dict = self._get_constraints_from_list(system_constraints_list)
         prompt = self._format_prompt(semantic_query, constraints_dict, active_tools, reasoning, refinement_reason)
-        llm_output = self._call_llm_and_parse(prompt, active_tools)
+        try:
+            llm_output = self._call_llm_and_parse(prompt, active_tools)
+        except Exception as exc:
+            error = to_llm_error(exc, label=self.id)
+            record_error(state, self.id, error)
+            logger.warning(f'[{self.id.upper()} DEGRADED] {error.kind.value}: using the semantic query for every tool.')
+            llm_output = None
 
         if llm_output and llm_output.get("tiered_queries"):
             state["tiered_queries"] = llm_output["tiered_queries"]
 
             merged_elements = list(system_constraints_list)
             merged_elements.extend(llm_output.get("material_elements", []))
-            state["material_elements"] = list(set(merged_elements))
+            state["material_elements"] = list(dict.fromkeys(merged_elements))
 
             state["api_search_term"] = llm_output["material_elements"][0] if llm_output["material_elements"] else semantic_query
 
             total_q = sum(len(v) for v in state["tiered_queries"].values())
             logger.info(f'[{self.id.upper()} STATE] {total_q} queries generated for {len(active_tools)} tools.')
         else:
-            logger.error(f'[{self.id.upper()} FAIL] Using fallback. Queries empty.')
-            state["tiered_queries"] = {}
+            # Degrade: no usable queries from the LLM. Searching with the semantic query in every tier
+            # beats an empty result, which would send the supervisor round in circles.
+            logger.warning(f'[{self.id.upper()} FALLBACK] No LLM queries. Using the semantic query for every tool.')
+            state["tiered_queries"] = self._fallback_queries(semantic_query, active_tools)
+            state["material_elements"] = list(system_constraints_list)
+            state["api_search_term"] = semantic_query
 
         state["next"] = "supervisor_agent"
 

@@ -42,6 +42,10 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           MP_API_KEY: ${{ secrets.MP_API_KEY }}
           EMBEDDING_PROVIDER: local
+          # One question needs 6+ Gemini calls; the free tier of some models allows 5 per minute. The app then
+          # waits between calls instead of failing. Set the repository variable LLM_REQUESTS_PER_MINUTE (Settings >
+          # Secrets and variables > Actions > Variables) to your model's real limit; 0 turns pacing off.
+          LLM_REQUESTS_PER_MINUTE: ${{ vars.LLM_REQUESTS_PER_MINUTE || '5' }}
         run: python -m pytest -m integration -s -W ignore tests/test_ai_rigor.py | tee research_audit.log
 
       - name: Upload reasoning trace

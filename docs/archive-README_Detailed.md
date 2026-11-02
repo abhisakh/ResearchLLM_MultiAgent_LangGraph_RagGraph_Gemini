@@ -12,7 +12,7 @@
 **Autonomous AI agent for scientific literature discovery with automated reasoning audits.**
 </div>
 
-> **Note:** this is the extended, component-by-component write-up from earlier iterations of the project. Some sections (for example the routing functions, model names and setup details) predate the current hub-and-spoke supervisor and may be out of date. The [root README](./README.md) is the authoritative overview.
+> **ARCHIVED.** This is the extended, component-by-component write-up from earlier iterations of the project, kept for reference. It predates the current design: it mentions GPT-4 and OpenAI models (the project now uses Google Gemini), shows the old routing functions and setup steps, and its "zero-hallucination" wording is too strong (the evaluation agent is an LLM judge that reduces, but does not remove, unsupported claims). For the current design see the [root README](../README.md), [Backend and API](backend.md), [Error handling](error-handling.md) and [Testing and CI](testing-and-ci.md).
 
 ---
 
@@ -24,7 +24,7 @@ This system was independently built around the same foundational philosophy that
 
 But it goes further than standard MCP: a **multi-stage pre-tool reasoning pipeline** (CleanQuery → Intent → Planning → QueryGen) ensures every tool receives an intelligently crafted, tool-specific query. A **post-retrieval neural pipeline** (FAISS search + Cross-Encoder reranking + neighbor expansion) filters raw results into a high-signal context. And an **autonomous EvaluationAgent** enforces grounding and citation integrity — triggering a full self-correction loop if the output doesn't meet scientific standards.
 
-**[Read the full MCP vs. This System deep-dive → `MCP_Comparison.md`](./MCP_Comparison.md)**
+**[Read the full MCP vs. This System deep-dive → `MCP_Comparison.md`](../MCP_Comparison.md)**
 
 ---
 

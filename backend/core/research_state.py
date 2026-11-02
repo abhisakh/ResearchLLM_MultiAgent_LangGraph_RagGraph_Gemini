@@ -1,5 +1,12 @@
 from typing import TypedDict, List, Dict, Any, Optional
 
+# The most graph steps one research run may take (LangGraph's recursion_limit). Every agent costs two steps (the
+# agent, then the supervisor), so a run with all seven tools and two refinement cycles needs about 51, and a cycle
+# that adds tools or a retrieval pass needs more. The real stops against runaway loops are the supervisor's
+# MAX_REFINEMENT_ATTEMPTS and MAX_DISPATCHES_PER_NODE; this is only the last-resort ceiling, so keep it well above
+# the longest healthy run. tests/test_graph_failures.py checks that run still fits. Use this constant everywhere.
+RECURSION_LIMIT = 100
+
 
 class ResearchState(TypedDict):
     """
@@ -34,6 +41,7 @@ class ResearchState(TypedDict):
     rag_complete: Optional[bool]        # Signals that the RAG pipeline has finished executing. (rag_agents.py)
     is_refining: bool                   # Set to True when looping back from evaluation (rag_agents.py)
     filtered_context: str               # Semantic + keyword-filtered context ready for synthesis (rag_agents.py)
+    context_chunks: List[Dict[str, Any]]  # The chunks behind filtered_context, in order, each with doc_id/chunk_id/source/text: what synthesis may cite (rag_agents.py)
 
 
     # --- Finalization & Evaluation Loop ---
@@ -41,6 +49,14 @@ class ResearchState(TypedDict):
     report_generated: bool              # Flag set by SynthesisAgent
     needs_refinement: bool              # CRITICAL FLAG: Set by EvaluationAgent.
     refinement_reason: str              # Feedback from the Evaluation LLM.
+    refinement_stage: Optional[str]     # Where the evaluator says the problem is: search, retrieval, context or synthesis (None = not stated)
+
+    # --- Citation provenance (set by SynthesisAgent) ---
+    # The sources the final report actually cites, numbered as in the report: {"number", "title", "url", "tool_id"}.
+    # Built by code from the evidence the model was shown, never written by the model.
+    sources: List[Dict[str, Any]]
+    # Citations the model wrote for a number that was never shown to it; synthesis removes them and counts them here.
+    invalid_citations_removed: int
 
     # Track how many times we have looped back
     refinement_retries: int
@@ -50,6 +66,17 @@ class ResearchState(TypedDict):
 
     # Used for tracking the sequential visited agent
     visited_nodes: List[str]  # Use 'add' to accumulate the path
+
+    # Failed LLM calls, recorded by the agents (errors.record_error) and read by the supervisor.
+    # Each entry: {"id": str, "agent": str, "kind": ErrorKind value, "message": str}
+    errors: List[Dict[str, str]]
+
+    # True when the EvaluationAgent could not audit the report (the report is delivered, flagged as not audited)
+    evaluation_unavailable: bool
+
+    # Set by the supervisor when it ends the run because it cannot succeed (bad key, quota used up, a bug,
+    # a synthesis that keeps failing): {"agent", "kind", "message" (safe to show), "error_id"}. None otherwise.
+    failure: Optional[Dict[str, str]]
 
 
 def new_research_state(query: str) -> ResearchState:
@@ -75,11 +102,18 @@ def new_research_state(query: str) -> ResearchState:
         "rag_complete": False,
         "is_refining": False,
         "filtered_context": "",
+        "context_chunks": [],
         "final_report": "",
         "report_generated": False,
         "needs_refinement": False,
         "refinement_reason": "",
+        "refinement_stage": None,
+        "sources": [],
+        "invalid_citations_removed": 0,
         "refinement_retries": 0,
         "next": "supervisor_agent",
         "visited_nodes": [],
+        "errors": [],
+        "evaluation_unavailable": False,
+        "failure": None,
     }

@@ -14,4 +14,6 @@ Saved outputs from running each stage of the pipeline in isolation, in pipeline 
 | `level_6_evaluation_output.{json,md}` | Evaluation: audit result |
 | `level_7_supervisor_output.{json,md}` | Supervisor: full graph run |
 
-These are static snapshots, not test fixtures for pytest. The self-test block at the bottom of each agent module (`python -m backend.agents.<module>`, run from the repository root) reads its input from this folder and writes its output back here, so the stages can be run one after another.
+These files are the input states for the unit tests (`tests/test_agent_stages.py`, `tests/test_tool_agents.py`, `tests/test_retrieval_and_rag.py`). Each test loads a fresh copy through the `sample_state` fixture and replaces Gemini and the network with canned responses, so the tests need no API keys. They are never modified by the tests.
+
+The files themselves are snapshots of real runs. To refresh one, run the pipeline and copy the state you want to keep.

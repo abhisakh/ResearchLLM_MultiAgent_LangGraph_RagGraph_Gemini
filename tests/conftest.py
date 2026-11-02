@@ -23,6 +23,16 @@ SAMPLES_DIR = Path(__file__).resolve().parents[1] / "examples" / "sample_outputs
 
 
 # --------------------------------------------------------------------------------------
+# Request pacing
+# --------------------------------------------------------------------------------------
+@pytest.fixture(autouse=True)
+def no_request_pacing(monkeypatch):
+    """Unit tests never wait for the Gemini requests-per-minute pacing, whatever LLM_REQUESTS_PER_MINUTE says in .env."""
+    from backend.core import utilities
+    monkeypatch.setattr(utilities, "LLM_PACER", utilities.RequestPacer(0))
+
+
+# --------------------------------------------------------------------------------------
 # Sample states
 # --------------------------------------------------------------------------------------
 @pytest.fixture
@@ -38,8 +48,35 @@ def sample_state():
 # Fake Gemini
 # --------------------------------------------------------------------------------------
 class FakeResponse:
-    def __init__(self, text):
+    def __init__(self, text, **attrs):
         self.text = text
+        self.__dict__.update(attrs)  # e.g. prompt_feedback=..., candidates=[...] to imitate a blocked answer
+
+
+class FakeLLM:
+    """Replaces generate_content_with_retry in an agent module.
+
+    Each output is the answer text (str), a FakeResponse, or an exception to raise. The n-th call
+    gets the n-th output; calls beyond the last output repeat it. Keyword arguments of every call
+    are recorded in `.calls` (so tests can look at the prompt and count the retries).
+    """
+
+    def __init__(self, *outputs):
+        self.outputs = list(outputs)
+        self.calls = []
+
+    def __call__(self, *args, **kwargs):
+        self.calls.append(kwargs)
+        output = self.outputs[min(len(self.calls), len(self.outputs)) - 1]
+        if isinstance(output, BaseException):
+            raise output
+        return output if isinstance(output, FakeResponse) else FakeResponse(output)
+
+
+@pytest.fixture
+def fake_llm():
+    """The FakeLLM class: fake_llm("answer"), fake_llm("bad", "good"), fake_llm(LLMCallError(...))."""
+    return FakeLLM
 
 
 class FakeGeminiClient:
@@ -150,3 +187,53 @@ def tool_agents_module():
     }
     with isolated_import("backend.agents.tool_agents", stubs) as module:
         yield module
+
+
+@pytest.fixture(autouse=True)
+def no_request_pacing(request, monkeypatch):
+    """Tests must not depend on the developer's .env: a LLM_REQUESTS_PER_MINUTE set there would make every
+    test that calls Gemini (through its fakes) wait or fail. Tests of the pacing itself build their own pacer.
+    The live integration test keeps the real setting: it talks to the real API and needs the pacing."""
+    if request.node.get_closest_marker("integration"):
+        return
+    from backend.core import utilities
+    monkeypatch.setattr(utilities, "LLM_PACER", utilities.RequestPacer(0))
+
+
+@pytest.fixture
+def api(monkeypatch, tmp_path):
+    """The real FastAPI app (backend.backend) with a scripted graph in place of the research graph.
+
+    Yields (client, script). Set script["result"] to the final state the graph returns, or script["raises"]
+    to an exception it raises. The chat log is written to a temporary SQLite file.
+    """
+    pytest.importorskip("fastapi")
+    pytest.importorskip("sqlalchemy")
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("CHAT_DB_PATH", str(tmp_path / "chat_history.db"))
+
+    script = {"result": None, "raises": None}
+
+    class ScriptedApp:
+        def invoke(self, state, config=None):
+            if script["raises"] is not None:
+                raise script["raises"]
+            return script["result"]
+
+    class ScriptedGraph:
+        def __init__(self, vector_db=None, agents=None):
+            self.graph = ScriptedApp()
+
+    class FakeVectorDB:
+        def reset_db(self):
+            pass
+
+    stubs = {
+        "backend.graph.research_graph": _stub_module("backend.graph.research_graph", ResearchGraph=ScriptedGraph),
+        "backend.core.vector_db": _stub_module("backend.core.vector_db", VectorDBWrapper=FakeVectorDB),
+    }
+    with isolated_import("backend.backend", stubs) as module:
+        with TestClient(module.app) as client:  # entering the client runs the app's lifespan (startup)
+            yield client, script
