@@ -1,10 +1,14 @@
-"""The URL safety check (SSRF) and the way RetrievalAgent downloads a page with it. No network is used."""
+"""The URL safety check (SSRF) and the way RetrievalAgent downloads a page with it. No outside network is used
+(a few tests talk to a throw-away server on 127.0.0.1)."""
+import http.server
 import socket
+import threading
 
 import pytest
 import requests
 
-from backend.core.url_safety import check_public_url, is_public_address
+from backend.core import url_safety
+from backend.core.url_safety import UnsafeAddressError, check_public_url, is_public_address, public_only_session
 
 PUBLIC = "93.184.216.34"
 
@@ -120,7 +124,16 @@ def fetch(rag_module, monkeypatch):
         calls.append(url)
         return routes[url]
 
-    monkeypatch.setattr(rag_module.requests, "get", fake_get)
+    class FakeSession:
+        """Stands in for the checked requests session: the agent's network is a script."""
+
+        def get(self, url, **kwargs):
+            return fake_get(url, **kwargs)
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(rag_module, "public_only_session", lambda: FakeSession())
     monkeypatch.setattr(
         rag_module, "check_public_url",
         lambda url: "internal address" if ("169.254." in url or "127.0.0.1" in url) else None,
@@ -201,3 +214,145 @@ def test_a_forbidden_page_is_skipped(fetch):
     routes["https://example.org/waf"] = FakeResponse(status=403)
 
     assert fetch_content("https://example.org/waf") is None
+
+
+# --------------------------------------------------------------------------------------
+# Total time limit for one download
+# --------------------------------------------------------------------------------------
+class DrippingResponse(FakeResponse):
+    """Delivers its body a few bytes at a time, like a hostile or very slow server."""
+
+    def iter_content(self, chunk_size=1):
+        for _ in range(10):
+            yield b"x" * 10
+
+
+def test_a_chain_of_slow_redirects_is_stopped_when_the_time_budget_is_used_up(fetch, rag_module, monkeypatch):
+    fetch_content, calls, routes = fetch
+    readings = iter([0, 0, 25, 50, 75, 100] + [200] * 20)  # the clock: start, then once per hop
+    monkeypatch.setattr(rag_module, "_now", lambda: next(readings))
+    routes["https://example.org/loop"] = redirect("https://example.org/loop")
+
+    assert fetch_content("https://example.org/loop") is None
+    assert len(calls) == 3  # the 4th hop would start after the 60 s budget has run out
+
+
+def test_a_body_that_keeps_dripping_past_the_deadline_is_stopped(fetch, rag_module, monkeypatch):
+    fetch_content, _, routes = fetch
+    readings = iter([0, 0, 30, 61] + [999] * 20)  # start, first hop, after the 1st chunk, after the 2nd chunk
+    monkeypatch.setattr(rag_module, "_now", lambda: next(readings))
+    slow = DrippingResponse(headers={"Content-Type": "application/pdf"})
+    routes["https://example.org/slow"] = slow
+
+    assert fetch_content("https://example.org/slow") is None
+    assert slow.closed
+
+
+def test_a_slow_body_that_still_finishes_in_time_is_accepted(fetch, rag_module, monkeypatch):
+    fetch_content, _, routes = fetch
+    readings = iter([0, 0] + [5 * n for n in range(1, 30)])  # ten chunks, the clock reaches 50 s: inside the budget
+    monkeypatch.setattr(rag_module, "_now", lambda: next(readings))
+    routes["https://example.org/ok"] = DrippingResponse(headers={"Content-Type": "application/pdf"})
+
+    assert fetch_content("https://example.org/ok")["type"] == "pdf"
+
+
+def test_the_session_is_closed_after_every_download_even_when_it_fails(rag_module, monkeypatch):
+    monkeypatch.setattr(rag_module.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(rag_module, "check_public_url", lambda url: None)
+    closed = []
+
+    class Session:
+        def get(self, url, **kwargs):
+            raise OSError("connection refused")
+
+        def close(self):
+            closed.append(True)
+
+    monkeypatch.setattr(rag_module, "public_only_session", lambda: Session())
+    assert rag_module.RetrievalAgent()._fetch_content("https://example.org/x") is None
+    assert closed == [True]
+
+
+# --------------------------------------------------------------------------------------
+# Layer 2: the connection itself is judged (DNS rebinding)
+# --------------------------------------------------------------------------------------
+@pytest.fixture
+def local_server():
+    """A real HTTP server on 127.0.0.1 that records every request it receives: (port, paths_seen)."""
+    seen = []
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            seen.append(self.path)
+            body = b"hello"
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    yield server.server_address[1], seen
+    server.shutdown()
+    server.server_close()
+
+
+def rebinding_dns(monkeypatch):
+    """After this, every name the HTTP library resolves points at 127.0.0.1."""
+    monkeypatch.setattr(
+        socket, "getaddrinfo",
+        lambda host, p, family=0, type=0, proto=0, flags=0: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", p))],
+    )
+
+
+def test_a_connection_to_loopback_is_cut_before_any_request_is_sent(local_server):
+    port, seen = local_server
+    with public_only_session() as session:
+        with pytest.raises(requests.exceptions.ConnectionError):
+            session.get(f"http://127.0.0.1:{port}/secret", timeout=5)
+    assert seen == []  # the server never received the request
+
+
+def test_dns_rebinding_is_stopped(local_server, monkeypatch):
+    """The name looks public to the first lookup (the URL check) and points at loopback for the second one
+    (the HTTP library's own lookup when it connects): the classic rebinding attack."""
+    port, seen = local_server
+    url = f"http://rebind.example:{port}/secret"
+    assert check_public_url(url, resolve=resolver(PUBLIC)) is None  # the URL check is fooled, as it always could be
+
+    rebinding_dns(monkeypatch)
+    with public_only_session() as session:
+        with pytest.raises(requests.exceptions.ConnectionError):
+            session.get(url, timeout=5)
+    assert seen == []
+
+
+def test_the_retrieval_agent_is_protected_end_to_end_against_rebinding(rag_module, local_server, monkeypatch):
+    port, seen = local_server
+    monkeypatch.setattr(rag_module.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(rag_module, "check_public_url", lambda url: None)  # the URL check is fooled
+    rebinding_dns(monkeypatch)
+
+    assert rag_module.RetrievalAgent()._fetch_content(f"http://rebind.example:{port}/secret") is None
+    assert seen == []
+
+
+def test_a_public_peer_is_allowed_through(local_server, monkeypatch):
+    port, seen = local_server
+    monkeypatch.setattr(url_safety, "is_public_address", lambda address: True)  # pretend loopback is public
+    with public_only_session() as session:
+        response = session.get(f"http://127.0.0.1:{port}/ok", timeout=5)
+    assert response.status_code == 200 and response.text == "hello"
+    assert seen == ["/ok"]
+
+
+def test_the_https_connection_class_judges_its_peer_too(local_server):
+    port, _ = local_server
+    connection = url_safety._CheckedHTTPSConnection("127.0.0.1", port, timeout=5)
+    with pytest.raises(UnsafeAddressError):
+        connection._new_conn()  # the TCP connection succeeds, the verification then cuts it (no TLS handshake)

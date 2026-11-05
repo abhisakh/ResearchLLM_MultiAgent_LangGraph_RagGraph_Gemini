@@ -1,0 +1,32 @@
+[
+  {
+    "id": "cspbi3-stability",
+    "question": "Thermal stability of CsPbI3 perovskites.",
+    "expect": "report",
+    "note": "Materials research: uses the Materials Project tool and arXiv. The query of the live integration test."
+  },
+  {
+    "id": "cathode-degradation",
+    "question": "What are the main degradation mechanisms of lithium-ion battery cathodes?",
+    "expect": "report",
+    "note": "Broad materials and electrochemistry question."
+  },
+  {
+    "id": "crispr-sickle-cell",
+    "question": "What is the clinical evidence for CRISPR-based therapies in sickle cell disease?",
+    "expect": "report",
+    "note": "Medical literature: should lean on PubMed."
+  },
+  {
+    "id": "ssm-vs-transformers",
+    "question": "How do state space models compare with transformers for long-sequence modelling?",
+    "expect": "report",
+    "note": "Machine learning: should lean on arXiv."
+  },
+  {
+    "id": "weather-hamburg",
+    "question": "What is the weather in Hamburg today?",
+    "expect": "reject",
+    "note": "Out of scope: must be rejected without any search, so it costs only a couple of requests."
+  }
+]

@@ -3,7 +3,6 @@ import logging
 import os
 import time
 import re
-import requests
 from io import BytesIO
 from urllib.parse import urljoin
 from typing import Dict, List, Any, Optional
@@ -13,7 +12,7 @@ from bs4 import BeautifulSoup
 
 from backend.core.research_state import ResearchState
 from backend.core.text_repair import repair_pdf_text
-from backend.core.url_safety import check_public_url
+from backend.core.url_safety import check_public_url, public_only_session
 from backend.core.vector_db import VectorDBWrapper
 from backend.core.utilities import (
     client, LLM_MODEL
@@ -28,7 +27,16 @@ USER_AGENT = f"ResearchLLM/1.0 (academic research assistant; mailto:{_CONTACT})"
 # Limits for downloading a page or PDF chosen by a search result (see docs/security.md).
 MAX_REDIRECTS = 5
 MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024  # a research PDF is a few MB; refuse anything above this
+MAX_DOWNLOAD_SECONDS = 60  # one download in total (redirects and body); a read timeout alone cannot stop a slow drip
 _REDIRECT_CODES = (301, 302, 303, 307, 308)
+
+
+class _DownloadRefused(Exception):
+    """A download was stopped on purpose (too large, too slow); the message says why."""
+
+
+def _now() -> float:
+    return time.monotonic()
 
 
 def doc_digest(url: str) -> str:
@@ -60,20 +68,28 @@ class RetrievalAgent:
         self.model = model
 
     def _fetch_content(self, url: str) -> Optional[Dict[str, Any]]:
+        http = None
         try:
             time.sleep(1.5)
             headers = {
                 'User-Agent': USER_AGENT,
                 'Accept': 'application/pdf,text/html;q=0.9,*/*;q=0.5',
             }
+            # One time budget for the whole download, redirects and body included: the per-read timeout alone
+            # cannot stop a server that sends a few bytes at a time for hours.
+            deadline = _now() + MAX_DOWNLOAD_SECONDS
+            # A session that also verifies the address each connection really goes to (DNS rebinding).
+            http = public_only_session()
             current = url
             for _ in range(MAX_REDIRECTS + 1):
+                if _now() > deadline:
+                    raise _DownloadRefused(f"took longer than {MAX_DOWNLOAD_SECONDS} s")
                 # Checked before every request, redirects included: a harmless page may redirect to an internal address.
                 reason = check_public_url(current)
                 if reason:
                     logger.warning(f'[{self.id.upper()} BLOCKED] Not fetching {current[:80]}: {reason}.')
                     return None
-                response = requests.get(current, timeout=15, headers=headers, allow_redirects=False, stream=True)
+                response = http.get(current, timeout=15, headers=headers, allow_redirects=False, stream=True)
                 if response.status_code in _REDIRECT_CODES and response.headers.get('Location'):
                     current = urljoin(current, response.headers['Location'])
                     response.close()
@@ -89,10 +105,7 @@ class RetrievalAgent:
                 return None
 
             response.raise_for_status()
-            body = self._read_capped(response)
-            if body is None:
-                logger.warning(f'[{self.id.upper()} BLOCKED] {url[:80]} is larger than {MAX_DOWNLOAD_BYTES // (1024 * 1024)} MB.')
-                return None
+            body = self._read_capped(response, deadline)
             content_type = response.headers.get('Content-Type', '').lower()
 
             if 'application/pdf' in content_type or url.lower().endswith('.pdf'):
@@ -100,22 +113,32 @@ class RetrievalAgent:
             if 'text/html' in content_type or b'<!doc' in body[:10].lower():
                 return {'type': 'html', 'data': body.decode(response.encoding or 'utf-8', errors='replace')}
             return None
+        except _DownloadRefused as refusal:
+            logger.warning(f'[{self.id.upper()} BLOCKED] Stopped downloading {url[:80]}: {refusal}.')
+            return None
         except Exception:
             return None
+        finally:
+            if http is not None:
+                http.close()
 
     @staticmethod
-    def _read_capped(response) -> Optional[bytes]:
-        """The response body, or None if it is larger than MAX_DOWNLOAD_BYTES (a hostile server could stream forever)."""
+    def _read_capped(response, deadline: Optional[float] = None) -> bytes:
+        """The response body. Raises _DownloadRefused if it is larger than MAX_DOWNLOAD_BYTES (a hostile server
+        could stream forever) or still arriving after the deadline (one that sends a few bytes at a time)."""
         declared = response.headers.get('Content-Length', '')
         if declared.isdigit() and int(declared) > MAX_DOWNLOAD_BYTES:
             response.close()
-            return None
+            raise _DownloadRefused(f"larger than {MAX_DOWNLOAD_BYTES // (1024 * 1024)} MB")
         body = bytearray()
         for piece in response.iter_content(chunk_size=65536):
             body.extend(piece)
             if len(body) > MAX_DOWNLOAD_BYTES:
                 response.close()
-                return None
+                raise _DownloadRefused(f"larger than {MAX_DOWNLOAD_BYTES // (1024 * 1024)} MB")
+            if deadline is not None and _now() > deadline:
+                response.close()
+                raise _DownloadRefused(f"took longer than {MAX_DOWNLOAD_SECONDS} s")
         return bytes(body)
 
     def _extract_text_from_pdf(self, pdf_stream: BytesIO) -> str:

@@ -37,11 +37,20 @@ _REFERENCES_HEADING = re.compile(r"(?im)^[ \t]{0,3}(?:#{1,6}[ \t]*)?(?:\*\*)?ref
 # whatever address it names, and a link can send the reader to a page of an attacker's choosing.
 _MD_IMAGE = re.compile(r"[ \t]*!\[[^\]\n]*\]\([^)\n]*\)")
 _MD_LINK = re.compile(r"\[([^\]\n]+)\]\([^)\n]*\)")
+# A bare address in the prose (https://..., www....) becomes a clickable link in most Markdown renderers, so the same
+# rule applies: only addresses of the sources the model was shown may stay.
+_BARE_URL = re.compile(r"(?i)\b(?:https?://|www\.)[^\s<>\"'\]]+")
 
 
 def _normalise_url(url: Optional[str]) -> Optional[str]:
     """The form in which RetrievalAgent stores a document's URL as the chunks' doc_id."""
     return url.strip().rstrip(".") if isinstance(url, str) and url.strip() else None
+
+
+def _comparable_url(url: Optional[str]) -> Optional[str]:
+    """A source's URL as compared with an address in the prose: a trailing slash makes no difference."""
+    normalised = _normalise_url(url)
+    return normalised.rstrip("/") if normalised else None
 
 
 GENERIC_TITLES = {"untitled source", "unidentified source", "no title available"}
@@ -210,9 +219,12 @@ class SynthesisAgent:
         match = _REFERENCES_HEADING.search(report)
         return report[:match.start()] if match else report
 
-    def _strip_links_and_images(self, body: str) -> str:
-        """The prose without Markdown images and links: images are dropped, links keep their visible text.
-        A numbered link such as "[1](https://...)" keeps its "[1]", so the citation itself survives."""
+    def _strip_links_and_images(self, body: str, allowed_urls: frozenset = frozenset()) -> str:
+        """The prose without Markdown images and links, and without web addresses that are not a shown source's.
+
+        Images are dropped, links keep their visible text, a numbered link such as "[1](https://...)" keeps its
+        "[1]", and a bare address becomes "(link removed)" unless it is the address of a source the model was shown.
+        """
         body, images = _MD_IMAGE.subn("", body)
 
         def keep_text(match: "re.Match[str]") -> str:
@@ -220,8 +232,25 @@ class SynthesisAgent:
             return f"[{text}]" if text.strip().isdigit() else text
 
         body, links = _MD_LINK.subn(keep_text, body)
-        if images or links:
-            logger.warning(f'[SYNTHESIS] Removed {images} image(s) and {links} link(s) the model wrote in the report text.')
+
+        removed_addresses = 0
+
+        def drop_unknown_address(match: "re.Match[str]") -> str:
+            nonlocal removed_addresses
+            address, trailing = match.group(0), ""
+            while address and address[-1] in ".,;:!?)":  # punctuation after the address is not part of it
+                trailing, address = address[-1] + trailing, address[:-1]
+            if _comparable_url(address) in allowed_urls:
+                return match.group(0)
+            removed_addresses += 1
+            return "(link removed)" + trailing
+
+        body = _BARE_URL.sub(drop_unknown_address, body)
+        if images or links or removed_addresses:
+            logger.warning(
+                f'[SYNTHESIS] Removed {images} image(s), {links} link(s) and {removed_addresses} bare web '
+                f'address(es) the model wrote in the report text.'
+            )
         return body
 
     def _finalize_citations(self, report: str, sources: List[Dict[str, Any]]) -> Tuple[str, List[Dict[str, Any]], int]:
@@ -232,7 +261,8 @@ class SynthesisAgent:
         the sources cited.
         """
         body = self._strip_references(report).strip()
-        body = self._strip_links_and_images(body)
+        allowed_urls = frozenset(u for u in (_comparable_url(s.get("url")) for s in sources) if u)
+        body = self._strip_links_and_images(body, allowed_urls)
         body = _CITATION_LIST.sub(lambda m: "".join(f"[{n}]" for n in re.split(r"\s*[,;]\s*", m.group(1))), body)
 
         shown = {source["number"]: source for source in sources}
