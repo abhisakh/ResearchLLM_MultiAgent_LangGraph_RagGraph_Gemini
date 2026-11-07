@@ -79,16 +79,37 @@ def run_benchmark(
     return records
 
 
-def write_results(records: List[Dict[str, Any]], meta: Dict[str, Any], out_dir: Any) -> List[Path]:
-    """Writes <date>.json (everything measured) and latest.md (the table to read). Returns the two paths."""
+def load_history(out_dir: Any, order: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    """The newest completed record of every question found in the run files (<date>_UTC.json) of out_dir.
+
+    The free tier allows only a few questions a day, so the table is built from many runs on different days. A run
+    that stopped on an error never replaces an earlier good result (it stays in its own JSON file)."""
+    newest: Dict[str, Dict[str, Any]] = {}
+    for path in sorted(Path(out_dir).glob("*_UTC.json")):   # the file names sort by date, oldest first
+        try:
+            saved = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        meta = saved.get("meta") or {}
+        for record in saved.get("records") or []:
+            if isinstance(record, dict) and record.get("status") == "ok" and record.get("id"):
+                newest[record["id"]] = dict(record, date=str(meta.get("date", ""))[:10], model=meta.get("model", "?"))
+    wanted = [name for name in (order or []) if name in newest]
+    return [newest[name] for name in wanted + [name for name in newest if name not in wanted]]
+
+
+def write_results(records: List[Dict[str, Any]], meta: Dict[str, Any], out_dir: Any,
+                  order: Optional[List[str]] = None) -> List[Path]:
+    """Writes <date>_UTC.json (everything this run measured) and latest.md (the table to read: the newest completed
+    result of every question from all runs so far). Returns the two paths."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    summary = summarise(records)
     stamp = str(meta.get("date", "run")).replace("-", "").replace(":", "").replace(" ", "_")
     json_path = out_dir / f"{stamp}.json"
     markdown_path = out_dir / "latest.md"
-    json_path.write_text(json.dumps({"meta": meta, "summary": summary, "records": records}, indent=2), encoding="utf-8")
-    markdown_path.write_text(render_markdown(records, summary, meta), encoding="utf-8")
+    json_path.write_text(json.dumps({"meta": meta, "summary": summarise(records), "records": records}, indent=2), encoding="utf-8")
+    shown = load_history(out_dir, order) or records   # nothing completed yet: show this run, failures included
+    markdown_path.write_text(render_markdown(shown, summarise(shown), meta), encoding="utf-8")
     return [json_path, markdown_path]
 
 
@@ -131,7 +152,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "model": LLM_MODEL,
         "requests_per_minute": LLM_REQUESTS_PER_MINUTE,
     }
-    for path in write_results(records, meta, args.out_dir):
+    for path in write_results(records, meta, args.out_dir, order=[q["id"] for q in load_questions(args.questions)]):
         print(f"Wrote {path}")
     return 0
 

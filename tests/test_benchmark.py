@@ -111,7 +111,19 @@ def test_a_run_that_stopped_on_an_error_has_no_quality_numbers_and_does_not_pass
 
     assert record["status"] == "failed" and record["failure_kind"] == "quota_exhausted"
     assert record["citation_coverage"] is None and record["grounding_score"] is None
+    assert record["report"] is None and record["weakest_cited_sentences"] is None
     assert record["passed"] is False
+
+
+def test_the_record_keeps_the_report_and_its_weakest_cited_sentences_for_auditing():
+    record = measure_run(QUESTION, finished_state(), 5.0, USAGE)
+
+    assert record["report"] == REPORT
+    # the claim whose words are not in the source it cites comes first, so a reader can check the lowest scores by eye
+    assert record["weakest_cited_sentences"] == [
+        {"score": 0.0, "sentence": UNGROUNDED},
+        {"score": 1.0, "sentence": GROUNDED},
+    ]
 
 
 def test_a_report_question_with_no_cited_source_does_not_pass():
@@ -155,7 +167,7 @@ def test_the_results_table_names_every_question_and_flags_problems():
 
     assert "| alpha | ok (unreviewed) |" in page
     assert "| beta | stopped: quota_exhausted |" in page
-    assert "100%" in page and "Questions run: 2" in page and "`m`" in page
+    assert "100%" in page and "Completed 1 of 2" in page and "2026-11-04 m" in page
 
 
 # --------------------------------------------------------------------------------------
@@ -256,3 +268,46 @@ def test_results_are_written_as_json_and_a_markdown_table(tmp_path):
     saved = json.loads(json_path.read_text(encoding="utf-8"))
     assert set(saved) == {"meta", "summary", "records"} and saved["records"][0]["id"] == "q"
     assert markdown_path.read_text(encoding="utf-8").startswith("# Benchmark results")
+
+
+def test_a_page_with_no_completed_report_says_there_are_no_averages():
+    records = [measure_run(QUESTION, finished_state(failure={"kind": "quota_exhausted"}), 1.0, USAGE)]
+
+    page = render_markdown(records, summarise(records), {"date": "2026-11-04 09:00 UTC", "model": "m"})
+
+    assert "No completed report question yet" in page
+
+
+def run_file(tmp_path, date, records, order=None):
+    """Writes the results of one run into tmp_path and returns the text of latest.md."""
+    write_results(records, {"date": date, "model": "m", "requests_per_minute": 5}, tmp_path, order=order)
+    return (tmp_path / "latest.md").read_text(encoding="utf-8")
+
+
+def test_the_page_keeps_the_newest_completed_result_of_every_question_across_runs(tmp_path):
+    first = [measure_run(dict(QUESTION, id="a"), finished_state(), 10.0, USAGE),
+             measure_run(dict(QUESTION, id="b"), finished_state(), 21.0, USAGE)]
+    second = [measure_run(dict(QUESTION, id="b"), finished_state(), 33.0, USAGE),
+              measure_run(dict(QUESTION, id="c"), finished_state(failure={"kind": "quota_exhausted"}), 1.0, USAGE)]
+
+    run_file(tmp_path, "2026-11-04 09:00 UTC", first)
+    page = run_file(tmp_path, "2026-11-05 09:00 UTC", second, order=["a", "b", "c"])
+
+    assert "| a | ok |" in page and "2026-11-04 m" in page   # a is still there, from the first day
+    assert "| b | ok |" in page and "33.0" in page and "21.0" not in page   # b was replaced by the newer run
+    assert "| c |" not in page   # a run that stopped on an error does not appear, and replaces nothing
+
+
+def test_a_broken_run_file_does_not_stop_the_page_from_being_written(tmp_path):
+    (tmp_path / "20261101_0900_UTC.json").write_text("not json", encoding="utf-8")
+
+    page = run_file(tmp_path, "2026-11-05 09:00 UTC", [measure_run(QUESTION, finished_state(), 10.0, USAGE)])
+
+    assert "| q | ok |" in page
+
+
+def test_when_no_run_has_completed_the_page_shows_this_runs_failure(tmp_path):
+    page = run_file(tmp_path, "2026-11-05 09:00 UTC",
+                    [measure_run(QUESTION, finished_state(failure={"kind": "auth"}), 1.0, USAGE)])
+
+    assert "| q | stopped: auth |" in page

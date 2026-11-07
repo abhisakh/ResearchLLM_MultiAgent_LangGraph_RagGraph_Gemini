@@ -4,8 +4,9 @@ A small, repeatable check of ResearchLLM: the same fixed questions (`questions.j
 measured the same way every time. It answers four questions: how long does an answer take, what does it cost, how well
 are the claims tied to sources, and does the system refuse what it should refuse.
 
-**Status: the harness is built and unit-tested, but no results are published yet.** Run it once with your key and
-commit `results/latest.md`. Until then, do not quote any numbers from it.
+**Status: the harness is built and unit-tested, and has run once for real.** That run was the out-of-scope check: the
+question was refused without any search, in 16 seconds with 2 requests. The four report questions have not been run yet,
+so there are no quality numbers. Do not quote any until `results/latest.md` shows them.
 
 ## Run it
 
@@ -21,13 +22,15 @@ out-of-scope question about 2. The free tier allows 20 requests per day per mode
 too (the same cause would stop every later question) and keeps what it measured. Set `LLM_REQUESTS_PER_MINUTE` in `.env`
 as for any live run.
 
-It writes `results/<date>.json` (everything measured) and `results/latest.md` (the table to read).
+It writes `results/<date>_UTC.json` (everything that run measured) and rebuilds `results/latest.md` from all earlier runs:
+the table shows the newest completed result of every question, so you can run one question a day and still end up with
+a full table. A run that stopped on an error never replaces an earlier good result.
 
 ## What the columns mean
 
 | Column | Meaning | How reliable |
 |---|---|---|
-| Time, Requests, Tokens, Cycles | Wall-clock seconds, Gemini requests, tokens (prompt + output + thinking), refinement cycles | Exact |
+| Time, Requests, Tokens, Cycles | Wall-clock seconds, Gemini requests that succeeded (a failed or retried attempt is not counted, so the real quota use can be slightly higher), tokens (prompt + output + thinking), refinement cycles | Exact for what it counts |
 | Sources cited / retrieved | Sources in the final reference list, against documents the tools returned | Exact |
 | Invalid citations removed | Citations the model wrote for sources it was never shown; code removes them before the report is final | Exact. The final report never contains one |
 | Cited claim sentences | Share of substantive sentences (8 or more words) that carry a citation | Heuristic: a sentence split by punctuation rules |

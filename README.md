@@ -15,7 +15,7 @@ A FastAPI service around a LangGraph multi-agent pipeline, with persistent sessi
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-2ea44f?style=for-the-badge)
 
-[3-minute walkthrough](https://gist.github.com/abhisakh/5ab2ec22d0a6ed06c4fc16ec47922882) · [Backend and API](docs/backend.md) · [Error handling](docs/error-handling.md) · [Testing and CI](docs/testing-and-ci.md) · [Security notes](docs/security.md)
+[3-minute walkthrough](https://gist.github.com/abhisakh/5ab2ec22d0a6ed06c4fc16ec47922882) · [Backend and API](docs/backend.md) · [Error handling](docs/error-handling.md) · [Testing and CI](docs/testing-and-ci.md) · [Security notes](docs/security.md) · [Benchmark](benchmarks/README.md)
 
 </div>
 
@@ -114,7 +114,7 @@ The endpoints, response fields and stored data are described in [Backend and API
 
 ## Limitations and roadmap
 
-- **No benchmark yet.** Quality is checked by CI gates, not a fixed evaluation set. A small benchmark (citation validity, groundedness, latency, cost per query) is the next planned addition.
+- **No benchmark results yet.** Quality is checked by CI gates and a weekly live audit, not a fixed evaluation set. A small benchmark ([`benchmarks/`](./benchmarks): time, Gemini requests, tokens, citation use and a lexical grounding score per question) is built and unit-tested, but has not been run on a real key yet.
 - **One research query at a time.** Requests share a single vector index that is reset per request, so concurrent requests would interfere. A per-request index is the fix.
 - **The evaluation agent is an LLM judge,** so it reduces but does not remove unsupported claims.
 - **Tools run in-process** as LangGraph nodes rather than over the Model Context Protocol. See [`MCP_Comparison.md`](./MCP_Comparison.md).
@@ -125,6 +125,7 @@ The endpoints, response fields and stored data are described in [Backend and API
 ## More documentation
 
 - [`docs/`](./docs): backend and API, error handling, testing and CI
+- [`benchmarks/`](./benchmarks): fixed questions, a runner and the metrics (no published results yet)
 - [`MCP_Comparison.md`](./MCP_Comparison.md): this system compared with the Model Context Protocol
 - [`docs/archive-README_Detailed.md`](./docs/archive-README_Detailed.md): archived earlier write-up (predates the current design)
 

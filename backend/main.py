@@ -81,7 +81,7 @@ def run_research_query(research_graph: ResearchGraph, query: str):
 
                 if node_name != "__end__":
                     # Visual feedback for the refinement loop
-                    if node_name == "supervisor_agent" and final_state.get('is_refining'):
+                    if node_name == "supervisor_agent" and final_state.get('is_refining') and not final_state.get("failure"):
                         logger.info(">> [SYSTEM] Supervisor triggering refinement cycle...")
 
                     logger.info(f">> [NODE] Executed {node_name} successfully.")

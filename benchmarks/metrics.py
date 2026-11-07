@@ -8,7 +8,7 @@ What they measure, and what they do not (details in benchmarks/README.md):
 """
 import re
 import statistics
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 REJECTION_TEXT = "Query rejected based on scope."   # what SynthesisAgent returns for an out-of-scope question
 MATERIALS_URL = "https://next-gen.materialsproject.org/materials/{}"
@@ -91,14 +91,14 @@ def evidence_by_url(state: Dict[str, Any]) -> Dict[str, str]:
     return evidence
 
 
-def grounding_scores(body: str, sources: List[Dict[str, Any]], evidence: Dict[str, str]) -> List[float]:
-    """For every cited claim sentence: the share of its content words and numbers found in the cited sources' text.
+def scored_sentences(body: str, sources: List[Dict[str, Any]], evidence: Dict[str, str]) -> List[Tuple[float, str]]:
+    """For every cited claim sentence, (score, sentence): the score is the share of its content words and numbers found in the cited sources' text.
 
     1.0 means every specific term of the sentence occurs in what was retrieved; 0.0 means none does. A paraphrase
     scores below 1.0 although it can be perfectly faithful, so only low scores are informative.
     """
     address = {source.get("number"): _url_key(source.get("url")) for source in sources}
-    scores: List[float] = []
+    scored: List[Tuple[float, str]] = []
     for sentence in claim_sentences(body):
         cited = [n for n in citations_in(sentence) if address.get(n)]
         if not cited:
@@ -107,8 +107,13 @@ def grounding_scores(body: str, sources: List[Dict[str, Any]], evidence: Dict[st
         words = _tokens(_CITATION.sub(" ", sentence))
         if not source_text.strip() or not words:
             continue
-        scores.append(len(words & _tokens(source_text)) / len(words))
-    return scores
+        scored.append((len(words & _tokens(source_text)) / len(words), sentence))
+    return scored
+
+
+def grounding_scores(body: str, sources: List[Dict[str, Any]], evidence: Dict[str, str]) -> List[float]:
+    """Only the scores of scored_sentences."""
+    return [score for score, _ in scored_sentences(body, sources, evidence)]
 
 
 # --------------------------------------------------------------------------------------
@@ -151,6 +156,8 @@ def measure_run(question: Dict[str, Any], state: Dict[str, Any], seconds: float,
         "claim_sentences": None,
         "citation_coverage": None,
         "grounding_score": None,
+        "weakest_cited_sentences": None,
+        "report": None,
     }
 
     if not failure:
@@ -159,7 +166,8 @@ def measure_run(question: Dict[str, Any], state: Dict[str, Any], seconds: float,
         removed = int(state.get("invalid_citations_removed") or 0)
         sentences = claim_sentences(body)
         cited_sentences = [s for s in sentences if citations_in(s)]
-        scores = grounding_scores(body, sources, evidence_by_url(state))
+        scored = scored_sentences(body, sources, evidence_by_url(state))
+        scores = [score for score, _ in scored]
         record.update({
             "citation_markers": len(markers),
             "invalid_citations_removed": removed,
@@ -168,6 +176,9 @@ def measure_run(question: Dict[str, Any], state: Dict[str, Any], seconds: float,
             "claim_sentences": len(sentences),
             "citation_coverage": round(len(cited_sentences) / len(sentences), 3) if sentences else None,
             "grounding_score": round(statistics.mean(scores), 3) if scores else None,
+            # For checking the numbers by eye: the claims whose words are least present in the source they cite
+            "weakest_cited_sentences": [{"score": round(score, 2), "sentence": text} for score, text in sorted(scored)[:3]],
+            "report": report,
         })
 
     record["passed"] = _passed(question, record, report, visited)
@@ -217,18 +228,18 @@ def _cell(value: Any, digits: Optional[int] = None) -> str:
     return str(value)
 
 
-def render_markdown(records: List[Dict[str, Any]], summary: Dict[str, Any], meta: Dict[str, Any]) -> str:
-    """A results page: the run's settings, one row per question, and the averages."""
+def render_markdown(records: List[Dict[str, Any]], summary: Dict[str, Any], meta: Optional[Dict[str, Any]] = None) -> str:
+    """A results page: one row per question, with the date and model of the run it comes from, and the averages."""
+    meta = meta or {}
     lines = [
         "# Benchmark results",
         "",
-        f"Date: {meta.get('date', '?')} | Model: `{meta.get('model', '?')}` | "
-        f"Requests per minute limit: {meta.get('requests_per_minute') or 'none'} | "
-        f"Questions run: {summary['questions']}",
+        "The latest completed run of each question. The free tier allows only a few questions a day, so rows can come "
+        "from different days and models; the last column says which.",
         "",
         "| Question | Result | Time (s) | Requests | Tokens | Cycles | Sources cited / retrieved | "
-        "Cited claim sentences | Grounding | Invalid citations removed |",
-        "|---|---|---|---|---|---|---|---|---|---|",
+        "Cited claim sentences | Grounding | Invalid citations removed | Run |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for r in records:
         if r["status"] == "failed":
@@ -238,28 +249,33 @@ def render_markdown(records: List[Dict[str, Any]], summary: Dict[str, Any], meta
         else:
             result = "FAILED CHECK"
         tokens = r["prompt_tokens"] + r["output_tokens"] + r["thinking_tokens"]
+        run = f"{r.get('date') or str(meta.get('date', ''))[:10]} {r.get('model') or meta.get('model', '?')}".strip()
         coverage = _cell(None if r["citation_coverage"] is None else round(r["citation_coverage"] * 100), 0)
         lines.append(
             f"| {r['id']} | {result} | {_cell(r['seconds'], 1)} | {r['requests']} | {tokens} | {r['refinement_cycles']} | "
             f"{r['sources_cited']} / {r['documents_retrieved']} | {coverage + '%' if coverage != '-' else '-'} | "
-            f"{_cell(r['grounding_score'], 2)} | {_cell(r['invalid_citations_removed'])} |"
+            f"{_cell(r['grounding_score'], 2)} | {_cell(r['invalid_citations_removed'])} | {run} |"
         )
     lines += [
         "",
         f"Completed {summary['completed']} of {summary['questions']}; passed their check: {summary['passed']}. "
-        f"Total Gemini requests: {summary['total_requests']}.",
-        "",
-        "Averages over the completed report questions:",
-        "",
-        f"- time: {_cell(summary['mean_seconds'])} s (median {_cell(summary['median_seconds'])} s)",
-        f"- Gemini requests: {_cell(summary['mean_requests'])}, tokens: {_cell(summary['mean_tokens'])}",
-        f"- refinement cycles: {_cell(summary['mean_refinement_cycles'])}",
-        f"- sources cited: {_cell(summary['mean_sources_cited'])}",
-        f"- cited claim sentences (heuristic): {_cell(summary['mean_citation_coverage'])}",
-        f"- grounding score (heuristic): {_cell(summary['mean_grounding_score'])}",
-        f"- invalid-citation rate before cleanup: {_cell(summary['mean_invalid_citation_rate'])}",
-        "",
-        "How to read these numbers, and their limits: see `benchmarks/README.md`.",
+        f"Gemini requests used by these runs: {summary['total_requests']}.",
         "",
     ]
+    if summary["mean_seconds"] is None:
+        lines += ["No completed report question yet, so there are no averages.", ""]
+    else:
+        lines += [
+            "Averages over the completed report questions:",
+            "",
+            f"- time: {_cell(summary['mean_seconds'])} s (median {_cell(summary['median_seconds'])} s)",
+            f"- Gemini requests: {_cell(summary['mean_requests'])}, tokens: {_cell(summary['mean_tokens'])}",
+            f"- refinement cycles: {_cell(summary['mean_refinement_cycles'])}",
+            f"- sources cited: {_cell(summary['mean_sources_cited'])}",
+            f"- cited claim sentences (heuristic): {_cell(summary['mean_citation_coverage'])}",
+            f"- grounding score (heuristic): {_cell(summary['mean_grounding_score'])}",
+            f"- invalid-citation rate before cleanup: {_cell(summary['mean_invalid_citation_rate'])}",
+            "",
+        ]
+    lines += ["How to read these numbers, and their limits: see `benchmarks/README.md`.", ""]
     return "\n".join(lines)

@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "date": "2026-11-05 19:48 UTC",
+    "model": "models/gemini-3.6-flash",
+    "requests_per_minute": 5
+  },
+  "summary": {
+    "questions": 1,
+    "completed": 1,
+    "failed": 0,
+    "passed": 1,
+    "total_requests": 2,
+    "mean_seconds": null,
+    "median_seconds": null,
+    "mean_requests": null,
+    "mean_tokens": null,
+    "mean_refinement_cycles": null,
+    "mean_sources_cited": null,
+    "mean_citation_coverage": null,
+    "mean_grounding_score": null,
+    "mean_invalid_citation_rate": null
+  },
+  "records": [
+    {
+      "id": "weather-hamburg",
+      "question": "What is the weather in Hamburg today?",
+      "expect": "reject",
+      "status": "ok",
+      "failure_kind": null,
+      "seconds": 15.9,
+      "requests": 2,
+      "prompt_tokens": 380,
+      "output_tokens": 122,
+      "thinking_tokens": 616,
+      "refinement_cycles": 0,
+      "evaluation_unavailable": false,
+      "documents_retrieved": 0,
+      "sources_cited": 0,
+      "citation_markers": 0,
+      "invalid_citations_removed": 0,
+      "invalid_citation_rate": null,
+      "claim_sentences": 0,
+      "citation_coverage": null,
+      "grounding_score": null,
+      "passed": true
+    }
+  ]
+}

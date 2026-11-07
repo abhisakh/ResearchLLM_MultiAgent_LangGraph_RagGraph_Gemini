@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "date": "2026-11-07 10:25 UTC",
+    "model": "models/gemini-3.6-flash",
+    "requests_per_minute": 5
+  },
+  "summary": {
+    "questions": 1,
+    "completed": 1,
+    "failed": 0,
+    "passed": 1,
+    "total_requests": 12,
+    "mean_seconds": 290.7,
+    "median_seconds": 290.7,
+    "mean_requests": 12,
+    "mean_tokens": 41715,
+    "mean_refinement_cycles": 2,
+    "mean_sources_cited": 7,
+    "mean_citation_coverage": 0.882,
+    "mean_grounding_score": 0.69,
+    "mean_invalid_citation_rate": 0.0
+  },
+  "records": [
+    {
+      "id": "cathode-degradation",
+      "question": "What are the main degradation mechanisms of lithium-ion battery cathodes?",
+      "expect": "report",
+      "status": "ok",
+      "failure_kind": null,
+      "seconds": 290.7,
+      "requests": 12,
+      "prompt_tokens": 21158,
+      "output_tokens": 6661,
+      "thinking_tokens": 13896,
+      "refinement_cycles": 2,
+      "evaluation_unavailable": false,
+      "documents_retrieved": 15,
+      "sources_cited": 7,
+      "citation_markers": 35,
+      "invalid_citations_removed": 0,
+      "invalid_citation_rate": 0.0,
+      "claim_sentences": 34,
+      "citation_coverage": 0.882,
+      "grounding_score": 0.69,
+      "passed": true
+    }
+  ]
+}
